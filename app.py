@@ -2,6 +2,7 @@ import streamlit as st
 from streamlit_mic_recorder import mic_recorder, speech_to_text
 import requests
 import hashlib
+import json
 
 # Set up professional page configuration
 st.set_page_config(
@@ -36,8 +37,12 @@ with st.sidebar:
 # Initialize persistent chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below and tell me what you did today!"}
+        {"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below or type a message to start!"}
     ]
+
+# Track if the last response needs to be spoken out loud
+if "speak_now" not in st.session_state:
+    st.session_state.speak_now = None
 
 # Initialize a tracker for the last audio file processed to prevent double-triggering
 if "last_processed_audio" not in st.session_state:
@@ -45,6 +50,23 @@ if "last_processed_audio" not in st.session_state:
 
 # Hardcoded Groq Credentials
 GROQ_API_KEY = "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"
+
+# JavaScript Browser-Native TTS Handler
+# This hidden component triggers immediately on page reload if text-to-speech is requested
+if st.session_state.speak_now:
+    escaped_text = json.dumps(st.session_state.speak_now)
+    st.markdown(f"""
+        <script>
+            window.speechSynthesis.cancel(); // Clear queued audio
+            var speech = new SpeechSynthesisUtterance({escaped_text});
+            speech.lang = 'en-US';
+            speech.rate = 0.95;
+            speech.pitch = 1.0;
+            window.speechSynthesis.speak(speech);
+        </script>
+    """, unsafe_allow_html=True)
+    # Reset tracking state immediately so it doesn't speak again on random window resizing
+    st.session_state.speak_now = None
 
 # Render the timeline layout
 for message in st.session_state.chat_history:
@@ -56,31 +78,81 @@ st.markdown('<div class="clear-fix"></div>', unsafe_allow_html=True)
 
 st.markdown("---")
 
-# Voice Input Section
-st.write("🎙️ **Tap to Speak:**")
-audio_source = mic_recorder(
-    start_prompt="Start Recording 🎤",
-    stop_prompt="Stop & Submit 🔇",
-    key="recorder",
-    format="wav"
-)
+# Helper function to query the AI LLM Brain
+def get_coach_response(text_payload):
+    llm_payload = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a professional, encouraging, and highly advanced English language coach for kids. Keep responses structurally simple, contextually engaging, and limited to 2-3 concise sentences. Gently correct glaring language structure errors if visible, but prioritize continuous conversational flow. Always prompt the user with a targeted follow-up question to keep them talking."
+            },
+            {"role": "user", "content": text_payload}
+        ]
+    }
+    llm_headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {GROQ_API_KEY}"
+    }
+    llm_response = requests.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        headers=llm_headers,
+        json=llm_payload
+    )
+    return llm_response.json()["choices"][0]["message"]["content"]
 
-# Process Voice Input
+
+# Control Panel Layout: Main Inputs & Audio Stop Switcher
+input_col, voice_col, stop_col = st.columns([5, 2, 2])
+
+with input_col:
+    # 1. Text Entry Form Method
+    with st.form(key="text_form", clear_on_submit=True):
+        text_input = st.text_input("Type your message here:", placeholder="Type a message...")
+        submit_text = st.form_submit_button(label="Send Text 📩")
+        
+        if submit_text and text_input.strip():
+            st.session_state.chat_history.append({"role": "user", "content": text_input})
+            with st.spinner("Thinking..."):
+                coach_reply = get_coach_response(text_input)
+                st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
+                # CONDITION MET: Text input remains silent
+                st.session_state.speak_now = None 
+                st.rerun()
+
+with voice_col:
+    # 2. Voice Entry Method
+    st.write("🎙️ **Voice Chat:**")
+    audio_source = mic_recorder(
+        start_prompt="Speak 🎤",
+        stop_prompt="Submit 🔇",
+        key="recorder",
+        format="wav"
+    )
+
+with stop_col:
+    # 3. Explicit Audio Interruption Button
+    st.write("🛑 **Stop Sound:**")
+    if st.button("Stop Audio 🔇", use_container_width=True):
+        st.markdown("""
+            <script>
+                window.speechSynthesis.cancel();
+            </script>
+        """, unsafe_allow_html=True)
+        st.toast("Audio Playback Silenced.")
+
+# Process Voice Input Logic
 if audio_source and "bytes" in audio_source:
     audio_bytes = audio_source["bytes"]
     
     if audio_bytes:
-        # Create a unique fingerprint (hash) of the current audio data
         audio_hash = hashlib.md5(audio_bytes).hexdigest()
         
-        # Only run if this audio hash is different from the last one we handled
         if st.session_state.last_processed_audio != audio_hash:
-            with st.spinner("Processing your speech..."):
+            with st.spinner("Processing speech..."):
                 try:
-                    # Immediately save this hash so quick subsequent reruns exit early
                     st.session_state.last_processed_audio = audio_hash
                     
-                    # 1. Transcribe the audio bytes into text using Groq's Whisper model
                     files = {
                         "file": ("speech.wav", audio_bytes, "audio/wav"),
                         "model": (None, "whisper-large-v3-turbo")
@@ -96,38 +168,12 @@ if audio_source and "bytes" in audio_source:
                     user_text = whisper_response.json().get("text", "")
                     
                     if user_text.strip():
-                        # Append user text to chat history
                         st.session_state.chat_history.append({"role": "user", "content": user_text})
-                        
-                        # 2. Get the English Teacher response from Llama model
-                        llm_payload = {
-                            "model": "llama-3.3-70b-versatile",
-                            "messages": [
-                                {
-                                    "role": "system",
-                                    "content": "You are a professional, encouraging, and highly advanced English language coach for kids. Keep responses structurally simple, contextually engaging, and limited to 2-3 concise sentences. Gently correct glaring language structure errors if visible, but prioritize continuous conversational flow. Always prompt the user with a targeted follow-up question to keep them talking."
-                                },
-                                {"role": "user", "content": user_text}
-                            ]
-                        }
-                        
-                        llm_headers = {
-                            "Content-Type": "application/json",
-                            "Authorization": f"Bearer {GROQ_API_KEY}"
-                        }
-                        
-                        llm_response = requests.post(
-                            "https://api.groq.com/openai/v1/chat/completions",
-                            headers=llm_headers,
-                            json=llm_payload
-                        )
-                        
-                        coach_reply = llm_response.json()["choices"][0]["message"]["content"]
-                        
-                        # Append coach response to timeline
+                        coach_reply = get_coach_response(user_text)
                         st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
                         
-                        # Force a clean page refresh to lock in single bubble entry
+                        # CONDITION MET: Voice input activates browser speech synthesizer engine
+                        st.session_state.speak_now = coach_reply 
                         st.rerun()
                         
                 except Exception as e:
