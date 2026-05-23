@@ -3,36 +3,30 @@ from streamlit_mic_recorder import mic_recorder
 import requests
 import hashlib
 
-# Connection: Import the style file rules
+# Connection Link
 from style import apply_custom_theme
 
-# Page Config
 st.set_page_config(
     page_title="Fluency Coach - AI Speaking Companion",
     page_icon="🤖",
     layout="centered"
 )
 
-# Connection: Apply style overrides 
 apply_custom_theme()
 
-# App Headers
 st.title("Fluency Coach")
 st.write("### Interactive AI Speaking Companion")
 
-# Sidebar panel
 with st.sidebar:
     st.header("Coach Workspace")
     st.info("This secure dashboard uses artificial intelligence to evaluate speech syntax, pronunciation, and flow in real time.")
     st.caption("Tip: Click 'Speak', say a sentence, and click 'Submit'.")
 
-# Initialize chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
         {"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below or type a message to start!"}
     ]
 
-# Initialize audio tracker state
 if "autoplay_audio_data" not in st.session_state:
     st.session_state.autoplay_audio_data = None
 
@@ -41,7 +35,7 @@ if "last_processed_audio" not in st.session_state:
 
 GROQ_API_KEY = "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"
 
-# Render conversation timeline with Robot and User Avatar Blocks
+# Chat History Timeline Rendering
 for message in st.session_state.chat_history:
     if message["role"] == "user":
         st.markdown(f'''
@@ -59,13 +53,11 @@ for message in st.session_state.chat_history:
         ''', unsafe_allow_html=True)
 st.markdown('<div class="clear-fix"></div>', unsafe_allow_html=True)
 
-# Playback engine handler
 if st.session_state.autoplay_audio_data:
     st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
 
 st.markdown("<br><hr>", unsafe_allow_html=True)
 
-# Helper function: LLM Context Engine
 def get_coach_response(text_payload):
     llm_payload = {
         "model": "llama-3.3-70b-versatile",
@@ -88,7 +80,6 @@ def get_coach_response(text_payload):
     )
     return llm_response.json()["choices"][0]["message"]["content"]
 
-# Helper function: Text to Audio bytes
 def text_to_speech_bytes(text_payload):
     try:
         url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q={requests.utils.quote(text_payload)}"
@@ -99,7 +90,7 @@ def text_to_speech_bytes(text_payload):
         pass
     return None
 
-# Unified Action Panel
+# Action Control Deck Layout
 input_col, voice_col, stop_col = st.columns([5, 2, 2])
 
 with input_col:
@@ -129,7 +120,6 @@ with stop_col:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# Voice processing validation check
 if audio_source and "bytes" in audio_source:
     audio_bytes = audio_source["bytes"]
     if audio_bytes:
