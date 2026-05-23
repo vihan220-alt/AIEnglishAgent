@@ -63,8 +63,6 @@ st.markdown('<div class="clear-fix"></div>', unsafe_allow_html=True)
 if st.session_state.autoplay_audio_data:
     st.markdown("📣 **Playing Coach Response...**")
     st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
-    # Clear out immediately so it does not loop on random screen updates
-    st.session_state.autoplay_audio_data = None
 
 st.markdown("---")
 
@@ -91,10 +89,9 @@ def get_coach_response(text_payload):
     )
     return llm_response.json()["choices"][0]["message"]["content"]
 
-# Helper function to convert Coach text response into a real audio track via a fast, free public TTS service
+# Helper function to convert Coach text response into a real audio track
 def text_to_speech_bytes(text_payload):
     try:
-        # Utilizing free high-speed Google TTS API endpoint
         url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q={requests.utils.quote(text_payload)}"
         response = requests.get(url)
         if response.status_code == 200:
@@ -104,8 +101,8 @@ def text_to_speech_bytes(text_payload):
     return None
 
 
-# Control Panel Layout
-input_col, voice_col = st.columns([6, 3])
+# Control Panel Layout - Split into 3 columns for Input, Recording, and Stopping
+input_col, voice_col, stop_col = st.columns([5, 2, 2])
 
 with input_col:
     # 1. Text Entry Form Method
@@ -131,6 +128,13 @@ with voice_col:
         key="recorder",
         format="wav"
     )
+
+with stop_col:
+    # 3. Explicit Audio Interruption Button
+    st.write("🛑 **Stop Sound:**")
+    if st.button("Stop Audio 🔇", use_container_width=True):
+        st.session_state.autoplay_audio_data = None
+        st.rerun()
 
 # Process Voice Input Logic
 if audio_source and "bytes" in audio_source:
