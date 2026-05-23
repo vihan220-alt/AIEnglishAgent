@@ -3,7 +3,7 @@ import streamlit as st
 def apply_custom_theme():
     """
     Forces a high-end, unified dark SaaS design over Streamlit's base styling rules.
-    Fixes font colors, text visibility issues, and standardizes input card elements.
+    Adds support for rounded, clean visual avatar markers in the chat layout.
     """
     st.markdown("""
         <style>
@@ -18,7 +18,7 @@ def apply_custom_theme():
             color: #f8fafc !important;
         }
 
-        /* 2. FIX TITLES AND HEADERS (VISIBILITY CORRECTION) */
+        /* 2. FIX TITLES AND HEADERS */
         h1 {
             font-size: 36px !important;
             font-weight: 800 !important;
@@ -57,39 +57,81 @@ def apply_custom_theme():
             color: #cbd5e1 !important;
         }
 
-        /* 4. CLEAN CHAT BUBBLES WITH BALANCED FLOW */
+        /* 4. ROBOT & USER AVATAR CHAT BUBBLES WITH BALANCED FLOW */
+        .chat-container-user {
+            float: right;
+            clear: both;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-end;
+            max-width: 75%;
+            margin: 12px 0;
+        }
+
+        .chat-container-coach {
+            float: left;
+            clear: both;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            max-width: 75%;
+            margin: 12px 0;
+        }
+
+        .avatar-icon {
+            font-size: 24px;
+            background: #1e293b;
+            padding: 8px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            width: 42px;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .avatar-icon-coach {
+            margin-right: 12px;
+            border-color: rgba(6, 182, 212, 0.3);
+        }
+
+        .avatar-icon-user {
+            margin-left: 12px;
+            order: 2; /* Puts user avatar to the right of the text bubble */
+        }
+
         .chat-bubble-user { 
             background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); 
             padding: 14px 20px; 
             border-radius: 18px 18px 4px 18px; 
-            margin: 12px 0; 
-            max-width: 70%; 
-            float: right; 
-            clear: both; 
             color: #ffffff !important; 
             box-shadow: 0 4px 12px rgba(2, 132, 199, 0.2);
             font-size: 15px;
             line-height: 1.5;
+            order: 1;
         }
         
         .chat-bubble-coach { 
             background: #1e293b; 
             padding: 14px 20px; 
             border-radius: 18px 18px 18px 4px; 
-            margin: 12px 0; 
-            max-width: 70%; 
-            float: left; 
-            clear: both; 
             border: 1px solid rgba(255, 255, 255, 0.08); 
             color: #f1f5f9 !important; 
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             font-size: 15px;
             line-height: 1.5;
         }
+
         .chat-bubble-coach b, .chat-bubble-user b {
             color: #ffffff !important;
             display: block;
             margin-bottom: 4px;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.8;
         }
         .clear-fix { clear: both; }
 
