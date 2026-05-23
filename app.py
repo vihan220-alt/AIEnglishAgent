@@ -1,7 +1,7 @@
 import streamlit as st
 from streamlit_mic_recorder import mic_recorder, speech_to_text
 import requests
-import json
+import hashlib
 
 # Set up professional page configuration
 st.set_page_config(
@@ -33,16 +33,20 @@ with st.sidebar:
     st.info("This secure dashboard uses artificial intelligence to evaluate speech syntax, pronunciation, and flow in real time. Perfect for young learners building language confidence.")
     st.caption("Tip: Click 'Start recording', say a sentence, and click 'Stop'.")
 
-# Initialize persistent chat history in Streamlit session state
+# Initialize persistent chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
         {"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below and tell me what you did today!"}
     ]
 
+# Initialize a tracker for the last audio file processed to prevent double-triggering
+if "last_processed_audio" not in st.session_state:
+    st.session_state.last_processed_audio = None
+
 # Hardcoded Groq Credentials
 GROQ_API_KEY = "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"
 
-# Render the professional layout timeline
+# Render the timeline layout
 for message in st.session_state.chat_history:
     if message["role"] == "user":
         st.markdown(f'<div class="chat-bubble-user"><b>You:</b> {message["content"]}</div>', unsafe_allow_html=True)
@@ -61,62 +65,70 @@ audio_source = mic_recorder(
     format="wav"
 )
 
-# Process Voice Input if recorded
+# Process Voice Input
 if audio_source and "bytes" in audio_source:
     audio_bytes = audio_source["bytes"]
     
     if audio_bytes:
-        with st.spinner("Processing your speech..."):
-            try:
-                # 1. Transcribe the audio bytes into text using Groq's Whisper model
-                files = {
-                    "file": ("speech.wav", audio_bytes, "audio/wav"),
-                    "model": (None, "whisper-large-v3-turbo")
-                }
-                headers = {"Authorization": f"Bearer {GROQ_API_KEY}"}
-                
-                whisper_response = requests.post(
-                    "https://api.groq.com/openai/v1/audio/transcriptions",
-                    headers=headers,
-                    files=files
-                )
-                
-                user_text = whisper_response.json().get("text", "")
-                
-                if user_text.strip():
-                    # Append user text to chat history
-                    st.session_state.chat_history.append({"role": "user", "content": user_text})
+        # Create a unique fingerprint (hash) of the current audio data
+        audio_hash = hashlib.md5(audio_bytes).hexdigest()
+        
+        # Only run if this audio hash is different from the last one we handled
+        if st.session_state.last_processed_audio != audio_hash:
+            with st.spinner("Processing your speech..."):
+                try:
+                    # Immediately save this hash so quick subsequent reruns exit early
+                    st.session_state.last_processed_audio = audio_hash
                     
-                    # 2. Get the English Teacher response from Llama model
-                    llm_payload = {
-                        "model": "llama-3.3-70b-versatile",
-                        "messages": [
-                            {
-                                "role": "system",
-                                "content": "You are a professional, encouraging, and highly advanced English language coach for kids. Keep responses structurally simple, contextually engaging, and limited to 2-3 concise sentences. Gently correct glaring language structure errors if visible, but prioritize continuous conversational flow. Always prompt the user with a targeted follow-up question to keep them talking."
-                            },
-                            {"role": "user", "content": user_text}
-                        ]
+                    # 1. Transcribe the audio bytes into text using Groq's Whisper model
+                    files = {
+                        "file": ("speech.wav", audio_bytes, "audio/wav"),
+                        "model": (None, "whisper-large-v3-turbo")
                     }
+                    headers = {"Authorization": f"Bearer {GROQ_API_KEY}"}
                     
-                    llm_headers = {
-                        "Content-Type": "application/json",
-                        "Authorization": f"Bearer {GROQ_API_KEY}"
-                    }
-                    
-                    llm_response = requests.post(
-                        "https://api.groq.com/openai/v1/chat/completions",
-                        headers=llm_headers,
-                        json=llm_payload
+                    whisper_response = requests.post(
+                        "https://api.groq.com/openai/v1/audio/transcriptions",
+                        headers=headers,
+                        files=files
                     )
                     
-                    coach_reply = llm_response.json()["choices"][0]["message"]["content"]
+                    user_text = whisper_response.json().get("text", "")
                     
-                    # Append coach response to timeline
-                    st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
-                    
-                    # Force page reload to render the updated chat bubbles seamlessly
-                    st.rerun()
-                    
-            except Exception as e:
-                st.error("Audio Processing Error. Please try speaking again.")
+                    if user_text.strip():
+                        # Append user text to chat history
+                        st.session_state.chat_history.append({"role": "user", "content": user_text})
+                        
+                        # 2. Get the English Teacher response from Llama model
+                        llm_payload = {
+                            "model": "llama-3.3-70b-versatile",
+                            "messages": [
+                                {
+                                    "role": "system",
+                                    "content": "You are a professional, encouraging, and highly advanced English language coach for kids. Keep responses structurally simple, contextually engaging, and limited to 2-3 concise sentences. Gently correct glaring language structure errors if visible, but prioritize continuous conversational flow. Always prompt the user with a targeted follow-up question to keep them talking."
+                                },
+                                {"role": "user", "content": user_text}
+                            ]
+                        }
+                        
+                        llm_headers = {
+                            "Content-Type": "application/json",
+                            "Authorization": f"Bearer {GROQ_API_KEY}"
+                        }
+                        
+                        llm_response = requests.post(
+                            "https://api.groq.com/openai/v1/chat/completions",
+                            headers=llm_headers,
+                            json=llm_payload
+                        )
+                        
+                        coach_reply = llm_response.json()["choices"][0]["message"]["content"]
+                        
+                        # Append coach response to timeline
+                        st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
+                        
+                        # Force a clean page refresh to lock in single bubble entry
+                        st.rerun()
+                        
+                except Exception as e:
+                    st.error("Audio Processing Error. Please try speaking again.")
