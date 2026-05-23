@@ -21,7 +21,7 @@ st.markdown("""
     .chat-bubble-coach { background-color: #1e293b; padding: 12px 18px; border-radius: 16px 16px 16px 0px; margin: 10px 0; max-width: 80%; float: left; clear: both; border: 1px solid rgba(255,255,255,0.06); color: white; }
     .clear-fix { clear: both; }
     </style>
-""", unsafe_allow_back_allowed=True, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # App Headers
 st.title("Fluency Coach")
@@ -39,7 +39,7 @@ if "chat_history" not in st.session_state:
         {"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below and tell me what you did today!"}
     ]
 
-# Hardcoded Groq Credentials (For your personal project use)
+# Hardcoded Groq Credentials
 GROQ_API_KEY = "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"
 
 # Render the professional layout timeline
@@ -54,7 +54,6 @@ st.markdown("---")
 
 # Voice Input Section
 st.write("🎙️ **Tap to Speak:**")
-# The native mic recorder returns a dictionary when an audio recording finishes
 audio_source = mic_recorder(
     start_prompt="Start Recording 🎤",
     stop_prompt="Stop & Submit 🔇",
