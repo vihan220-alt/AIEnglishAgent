@@ -61,6 +61,12 @@ def apply_custom_theme():
             background-color: #0c4a6e !important;
             border-color: rgba(2, 132, 199, 0.3) !important;
         }
+        
+        /* Make sure avatar images fit perfectly and look crisp */
+        [data-testid="stChatMessageAvatar"] img {
+            border-radius: 50% !important;
+            object-fit: cover !important;
+        }
 
         /* 5. INPUT PANEL & FORM ADJUSTMENTS */
         div[data-testid="stForm"] {
