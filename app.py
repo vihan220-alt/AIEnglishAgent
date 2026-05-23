@@ -35,13 +35,17 @@ if "last_processed_audio" not in st.session_state:
 
 GROQ_API_KEY = "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"
 
-# Render Conversation Timeline using Native, Perfectly-Aligned Chat Elements
+# Verified high-quality web illustration image URLs
+ROBOT_AVATAR_URL = "https://cdn-icons-png.flaticon.com/512/4712/4712035.png"
+USER_AVATAR_URL = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png"
+
+# Render Conversation Timeline using robust image asset streams
 for message in st.session_state.chat_history:
     if message["role"] == "user":
-        with st.chat_message("user", avatar="🧒"):
+        with st.chat_message("user", avatar=USER_AVATAR_URL):
             st.markdown(message["content"])
     else:
-        with st.chat_message("assistant", avatar="🤖"):
+        with st.chat_message("assistant", avatar=ROBOT_AVATAR_URL):
             st.markdown(message["content"])
 
 # Playback engine handler
@@ -82,7 +86,7 @@ def text_to_speech_bytes(text_payload):
         pass
     return None
 
-# Action Control Deck Layout (Aligned cleanly in columns)
+# Action Control Deck Layout
 input_col, voice_col, stop_col = st.columns([5, 2, 2])
 
 with input_col:
