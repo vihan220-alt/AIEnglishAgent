@@ -39,7 +39,7 @@ GROQ_API_KEY = "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"
 ROBOT_AVATAR_URL = "https://cdn-icons-png.flaticon.com/512/4712/4712035.png"
 USER_AVATAR_URL = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png"
 
-# Render Conversation Timeline using robust image asset streams
+# Render Conversation Timeline
 for message in st.session_state.chat_history:
     if message["role"] == "user":
         with st.chat_message("user", avatar=USER_AVATAR_URL):
@@ -48,7 +48,7 @@ for message in st.session_state.chat_history:
         with st.chat_message("assistant", avatar=ROBOT_AVATAR_URL):
             st.markdown(message["content"])
 
-# Playback engine handler
+# AUTOPLAY ENGINE: Plays the coach audio automatically when data exists
 if st.session_state.autoplay_audio_data:
     st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
 
@@ -99,7 +99,11 @@ with input_col:
             with st.spinner("Thinking..."):
                 coach_reply = get_coach_response(text_input)
                 st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
-                st.session_state.autoplay_audio_data = None 
+                
+                # Generate audio bytes for text responses
+                audio_data = text_to_speech_bytes(coach_reply)
+                if audio_data:
+                    st.session_state.autoplay_audio_data = audio_data
                 st.rerun()
 
 with voice_col:
@@ -116,6 +120,7 @@ with stop_col:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
+# FIXED: Process Voice Input AND generate audio playback bytes
 if audio_source and "bytes" in audio_source:
     audio_bytes = audio_source["bytes"]
     if audio_bytes:
@@ -142,9 +147,12 @@ if audio_source and "bytes" in audio_source:
                         coach_reply = get_coach_response(user_text)
                         st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
                         
+                        # --- THE FIX IS HERE ---
+                        # Convert the coach's reply to audio bytes so it actually speaks back!
                         audio_data = text_to_speech_bytes(coach_reply)
                         if audio_data:
                             st.session_state.autoplay_audio_data = audio_data
+                        
                         st.rerun()
                 except Exception as e:
                     st.error("Audio Processing Error. Please try speaking again.")
