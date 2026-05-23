@@ -41,12 +41,22 @@ if "last_processed_audio" not in st.session_state:
 
 GROQ_API_KEY = "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"
 
-# Render conversation timeline
+# Render conversation timeline with Robot and User Avatar Blocks
 for message in st.session_state.chat_history:
     if message["role"] == "user":
-        st.markdown(f'<div class="chat-bubble-user"><b>You:</b> {message["content"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'''
+            <div class="chat-container-user">
+                <div class="avatar-icon avatar-icon-user">🧒</div>
+                <div class="chat-bubble-user"><b>You</b>{message["content"]}</div>
+            </div>
+        ''', unsafe_allow_html=True)
     else:
-        st.markdown(f'<div class="chat-bubble-coach"><b>Coach:</b> {message["content"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'''
+            <div class="chat-container-coach">
+                <div class="avatar-icon avatar-icon-coach">🤖</div>
+                <div class="chat-bubble-coach"><b>AI Coach</b>{message["content"]}</div>
+            </div>
+        ''', unsafe_allow_html=True)
 st.markdown('<div class="clear-fix"></div>', unsafe_allow_html=True)
 
 # Playback engine handler
@@ -89,7 +99,7 @@ def text_to_speech_bytes(text_payload):
         pass
     return None
 
-# Unified Action Panel (Split beautifully into 3 clean columns)
+# Unified Action Panel
 input_col, voice_col, stop_col = st.columns([5, 2, 2])
 
 with input_col:
