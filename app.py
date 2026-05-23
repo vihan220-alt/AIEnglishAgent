@@ -35,28 +35,20 @@ if "last_processed_audio" not in st.session_state:
 
 GROQ_API_KEY = "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"
 
-# Chat History Timeline Rendering
+# Render Conversation Timeline using Native, Perfectly-Aligned Chat Elements
 for message in st.session_state.chat_history:
     if message["role"] == "user":
-        st.markdown(f'''
-            <div class="chat-container-user">
-                <div class="avatar-icon avatar-icon-user">🧒</div>
-                <div class="chat-bubble-user"><b>You</b>{message["content"]}</div>
-            </div>
-        ''', unsafe_allow_html=True)
+        with st.chat_message("user", avatar="🧒"):
+            st.markdown(message["content"])
     else:
-        st.markdown(f'''
-            <div class="chat-container-coach">
-                <div class="avatar-icon avatar-icon-coach">🤖</div>
-                <div class="chat-bubble-coach"><b>AI Coach</b>{message["content"]}</div>
-            </div>
-        ''', unsafe_allow_html=True)
-st.markdown('<div class="clear-fix"></div>', unsafe_allow_html=True)
+        with st.chat_message("assistant", avatar="🤖"):
+            st.markdown(message["content"])
 
+# Playback engine handler
 if st.session_state.autoplay_audio_data:
     st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
 
-st.markdown("<br><hr>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
 
 def get_coach_response(text_payload):
     llm_payload = {
@@ -90,7 +82,7 @@ def text_to_speech_bytes(text_payload):
         pass
     return None
 
-# Action Control Deck Layout
+# Action Control Deck Layout (Aligned cleanly in columns)
 input_col, voice_col, stop_col = st.columns([5, 2, 2])
 
 with input_col:
