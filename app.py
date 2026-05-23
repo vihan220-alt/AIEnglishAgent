@@ -4,6 +4,11 @@ import requests
 import hashlib
 import json
 
+# ==========================================
+# CONNECTION LINK: This imports your style file
+# ==========================================
+from style import apply_custom_theme
+
 # Set up professional page configuration
 st.set_page_config(
     page_title="Fluency Coach - AI Speaking Companion",
@@ -11,18 +16,10 @@ st.set_page_config(
     layout="centered"
 )
 
-# Premium Dark Theme/SaaS Custom Styling
-st.markdown("""
-    <style>
-    .main { background-color: #090d16; color: #f8fafc; }
-    .stHeading h1 { font-size: 28px; font-weight: 700; background: linear-gradient(to right, #ffffff, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .stHeading h3 { font-size: 16px; color: #64748b; font-weight: 400; }
-    div[data-testid="stExpander"] { background-color: #111927; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; }
-    .chat-bubble-user { background-color: #0369a1; padding: 12px 18px; border-radius: 16px 16px 0px 16px; margin: 10px 0; max-width: 80%; float: right; clear: both; color: white; }
-    .chat-bubble-coach { background-color: #1e293b; padding: 12px 18px; border-radius: 16px 16px 16px 0px; margin: 10px 0; max-width: 80%; float: left; clear: both; border: 1px solid rgba(255,255,255,0.06); color: white; }
-    .clear-fix { clear: both; }
-    </style>
-""", unsafe_allow_html=True)
+# ==========================================
+# CONNECTION TRIGGER: This runs the design code 
+# ==========================================
+apply_custom_theme()
 
 # App Headers
 st.title("Fluency Coach")
@@ -59,7 +56,7 @@ for message in st.session_state.chat_history:
         st.markdown(f'<div class="chat-bubble-coach"><b>Coach:</b> {message["content"]}</div>', unsafe_allow_html=True)
 st.markdown('<div class="clear-fix"></div>', unsafe_allow_html=True)
 
-# AUTOPLAY ENGINE: If an audio file is ready, it handles automatic hands-free playing
+# AUTOPLAY ENGINE: Handles automatic hands-free playing
 if st.session_state.autoplay_audio_data:
     st.markdown("📣 **Playing Coach Response...**")
     st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
@@ -101,7 +98,7 @@ def text_to_speech_bytes(text_payload):
     return None
 
 
-# Control Panel Layout - Split into 3 columns for Input, Recording, and Stopping
+# Control Panel Layout
 input_col, voice_col, stop_col = st.columns([5, 2, 2])
 
 with input_col:
@@ -115,7 +112,6 @@ with input_col:
             with st.spinner("Thinking..."):
                 coach_reply = get_coach_response(text_input)
                 st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
-                # CONDITION MET: Text input remains completely silent
                 st.session_state.autoplay_audio_data = None 
                 st.rerun()
 
@@ -168,7 +164,6 @@ if audio_source and "bytes" in audio_source:
                         coach_reply = get_coach_response(user_text)
                         st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
                         
-                        # CONDITION MET: Convert response text to real audio data and activate automatic playing
                         audio_data = text_to_speech_bytes(coach_reply)
                         if audio_data:
                             st.session_state.autoplay_audio_data = audio_data
