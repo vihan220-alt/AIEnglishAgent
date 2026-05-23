@@ -19,7 +19,9 @@ st.markdown("""
     .stHeading h3 { font-size: 16px; color: #64748b; font-weight: 400; }
     div[data-testid="stExpander"] { background-color: #111927; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; }
     .chat-bubble-user { background-color: #0369a1; padding: 12px 18px; border-radius: 16px 16px 0px 16px; margin: 10px 0; max-width: 80%; float: right; clear: both; color: white; }
-    .chat-bubble-coach { background-color: #1e293b; padding: 12px 18px; border-radius: 16px 16px 16px 0px; margin: 10px 0; max-width: 80%; float: left; clear: both; border: 1px solid rgba(255,255,255,0.06); color: white; }
+    .chat-bubble-coach { background-color: #1e293b; padding: 12px 18px; border-radius: 16px 16px 16px 0px; margin: 10px 0; max-width: 80%; float: left; clear: both; border: 1px solid rgba(255,255,255,0.06); color: white; position: relative; }
+    .tts-btn { background: #06b6d4; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; margin-top: 8px; cursor: pointer; font-weight: bold; }
+    .tts-btn:hover { background: #0891b2; }
     .clear-fix { clear: both; }
     </style>
 """, unsafe_allow_html=True)
@@ -37,12 +39,8 @@ with st.sidebar:
 # Initialize persistent chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below or type a message to start!"}
+        {"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below or type a message to start!", "should_speak": False}
     ]
-
-# Track if the last response needs to be spoken out loud
-if "speak_now" not in st.session_state:
-    st.session_state.speak_now = None
 
 # Initialize a tracker for the last audio file processed to prevent double-triggering
 if "last_processed_audio" not in st.session_state:
@@ -51,29 +49,31 @@ if "last_processed_audio" not in st.session_state:
 # Hardcoded Groq Credentials
 GROQ_API_KEY = "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"
 
-# JavaScript Browser-Native TTS Handler
-if st.session_state.speak_now:
-    escaped_text = json.dumps(st.session_state.speak_now)
-    st.markdown(f"""
-        <script>
-            window.speechSynthesis.cancel(); // Clear queued audio
-            var speech = new SpeechSynthesisUtterance({escaped_text});
-            speech.lang = 'en-US';
-            speech.rate = 0.95;
-            speech.pitch = 1.0;
-            window.speechSynthesis.speak(speech);
-        </script>
-    """, unsafe_allow_html=True)
-    st.session_state.speak_now = None
-
 # Render the timeline layout
-for message in st.session_state.chat_history:
+for idx, message in enumerate(st.session_state.chat_history):
     if message["role"] == "user":
         st.markdown(f'<div class="chat-bubble-user"><b>You:</b> {message["content"]}</div>', unsafe_allow_html=True)
     else:
-        st.markdown(f'<div class="chat-bubble-coach"><b>Coach:</b> {message["content"]}</div>', unsafe_allow_html=True)
-st.markdown('<div class="clear-fix"></div>', unsafe_allow_html=True)
+        # Create unique clean script string for browser JS trigger execution
+        safe_string = message["content"].replace("'", "\\'").replace('"', '\\"')
+        
+        # Build the Coach chat bubble
+        coach_html = f'<div class="chat-bubble-coach"><b>Coach:</b> {message["content"]}'
+        
+        # If the answer came from voice input, supply a direct browser activation link 
+        if message.get("should_speak", False):
+            coach_html += f"""<br><button class="tts-btn" onclick="
+                window.speechSynthesis.cancel();
+                var msg = new SpeechSynthesisUtterance('{safe_string}');
+                msg.lang = 'en-US';
+                msg.rate = 0.95;
+                window.speechSynthesis.speak(msg);
+            ">🔊 Hear Response</button>"""
+            
+        coach_html += '</div>'
+        st.markdown(coach_html, unsafe_allow_html=True)
 
+st.markdown('<div class="clear-fix"></div>', unsafe_allow_html=True)
 st.markdown("---")
 
 # Helper function to query the AI LLM Brain
@@ -113,8 +113,8 @@ with input_col:
             st.session_state.chat_history.append({"role": "user", "content": text_input})
             with st.spinner("Thinking..."):
                 coach_reply = get_coach_response(text_input)
-                st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
-                st.session_state.speak_now = None 
+                # Text input = should_speak is set to False (Silent response)
+                st.session_state.chat_history.append({"role": "coach", "content": coach_reply, "should_speak": False})
                 st.rerun()
 
 with voice_col:
@@ -150,7 +150,6 @@ if audio_source and "bytes" in audio_source:
                 try:
                     st.session_state.last_processed_audio = audio_hash
                     
-                    # FIXED: Added the 'language': 'en' restriction parameter
                     files = {
                         "file": ("speech.wav", audio_bytes, "audio/wav"),
                         "model": (None, "whisper-large-v3-turbo"),
@@ -169,9 +168,9 @@ if audio_source and "bytes" in audio_source:
                     if user_text.strip():
                         st.session_state.chat_history.append({"role": "user", "content": user_text})
                         coach_reply = get_coach_response(user_text)
-                        st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
                         
-                        st.session_state.speak_now = coach_reply 
+                        # Voice input = should_speak is set to True (Creates the play button)
+                        st.session_state.chat_history.append({"role": "coach", "content": coach_reply, "should_speak": True})
                         st.rerun()
                         
                 except Exception as e:
