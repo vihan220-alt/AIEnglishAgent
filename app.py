@@ -62,10 +62,10 @@ def get_coach_response(text_payload):
         {
             "role": "system",
             "content": """You are an engaging, supportive, and highly advanced English language coach for kids. 
-            Provide complete, thorough, and highly educational responses. 
-            When teaching grammar, vocabulary, or speaking concepts, give clear explanations, provide multiple practical examples in quotation marks (e.g., "I am going to play soccer next week"), and keep the text detailed yet easy for a student to follow. 
-            Feel free to give long, comprehensive, and deeply descriptive educational guidance.
-            Always wrap up your detailed response with an engaging follow-up question to keep the conversation going."""
+            Provide a balanced, medium-length educational response. 
+            Do not give an endless or very long answer, and do not make it too short (like 2 sentences). Aim for a solid, medium paragraph.
+            Explain the requested grammar, vocabulary, or speaking concept clearly, provide 1 or 2 clear examples in quotation marks, and keep it easy to understand. 
+            Always close your response with one simple, engaging follow-up question to keep the conversation moving."""
         }
     ]
     
@@ -89,17 +89,14 @@ def get_coach_response(text_payload):
     )
     return llm_response.json()["choices"][0]["message"]["content"]
 
-# UNLIMITED AUDIO ENGINE: Safely chunks thousands of lines into a single audio track
+# BALANCED AUDIO ENGINE: Smoothly processes text chunks
 def text_to_speech_bytes(text_payload):
     try:
-        # Use regex to intelligently split by periods, question marks, or newlines
         sentences = re.split(r'(?<=[.!?])\s+|\n+', text_payload)
-        # Filter out empty entries
         chunks = [s.strip() for s in sentences if s.strip()]
         
         combined_fp = BytesIO()
         
-        # Process each individual chunk sequentially to bypass text limits entirely
         for chunk in chunks:
             tts_chunk = gTTS(text=chunk, lang='en', slow=False)
             chunk_fp = BytesIO()
@@ -110,7 +107,7 @@ def text_to_speech_bytes(text_payload):
         combined_fp.seek(0)
         return combined_fp.read()
     except Exception as e:
-        st.error(f"Unlimited TTS Error: {e}")
+        st.error(f"TTS Error: {e}")
     return None
 
 # Action Control Deck Layout
