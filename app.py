@@ -86,25 +86,10 @@ def text_to_speech_bytes(text_payload):
         pass
     return None
 
-# Action Control Deck Layout
-input_col, voice_col, stop_col = st.columns([5, 2, 2])
-
-with input_col:
-    with st.form(key="text_form", clear_on_submit=True):
-        text_input = st.text_input("Type your message here:", placeholder="Type a message...")
-        submit_text = st.form_submit_button(label="Send Text 📩", use_container_width=True)
-        
-        if submit_text and text_input.strip():
-            st.session_state.chat_history.append({"role": "user", "content": text_input})
-            with st.spinner("Thinking..."):
-                coach_reply = get_coach_response(text_input)
-                st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
-                
-                # Generate audio bytes for text responses
-                audio_data = text_to_speech_bytes(coach_reply)
-                if audio_data:
-                    st.session_state.autoplay_audio_data = audio_data
-                st.rerun()
+# =========================================================
+# NEW CLEAN INTERFACE DESIGN (Splits Voice Controls clearly)
+# =========================================================
+voice_col, stop_col = st.columns([1, 1])
 
 with voice_col:
     st.markdown('<p class="control-label">🎙️ Voice Chat:</p>', unsafe_allow_html=True)
@@ -120,7 +105,20 @@ with stop_col:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# FIXED: Process Voice Input AND generate audio playback bytes
+# 1. FIXED TEXT ENTRY: Native bottom bar input (Never freezes up or gets locked)
+text_input = st.chat_input("Type your message here...")
+if text_input:
+    st.session_state.chat_history.append({"role": "user", "content": text_input})
+    with st.spinner("Thinking..."):
+        coach_reply = get_coach_response(text_input)
+        st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
+        
+        audio_data = text_to_speech_bytes(coach_reply)
+        if audio_data:
+            st.session_state.autoplay_audio_data = audio_data
+        st.rerun()
+
+# 2. VOICE ENTRY PROCESSING
 if audio_source and "bytes" in audio_source:
     audio_bytes = audio_source["bytes"]
     if audio_bytes:
@@ -147,12 +145,9 @@ if audio_source and "bytes" in audio_source:
                         coach_reply = get_coach_response(user_text)
                         st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
                         
-                        # --- THE FIX IS HERE ---
-                        # Convert the coach's reply to audio bytes so it actually speaks back!
                         audio_data = text_to_speech_bytes(coach_reply)
                         if audio_data:
                             st.session_state.autoplay_audio_data = audio_data
-                        
                         st.rerun()
                 except Exception as e:
                     st.error("Audio Processing Error. Please try speaking again.")
