@@ -55,16 +55,28 @@ if st.session_state.autoplay_audio_data:
 st.markdown("<br>", unsafe_allow_html=True)
 
 def get_coach_response(text_payload):
+    # We pass the entire conversation history context so the AI remembers what topic is being discussed
+    messages_payload = [
+        {
+            "role": "system",
+            "content": """You are an engaging, supportive, and highly advanced English language coach for kids. 
+            Provide complete, thorough, and highly educational responses. 
+            When teaching grammar, vocabulary, or speaking concepts, give clear explanations, provide multiple practical examples in quotation marks (e.g., "I am going to play soccer next week"), and keep the text detailed yet easy for a student to follow. 
+            Do not cut your responses short. 
+            Always wrap up your detailed response with an engaging follow-up question to keep the conversation going."""
+        }
+    ]
+    
+    # Append conversation context history to help it generate relevant longer answers
+    for msg in st.session_state.chat_history:
+        role_map = "user" if msg["role"] == "user" else "assistant"
+        messages_payload.append({"role": role_map, "content": msg["content"]})
+        
     llm_payload = {
         "model": "llama-3.3-70b-versatile",
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are a professional, encouraging, and highly advanced English language coach for kids. Keep responses structurally simple, contextually engaging, and limited to 2-3 concise sentences. Gently correct glaring language structure errors if visible, but prioritize continuous conversational flow. Always prompt the user with a targeted follow-up question to keep them talking."
-            },
-            {"role": "user", "content": text_payload}
-        ]
+        "messages": messages_payload
     }
+    
     llm_headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {GROQ_API_KEY}"
@@ -86,9 +98,7 @@ def text_to_speech_bytes(text_payload):
         pass
     return None
 
-# =========================================================
-# NEW CLEAN INTERFACE DESIGN (Splits Voice Controls clearly)
-# =========================================================
+# Action Control Deck Layout
 voice_col, stop_col = st.columns([1, 1])
 
 with voice_col:
@@ -105,7 +115,7 @@ with stop_col:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# 1. FIXED TEXT ENTRY: Native bottom bar input (Never freezes up or gets locked)
+# 1. TEXT ENTRY PROCESSING
 text_input = st.chat_input("Type your message here...")
 if text_input:
     st.session_state.chat_history.append({"role": "user", "content": text_input})
