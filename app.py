@@ -52,7 +52,6 @@ if "last_processed_audio" not in st.session_state:
 GROQ_API_KEY = "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"
 
 # JavaScript Browser-Native TTS Handler
-# This hidden component triggers immediately on page reload if text-to-speech is requested
 if st.session_state.speak_now:
     escaped_text = json.dumps(st.session_state.speak_now)
     st.markdown(f"""
@@ -65,7 +64,6 @@ if st.session_state.speak_now:
             window.speechSynthesis.speak(speech);
         </script>
     """, unsafe_allow_html=True)
-    # Reset tracking state immediately so it doesn't speak again on random window resizing
     st.session_state.speak_now = None
 
 # Render the timeline layout
@@ -102,7 +100,7 @@ def get_coach_response(text_payload):
     return llm_response.json()["choices"][0]["message"]["content"]
 
 
-# Control Panel Layout: Main Inputs & Audio Stop Switcher
+# Control Panel Layout
 input_col, voice_col, stop_col = st.columns([5, 2, 2])
 
 with input_col:
@@ -116,7 +114,6 @@ with input_col:
             with st.spinner("Thinking..."):
                 coach_reply = get_coach_response(text_input)
                 st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
-                # CONDITION MET: Text input remains silent
                 st.session_state.speak_now = None 
                 st.rerun()
 
@@ -153,9 +150,11 @@ if audio_source and "bytes" in audio_source:
                 try:
                     st.session_state.last_processed_audio = audio_hash
                     
+                    # FIXED: Added the 'language': 'en' restriction parameter
                     files = {
                         "file": ("speech.wav", audio_bytes, "audio/wav"),
-                        "model": (None, "whisper-large-v3-turbo")
+                        "model": (None, "whisper-large-v3-turbo"),
+                        "language": (None, "en") 
                     }
                     headers = {"Authorization": f"Bearer {GROQ_API_KEY}"}
                     
@@ -172,7 +171,6 @@ if audio_source and "bytes" in audio_source:
                         coach_reply = get_coach_response(user_text)
                         st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
                         
-                        # CONDITION MET: Voice input activates browser speech synthesizer engine
                         st.session_state.speak_now = coach_reply 
                         st.rerun()
                         
