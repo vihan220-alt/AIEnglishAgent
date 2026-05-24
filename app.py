@@ -20,7 +20,7 @@ st.set_page_config(
 apply_custom_theme()
 
 # =========================================================
-# DATABASE STORAGE ENGINE (With Renaming & Pinning Support)
+# DATABASE STORAGE ENGINE (With Renaming, Pinning & Deleting)
 # =========================================================
 DB_FILE = "coach_data.db"
 
@@ -101,6 +101,14 @@ def toggle_pin_room(room_id, current_pin_status):
     conn.commit()
     conn.close()
 
+def delete_room_from_db(room_id):
+    init_db()
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("DELETE FROM conversations WHERE room_id = ?", (room_id,))
+    conn.commit()
+    conn.close()
+
 # =========================================================
 # SYSTEM CONTROL RUNTIME STATES
 # =========================================================
@@ -138,8 +146,127 @@ for r_id, p_val in existing_rooms_data:
 with st.sidebar:
     st.markdown("### 🤖 Coach Workspace")
     
+    # New Chat Creation Button
     if st.button("➕ New chat", use_container_width=True, type="primary"):
         from datetime import datetime
         time_stamp = datetime.now().strftime('%b %d, %H:%M')
         new_uid = "Chat " + str(time_stamp)
-        save_room_history(new_uid,
+        save_room_history(new_uid, [{"role": "coach", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}])
+        st.session_state.active_id = new_uid
+        st.session_state.autoplay_audio_data = None
+        st.rerun()
+        
+    st.markdown("---")
+    st.write("##### Recents")
+    
+    # Displaying chat items with nested option context trays (replacing bulk sidebar items)
+    for room_title, pin_status in existing_rooms_data:
+        is_current = (room_title == st.session_state.active_id)
+        
+        # Format layout indicator prefixes
+        prefix = "📌 👉" if (is_current and pin_status == 1) else ("👉" if is_current else ("📌 💬" if pin_status == 1 else "💬"))
+        button_label = f"{prefix} {room_title}"
+        
+        # Primary Selection Row Button
+        if st.button(button_label, key=f"nav_{room_title}", use_container_width=True):
+            st.session_state.active_id = room_title
+            st.session_state.autoplay_audio_data = None
+            st.rerun()
+            
+        # The Custom "3 Dots Options Tray" Container (Shown right below active/selected chats)
+        if is_current:
+            with st.expander("⚙️ Chat Settings Menu", expanded=False):
+                # Pin / Unpin Action Toggle
+                pin_action_text = "📌 Unpin Session" if pin_status == 1 else "📌 Pin to Top List"
+                if st.button(pin_action_text, key=f"pin_{room_title}", use_container_width=True):
+                    toggle_pin_room(room_title, pin_status)
+                    st.rerun()
+                
+                # Title Modification Tool
+                new_title_val = st.text_input("Edit Title Text:", value=room_title, key=f"edit_{room_title}")
+                if st.button("💾 Rename Title", key=f"save_{room_title}", use_container_width=True):
+                    if new_title_val.strip() and new_title_val.strip() != room_title:
+                        rename_room(room_title, new_title_val.strip())
+                        st.session_state.active_id = new_title_val.strip()
+                        st.rerun()
+                
+                st.markdown("---")
+                # Secure Removal Tool
+                allow_delete = st.checkbox("Confirm Deletion", key=f"check_{room_title}")
+                if st.button("🗑️ Delete Chat Permanently", key=f"del_{room_title}", use_container_width=True, type="secondary"):
+                    if allow_delete:
+                        delete_room_from_db(room_title)
+                        updated_rooms = get_all_rooms()
+                        if updated_rooms:
+                            st.session_state.active_id = updated_rooms[0][0]
+                        else:
+                            st.session_state.active_id = "Conversation 1"
+                            save_room_history("Conversation 1", [{"role": "coach", "content": "Hello! Let's practice speaking English together. Tap the microphone below or type a message to start!"}])
+                        st.session_state.autoplay_audio_data = None
+                        st.rerun()
+
+
+# =========================================================
+# CHAT ROOM SURFACE DISPLAY
+# =========================================================
+st.title("Fluency Coach")
+st.write(f"Active Session: **{st.session_state.active_id}**")
+
+for message in current_history:
+    if message["role"] == "user":
+        with st.chat_message("user", avatar=USER_AVATAR):
+            st.markdown(message["content"])
+    else:
+        with st.chat_message("assistant", avatar=ROBOT_AVATAR):
+            st.markdown(message["content"])
+
+if st.session_state.autoplay_audio_data:
+    st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
+
+# =========================================================
+# BACKEND API CONNECTIONS
+# =========================================================
+GROQ_API_KEY = "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"
+
+def get_coach_response():
+    messages_payload = [
+        {
+            "role": "system",
+            "content": """You are an engaging, supportive English language coach for kids.
+            
+            CRITICAL INSTRUCTION FOR SHORT GREETINGS: 
+            If the user simply says 'hello', 'hi', 'hey', 'good morning', or a basic greeting, DO NOT write a long paragraph. Respond dynamically with a short, welcoming one-sentence greeting and ask them what they would like to talk about today.
+            
+            INSTRUCTION FOR PRACTICE QUESTIONS:
+            If the user asks a language question or shares a story, provide a balanced, medium-length paragraph response explaining concepts clearly with examples, and always close with one simple follow-up question."""
+        }
+    ]
+    for msg in current_history:
+        role_map = "user" if msg["role"] == "user" else "assistant"
+        messages_payload.append({"role": role_map, "content": msg["content"]})
+        
+    llm_payload = {"model": "llama-3.3-70b-versatile", "messages": messages_payload}
+    llm_headers = {"Content-Type": "application/json", "Authorization": f"Bearer {GROQ_API_KEY}"}
+    
+    llm_response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=llm_headers, json=llm_payload)
+    return llm_response.json()["choices"][0]["message"]["content"]
+
+def text_to_speech_bytes(text_payload):
+    try:
+        sentences = re.split(r'(?<=[.!?])\s+|\n+', text_payload)
+        chunks = [st_item.strip() for st_item in sentences if st_item.strip()]
+        
+        combined_fp = BytesIO()
+        for chunk in chunks:
+            tts_chunk = gTTS(text=chunk, lang='en', slow=False)
+            chunk_fp = BytesIO()
+            tts_chunk.write_to_fp(chunk_fp)
+            chunk_fp.seek(0)
+            combined_fp.write(chunk_fp.read())
+            
+        combined_fp.seek(0)
+        return combined_fp.read()
+    except Exception as e:
+        return None
+
+voice_col,
