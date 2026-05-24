@@ -1,59 +1,62 @@
 import streamlit as st
 from streamlit_mic_recorder import mic_recorder
+import requests
+import json
 import sqlite3
 
-# --- UI Setup ---
-st.set_page_config(layout="wide")
-
-# --- Database Setup ---
+# --- Setup ---
 DB_FILE = "coach_data.db"
+
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS conversations 
-                 (room_id TEXT PRIMARY KEY, is_pinned INTEGER DEFAULT 0)''')
+                 (room_id TEXT PRIMARY KEY, history_json TEXT, is_pinned INTEGER DEFAULT 0)''')
     conn.commit()
     conn.close()
 
-init_db()
+def get_rooms():
+    init_db()
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT room_id, is_pinned FROM conversations ORDER BY is_pinned DESC")
+    rooms = c.fetchall()
+    conn.close()
+    return rooms
 
-# --- Sidebar: Chat List with 3-Dot Options ---
+# --- Sidebar Logic ---
 with st.sidebar:
-    st.header("🤖 Coach Workspace")
-    if st.button("➕ New Chat", use_container_width=True):
+    st.markdown("### 🤖 Coach Workspace")
+    
+    if st.button("➕ New chat"):
+        # Add logic to generate a new room_id here
         st.rerun()
     
-    st.subheader("Your Conversations")
-    # Simulate chat rooms
-    rooms = [("Chat 1", 0), ("Chat 2", 0)] 
+    st.markdown("---")
+    st.write("##### Your Chats")
     
-    for r_id, pinned in rooms:
-        # Chat Selection Button
-        if st.button(f"{'📌 ' if pinned else ''}{r_id}", use_container_width=True):
-            st.session_state.active_id = r_id
+    for room_id, pinned in get_rooms():
+        # Display the chat button
+        if st.button(f"{'📌 ' if pinned else ''}{room_id}"):
+            st.session_state.active_id = room_id
             st.rerun()
         
-        # 3-Dots Options Menu
-        if st.session_state.get("active_id") == r_id:
-            with st.expander("⋮ Options"):
-                col1, col2, col3 = st.columns(3)
-                with col1: st.button("📌", key=f"pin_{r_id}")
-                with col2: st.button("✏️", key=f"ren_{r_id}")
-                with col3: st.button("🗑️", key=f"del_{r_id}")
+        # Nested Management Options (Only show for the active chat)
+        if st.session_state.get("active_id") == room_id:
+            with st.expander("⚙️ Chat Settings"):
+                if st.button("📌 Pin/Unpin", key=f"pin_{room_id}"):
+                    # Pin logic goes here
+                    st.rerun()
+                
+                new_name = st.text_input("New Name", key=f"name_{room_id}")
+                if st.button("💾 Rename", key=f"rename_{room_id}"):
+                    # Rename logic goes here
+                    st.rerun()
+                
+                if st.button("🗑️ Delete", key=f"del_{room_id}"):
+                    # Delete logic goes here
+                    st.rerun()
 
 # --- Main Interface ---
 st.title("Fluency Coach")
-if "active_id" in st.session_state:
-    st.info(f"Active Session: {st.session_state.active_id}")
-
-# Voice & Control Layout
-c1, c2 = st.columns([1, 1])
-with c1:
-    st.write("**Voice Input**")
-    mic_recorder(start_prompt="Speak 🎤", stop_prompt="Submit 🔇")
-with c2:
-    st.write("**Controls**")
-    if st.button("Stop Audio 🔇"):
-        st.rerun()
-
-st.chat_input("Type your message here...")
+st.write(f"Active Session: **{st.session_state.get('active_id', 'None')}**")
