@@ -172,4 +172,52 @@ with st.sidebar:
         if is_current:
             with st.expander("⚙️ Chat Settings Menu", expanded=False):
                 pin_action_text = "📌 Unpin Session" if pin_status == 1 else "📌 Pin to Top List"
-                if st.button(pin_action_text, key=f"pin_{room_title}",
+                if st.button(pin_action_text, key=f"pin_{room_title}", use_container_width=True):
+                    toggle_pin_room(room_title, pin_status)
+                    st.rerun()
+                
+                new_title_val = st.text_input("Edit Title Text:", value=room_title, key=f"edit_{room_title}")
+                if st.button("💾 Rename Title", key=f"save_{room_title}", use_container_width=True):
+                    if new_title_val.strip() and new_title_val.strip() != room_title:
+                        rename_room(room_title, new_title_val.strip())
+                        st.session_state.active_id = new_title_val.strip()
+                        st.rerun()
+                
+                st.markdown("---")
+                allow_delete = st.checkbox("Confirm Deletion", key=f"check_{room_title}")
+                if st.button("🗑️ Delete Chat Permanently", key=f"del_{room_title}", use_container_width=True, type="secondary"):
+                    if allow_delete:
+                        delete_room_from_db(room_title)
+                        updated_rooms = get_all_rooms()
+                        if updated_rooms:
+                            st.session_state.active_id = updated_rooms[0][0]
+                        else:
+                            st.session_state.active_id = "Conversation 1"
+                            save_room_history("Conversation 1", [{"role": "coach", "content": "Hello! Let's practice speaking English together. Tap the microphone below or type a message to start!"}])
+                        st.session_state.autoplay_audio_data = None
+                        st.rerun()
+
+
+# =========================================================
+# CHAT ROOM SURFACE DISPLAY
+# =========================================================
+st.title("Fluency Coach")
+st.write(f"Active Session: **{st.session_state.active_id}**")
+
+for message in current_history:
+    if message["role"] == "user":
+        with st.chat_message("user", avatar=USER_AVATAR):
+            st.markdown(message["content"])
+    else:
+        with st.chat_message("assistant", avatar=ROBOT_AVATAR):
+            st.markdown(message["content"])
+
+if st.session_state.autoplay_audio_data:
+    st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
+
+# =========================================================
+# BACKEND API CONNECTIONS
+# =========================================================
+GROQ_API_KEY = "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"
+
+def get_coach_response():
