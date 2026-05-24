@@ -250,6 +250,7 @@ def text_to_speech_bytes(text_payload):
     except Exception as e:
         return None
 
+# User Interaction Inputs
 voice_col, stop_col = st.columns([1, 1])
 with voice_col:
     st.write("**🎙️ Voice Input:**")
