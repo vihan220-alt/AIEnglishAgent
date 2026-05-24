@@ -15,26 +15,13 @@ from style import apply_custom_theme
 st.set_page_config(
     page_title="Fluency Coach - AI Speaking Companion",
     page_icon="🤖",
-    layout="centered"  # Changed to centered so buttons and chat boxes are compact!
+    layout="centered"  # Keeps the chat layout centered and beautiful
 )
 
 apply_custom_theme()
 
-# Clean Custom CSS to keep our Voice Control Row compact and pretty
-st.markdown("""
-    <style>
-    .control-label {
-        font-weight: bold;
-        margin-bottom: 2px;
-    }
-    div[data-testid="stColumn"] {
-        padding: 5px;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 # =========================================================
-# SQLITE DATABASE ENGINE (Prevents data loss on refresh)
+# SQLITE DATABASE STORAGE (Refresh-Proof Memory)
 # =========================================================
 DB_FILE = "coach_data.db"
 
@@ -97,7 +84,7 @@ def delete_room(room_id):
     conn.close()
 
 # =========================================================
-# CORE STATE INITIALIZATION
+# SYSTEM STATES
 # =========================================================
 if "autoplay_audio_data" not in st.session_state:
     st.session_state.autoplay_audio_data = None
@@ -124,7 +111,7 @@ ROBOT_AVATAR = "https://cdn-icons-png.flaticon.com/512/4712/4712035.png"
 USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png"
 
 # =========================================================
-# THE GEMINI-STYLE SIDEBAR NAV PANEL
+# THE GEMINI SIDEBAR WORKSPACE PANEL
 # =========================================================
 with st.sidebar:
     st.markdown("### 🤖 Coach Workspace")
@@ -169,7 +156,7 @@ with st.sidebar:
         st.rerun()
 
 # =========================================================
-# MAIN APP CHAT SPACE DISPLAY AREA
+# CHAT INTERFACE SURFACE AREA
 # =========================================================
 st.title("Fluency Coach")
 st.write(f"Currently Browsing: **{st.session_state.active_id}**")
@@ -182,13 +169,14 @@ for message in current_history:
         with st.chat_message("assistant", avatar=ROBOT_AVATAR):
             st.markdown(message["content"])
 
+# Only shows and plays audio when microphone responses are triggered
 if st.session_state.autoplay_audio_data:
     st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 # =========================================================
-# BACKEND API CONNECTIONS
+# BACKEND API UTILITIES
 # =========================================================
 GROQ_API_KEY = "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"
 
@@ -243,11 +231,13 @@ def text_to_speech_bytes(text_payload):
         st.error(f"TTS Error: {e}")
     return None
 
-# Balanced Control Column row layout
+# =========================================================
+# USER CONTROL INPUT SYSTEM
+# =========================================================
 voice_col, stop_col = st.columns([1, 1])
 
 with voice_col:
-    st.markdown('<p class="control-label">🎙️ Voice Chat:</p>', unsafe_allow_html=True)
+    st.write("**🎙️ Voice Input:**")
     audio_source = mic_recorder(
         start_prompt="Speak 🎤",
         stop_prompt="Submit 🔇",
@@ -255,12 +245,12 @@ with voice_col:
     )
 
 with stop_col:
-    st.markdown('<p class="control-label">🛑 Stop Sound:</p>', unsafe_allow_html=True)
+    st.write("**🛑 Controls:**")
     if st.button("Stop Audio 🔇", use_container_width=True):
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# 1. Text Input Handling
+# 1. Keyboard Input Box Processing (STAYS QUIET - NO TTS GENERATED)
 text_input = st.chat_input("Type your message here...")
 if text_input:
     current_history.append({"role": "user", "content": text_input})
@@ -270,12 +260,11 @@ if text_input:
         current_history.append({"role": "coach", "content": coach_reply})
         save_room_history(st.session_state.active_id, current_history)
         
-        audio_data = text_to_speech_bytes(coach_reply)
-        if audio_data:
-            st.session_state.autoplay_audio_data = audio_data
+        # Clear any old audio so it does not speak when typing text
+        st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# 2. Voice Input Microphone Handling
+# 2. Microphone Input Box Processing (GENERATES TTS VOICE AUDIO)
 if audio_source and "bytes" in audio_source:
     audio_bytes = audio_source["bytes"]
     if audio_bytes:
@@ -308,6 +297,7 @@ if audio_source and "bytes" in audio_source:
                         current_history.append({"role": "coach", "content": coach_reply})
                         save_room_history(st.session_state.active_id, current_history)
                         
+                        # Generates voice audio only for the microphone
                         audio_data = text_to_speech_bytes(coach_reply)
                         if audio_data:
                             st.session_state.autoplay_audio_data = audio_data
