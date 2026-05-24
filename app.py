@@ -1,7 +1,7 @@
 import streamlit as st
 from streamlit_mic_recorder import mic_recorder
 
-# --- 1. Robot Background Styling ---
+# --- 1. Background Style ---
 st.markdown("""
     <style>
     .stApp {
@@ -16,7 +16,6 @@ st.markdown("""
 # --- 2. Interface ---
 st.title("Fluency Coach")
 
-# Chat History Logic
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -25,7 +24,7 @@ for msg in st.session_state.messages:
     with st.chat_message("user"):
         st.markdown(msg)
 
-# Chat Input (Clean and standard)
+# Clean chat input
 if prompt := st.chat_input("Type your message here..."):
     st.session_state.messages.append(prompt)
     st.rerun()
