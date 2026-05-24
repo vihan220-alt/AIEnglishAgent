@@ -13,16 +13,14 @@ from style import apply_custom_theme
 st.set_page_config(
     page_title="Fluency Coach - AI Speaking Companion",
     page_icon="🤖",
-    layout="wide"  # Changed to wide layout to make room for your new sidebar panel!
+    layout="wide"
 )
 
 apply_custom_theme()
 
 # =========================================================
-# LOCAL STORAGE HYBRID ENGINE (Refresh-Proof Memory)
+# MEMORY VAULT ENGINE
 # =========================================================
-
-# Helper to load all conversations from state memory 
 if "chat_vault" not in st.session_state:
     st.session_state.chat_vault = {
         "Conversation 1": [
@@ -39,17 +37,15 @@ if "autoplay_audio_data" not in st.session_state:
 if "last_processed_audio" not in st.session_state:
     st.session_state.last_processed_audio = None
 
-# Avatars
 ROBOT_AVATAR = "https://cdn-icons-png.flaticon.com/512/4712/4712035.png"
 USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png"
 
 # =========================================================
-# THE COLLAPSIBLE SIDEBAR PANEL (Gemini/ChatGPT Style)
+# THE GEMINI-STYLE SIDEBAR NAV PANEL
 # =========================================================
 with st.sidebar:
     st.markdown("### 🤖 Coach Workspace")
     
-    # Big standalone action button for creating a new room
     if st.button("➕ New chat", use_container_width=True, type="primary"):
         from datetime import datetime
         new_uid = f"Chat {datetime.now().strftime('%b %d, %H:%M')}"
@@ -63,14 +59,11 @@ with st.sidebar:
     st.markdown("---")
     st.write("##### Recents")
     
-    # Loop over every chat room title and render it as a clean list button
     for room_title in list(st.session_state.chat_vault.keys()):
-        # Highlight or mark the currently active session cleanly
         is_current = (room_title == st.session_state.active_id)
-        button_label = f"💬 {room_title}" if not is_current else f"👉 {room_title}"
+        button_label = f"👉 {room_title}" if is_current else f"💬 {room_title}"
         
-        # Clickable vertical links
-        if st.button(button_label, key=f"nav_{room_title}", use_container_width=True, help="Click to open this chat room"):
+        if st.button(button_label, key=f"nav_{room_title}", use_container_width=True):
             st.session_state.active_id = room_title
             st.session_state.autoplay_audio_data = None
             st.rerun()
@@ -78,13 +71,11 @@ with st.sidebar:
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     st.markdown("---")
     
-    # Delete Option pinned cleanly at the baseline footer
     if st.button("🗑️ Delete Current Session", use_container_width=True):
         if len(st.session_state.chat_vault) > 1:
             del st.session_state.chat_vault[st.session_state.active_id]
             st.session_state.active_id = list(st.session_state.chat_vault.keys())[0]
         else:
-            # Wipe baseline room clean if it's the remaining session
             st.session_state.chat_vault["Conversation 1"] = [
                 {"role": "coach", "content": "Hello! Let's start fresh again here. Speak or type away!"}
             ]
@@ -92,17 +83,14 @@ with st.sidebar:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-
 # =========================================================
-# MAIN APP CHAT SPACE RENDERER
+# MAIN APP CHAT CONTENT AREA
 # =========================================================
 st.title("Fluency Coach")
 st.write(f"Currently Browsing: **{st.session_state.active_id}**")
 
-# Point active local history array tracking at our selected sidebar context room 
 current_history = st.session_state.chat_vault[st.session_state.active_id]
 
-# Show the messages on screen
 for message in current_history:
     if message["role"] == "user":
         with st.chat_message("user", avatar=USER_AVATAR):
@@ -111,14 +99,13 @@ for message in current_history:
         with st.chat_message("assistant", avatar=ROBOT_AVATAR):
             st.markdown(message["content"])
 
-# Audio Autoplay Card
 if st.session_state.autoplay_audio_data:
     st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 # =========================================================
-# BACKEND CHAT HANDLERS & CORE FUNCTIONS
+# BACKEND API PIPELINES (CLEAN & COMPLETE)
 # =========================================================
 GROQ_API_KEY = "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"
 
@@ -146,6 +133,7 @@ def get_coach_response():
         "Content-Type": "application/json",
         "Authorization": f"Bearer {GROQ_API_KEY}"
     }
+    
     llm_response = requests.post(
         "https://api.groq.com/openai/v1/chat/completions",
         headers=llm_headers,
@@ -172,7 +160,7 @@ def text_to_speech_bytes(text_payload):
         st.error(f"TTS Error: {e}")
     return None
 
-# User Input Controls Dashboard Layout
+# User Action Panel
 voice_col, stop_col = st.columns([1, 1])
 
 with voice_col:
@@ -189,15 +177,13 @@ with stop_col:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# 1. Keyboard Text Entry Box
+# 1. Text Chat Box Processing
 text_input = st.chat_input("Type your message here...")
 if text_input:
     current_history.append({"role": "user", "content": text_input})
     with st.spinner("Thinking..."):
         coach_reply = get_coach_response()
         current_history.append({"role": "coach", "content": coach_reply})
-        
-        # Commit back down to permanent dictionary vault
         st.session_state.chat_vault[st.session_state.active_id] = current_history
         
         audio_data = text_to_speech_bytes(coach_reply)
@@ -205,7 +191,7 @@ if text_input:
             st.session_state.autoplay_audio_data = audio_data
         st.rerun()
 
-# 2. Microphone Speech Processing Card
+# 2. Voice Chat Microphone Processing
 if audio_source and "bytes" in audio_source:
     audio_bytes = audio_source["bytes"]
     if audio_bytes:
@@ -214,10 +200,33 @@ if audio_source and "bytes" in audio_source:
             with st.spinner("Processing speech..."):
                 try:
                     st.session_state.last_processed_audio = audio_hash
-                    files = {
+                    
+                    # FIXED: Packaged files and headers dictionary blocks carefully
+                    whisper_files = {
                         "file": ("speech.wav", audio_bytes, "audio/wav"),
                         "model": (None, "whisper-large-v3-turbo"),
-                        "language": (None, "en") 
+                        "language": (None, "en")
                     }
-                    headers = {"Authorization": f"Bearer {GROQ_API_KEY}"}
+                    whisper_headers = {
+                        "Authorization": f"Bearer {GROQ_API_KEY}"
+                    }
+                    
                     whisper_response = requests.post(
+                        "https://api.groq.com/openai/v1/audio/transcriptions",
+                        headers=whisper_headers,
+                        files=whisper_files
+                    )
+                    user_text = whisper_response.json().get("text", "")
+                    
+                    if user_text.strip():
+                        current_history.append({"role": "user", "content": user_text})
+                        coach_reply = get_coach_response()
+                        current_history.append({"role": "coach", "content": coach_reply})
+                        st.session_state.chat_vault[st.session_state.active_id] = current_history
+                        
+                        audio_data = text_to_speech_bytes(coach_reply)
+                        if audio_data:
+                            st.session_state.autoplay_audio_data = audio_data
+                        st.rerun()
+                except Exception as e:
+                    st.error("Audio Processing Error. Please try speaking again.")
