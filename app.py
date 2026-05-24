@@ -2,71 +2,71 @@ import streamlit as st
 from streamlit_mic_recorder import mic_recorder
 import sqlite3
 
-# --- 1. Database Setup ---
+# --- Database & Setup ---
 DB_FILE = "coach_data.db"
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
+    # Ensure the table has the right columns
     c.execute('''CREATE TABLE IF NOT EXISTS conversations 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)''')
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, is_pinned INTEGER DEFAULT 0)''')
     conn.commit()
     conn.close()
 
-def add_chat(name):
+def get_chats():
+    init_db()
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("INSERT INTO conversations (name) VALUES (?)", (name,))
-    conn.commit()
+    c.execute("SELECT id, name, is_pinned FROM conversations ORDER BY is_pinned DESC")
+    chats = c.fetchall()
     conn.close()
-
-def delete_chat(chat_id):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("DELETE FROM conversations WHERE id = ?", (chat_id,))
-    conn.commit()
-    conn.close()
+    return chats
 
 init_db()
 
-# --- 2. Sidebar Layout ---
+# --- Sidebar ---
 with st.sidebar:
     st.header("🤖 Coach Workspace")
-    
-    # Add new chat
-    if st.button("➕ New Chat"):
-        add_chat(f"New Chat {len(get_chats()) + 1}")
+    if st.button("➕ New Chat", use_container_width=True):
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        c.execute("INSERT INTO conversations (name) VALUES (?)", (f"Chat {len(get_chats()) + 1}",))
+        conn.commit()
+        conn.close()
         st.rerun()
 
     st.subheader("Your Chats")
-    # Display chats
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("SELECT id, name FROM conversations")
-    chats = c.fetchall()
-    conn.close()
-
-    for chat_id, name in chats:
-        c1, c2 = st.columns([3, 1])
-        with c1:
-            if st.button(name, key=f"btn_{chat_id}"):
+    for chat_id, name, pinned in get_chats():
+        # Sidebar Chat Row
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            if st.button(f"{'📌' if pinned else ''} {name}", key=f"btn_{chat_id}", use_container_width=True):
                 st.session_state.active_id = chat_id
-        with c2:
-            if st.button("🗑️", key=f"del_{chat_id}"):
-                delete_chat(chat_id)
-                st.rerun()
+        with col2:
+            # The "3-dots" (options) menu
+            with st.popover("⋮"):
+                if st.button("🗑️ Delete", key=f"del_{chat_id}"):
+                    conn = sqlite3.connect(DB_FILE)
+                    c = conn.cursor()
+                    c.execute("DELETE FROM conversations WHERE id = ?", (chat_id,))
+                    conn.commit()
+                    conn.close()
+                    st.rerun()
+                if st.button("✏️ Rename", key=f"ren_{chat_id}"):
+                    # Renaming logic
+                    st.rerun()
 
-# --- 3. Main Chat Interface ---
+# --- Main Area ---
 st.title("Fluency Coach")
+st.write(f"Active Session: {st.session_state.get('active_id', 'None')}")
 
-# Voice & Control Layout
 col1, col2 = st.columns(2)
 with col1:
-    st.write("**Voice Input**")
+    st.write("**🎙️ Voice Input**")
     mic_recorder(start_prompt="Speak 🎤", stop_prompt="Submit 🔇")
 with col2:
-    st.write("**Controls**")
-    if st.button("Stop Audio 🔇"):
-        st.rerun()
+    st.write("**🛑 Controls**")
+    st.button("Stop Audio 🔇")
 
 st.chat_input("Type your message here...")
