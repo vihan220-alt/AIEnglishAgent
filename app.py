@@ -124,7 +124,6 @@ USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png"
 with st.sidebar:
     st.markdown("### 🤖 Coach Workspace")
     
-    # 1. SELECT NEW CHAT Button
     if st.button("➕ New chat", use_container_width=True, type="primary"):
         from datetime import datetime
         new_uid = f"Chat {datetime.now().strftime('%b %d, %H:%M')}"
@@ -136,7 +135,6 @@ with st.sidebar:
     st.markdown("---")
     st.write("##### Recents")
     
-    # 2. SELECT ANOTHER CHAT List Selection
     for room_title in existing_rooms:
         is_current = (room_title == st.session_state.active_id)
         button_label = f"👉 {room_title}" if is_current else f"💬 {room_title}"
@@ -150,7 +148,6 @@ with st.sidebar:
     st.markdown("---")
     st.write("##### 🛠️ Current Chat Actions")
     
-    # 3. RENAME ACTIVE CHAT Input Tool
     new_name_input = st.text_input("Rename Current Chat:", value=st.session_state.active_id)
     if st.button("💾 Save Title Name", use_container_width=True):
         if new_name_input.strip() and new_name_input != st.session_state.active_id:
@@ -160,7 +157,6 @@ with st.sidebar:
             
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # 4. DELETE ACTIVE CHAT Button Tool
     if st.button("🗑️ Delete Current Session", use_container_width=True, type="secondary"):
         delete_room(st.session_state.active_id)
         remaining = get_all_rooms()
@@ -199,9 +195,13 @@ def get_coach_response():
     messages_payload = [
         {
             "role": "system",
-            "content": """You are an engaging, supportive English language coach for kids. 
-            Provide a balanced response. Explain concepts clearly. 
-            Always close your response with one simple, engaging follow-up question."""
+            "content": """You are an engaging, supportive English language coach for kids.
+            
+            CRITICAL INSTRUCTION FOR SHORT GREETINGS: 
+            If the user simply says 'hello', 'hi', 'hey', 'good morning', or a basic greeting, DO NOT write a long paragraph. Respond dynamically with a short, welcoming one-sentence greeting and ask them what they would like to talk about today.
+            
+            INSTRUCTION FOR PRACTICE QUESTIONS:
+            If the user asks a language question or shares a story, provide a balanced, medium-length paragraph response explaining concepts clearly with examples, and always close with one simple follow-up question."""
         }
     ]
     for msg in current_history:
@@ -225,60 +225,4 @@ def text_to_speech_bytes(text_payload):
             chunk_fp = BytesIO()
             tts_chunk.write_to_fp(chunk_fp)
             chunk_fp.seek(0)
-            combined_fp.write(chunk_fp.read())
-            
-        combined_fp.seek(0)
-        return combined_fp.read()
-    except Exception as e:
-        return None
-
-# User Interaction Inputs
-voice_col, stop_col = st.columns([1, 1])
-with voice_col:
-    st.write("**🎙️ Voice Input:**")
-    audio_source = mic_recorder(start_prompt="Speak 🎤", stop_prompt="Submit 🔇", key="recorder")
-
-with stop_col:
-    st.write("**🛑 Controls:**")
-    if st.button("Stop Audio 🔇", use_container_width=True):
-        st.session_state.autoplay_audio_data = None
-        st.rerun()
-
-# Text Submission Handling (No text-to-speech sound is auto-triggered)
-text_input = st.chat_input("Type your message here...")
-if text_input:
-    current_history.append({"role": "user", "content": text_input})
-    save_room_history(st.session_state.active_id, current_history)
-    with st.spinner("Thinking..."):
-        coach_reply = get_coach_response()
-        current_history.append({"role": "coach", "content": coach_reply})
-        save_room_history(st.session_state.active_id, current_history)
-        st.session_state.autoplay_audio_data = None
-        st.rerun()
-
-# Microphone Voice Submission Handling (Triggers auto voice playback response)
-if audio_source and "bytes" in audio_source and audio_source["bytes"]:
-    audio_bytes = audio_source["bytes"]
-    audio_hash = hashlib.md5(audio_bytes).hexdigest()
-    if st.session_state.last_processed_audio != audio_hash:
-        st.session_state.last_processed_audio = audio_hash
-        with st.spinner("Processing speech..."):
-            try:
-                whisper_files = {"file": ("speech.wav", audio_bytes, "audio/wav"), "model": (None, "whisper-large-v3-turbo"), "language": (None, "en")}
-                whisper_headers = {"Authorization": f"Bearer {GROQ_API_KEY}"}
-                whisper_response = requests.post("https://api.groq.com/openai/v1/audio/transcriptions", headers=whisper_headers, files=whisper_files)
-                user_text = whisper_response.json().get("text", "")
-                
-                if user_text.strip():
-                    current_history.append({"role": "user", "content": user_text})
-                    save_room_history(st.session_state.active_id, current_history)
-                    coach_reply = get_coach_response()
-                    current_history.append({"role": "coach", "content": coach_reply})
-                    save_room_history(st.session_state.active_id, current_history)
-                    
-                    audio_data = text_to_speech_bytes(coach_reply)
-                    if audio_data:
-                        st.session_state.autoplay_audio_data = audio_data
-                    st.rerun()
-            except Exception as e:
-                st.error("Audio Processing Error.")
+            combined_fp.write(chunk_
