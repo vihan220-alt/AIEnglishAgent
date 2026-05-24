@@ -4,7 +4,7 @@ import requests
 import json
 import sqlite3
 
-# --- Setup ---
+# --- Database & Setup ---
 DB_FILE = "coach_data.db"
 
 def init_db():
@@ -24,39 +24,35 @@ def get_rooms():
     conn.close()
     return rooms
 
-# --- Sidebar Logic ---
+# --- Sidebar Management ---
 with st.sidebar:
     st.markdown("### 🤖 Coach Workspace")
-    
     if st.button("➕ New chat"):
-        # Add logic to generate a new room_id here
+        # Logic to create new chat
         st.rerun()
     
-    st.markdown("---")
+    st.write("---")
     st.write("##### Your Chats")
-    
     for room_id, pinned in get_rooms():
-        # Display the chat button
+        # Select Chat
         if st.button(f"{'📌 ' if pinned else ''}{room_id}"):
             st.session_state.active_id = room_id
             st.rerun()
         
-        # Nested Management Options (Only show for the active chat)
+        # Management Options (Only show for active chat)
         if st.session_state.get("active_id") == room_id:
-            with st.expander("⚙️ Chat Settings"):
-                if st.button("📌 Pin/Unpin", key=f"pin_{room_id}"):
-                    # Pin logic goes here
+            with st.expander("⚙️ Chat Settings Menu"):
+                if st.button("📌 Pin/Unpin"):
+                    # Pin logic
                     st.rerun()
-                
-                new_name = st.text_input("New Name", key=f"name_{room_id}")
-                if st.button("💾 Rename", key=f"rename_{room_id}"):
-                    # Rename logic goes here
+                new_name = st.text_input("New Name")
+                if st.button("💾 Rename"):
+                    # Rename logic
                     st.rerun()
-                
-                if st.button("🗑️ Delete", key=f"del_{room_id}"):
-                    # Delete logic goes here
+                if st.button("🗑️ Delete"):
+                    # Delete logic
                     st.rerun()
 
-# --- Main Interface ---
+# --- Chat Display ---
 st.title("Fluency Coach")
-st.write(f"Active Session: **{st.session_state.get('active_id', 'None')}**")
+st.write(f"Active: {st.session_state.get('active_id', 'None')}")
