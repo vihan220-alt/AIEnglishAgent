@@ -23,93 +23,115 @@ st.title("Fluency Coach")
 st.write("### Interactive AI Speaking Companion")
 
 # =========================================================
-# PERSISTENT STORAGE ENGINE (Saves history across refreshes)
+# CHATGPT-STYLE MULTI-CHAT STORAGE ENGINE
 # =========================================================
-BACKUP_FILE = "chat_backup.json"
+CHATS_DIR = "saved_chats"
+if not os.path.exists(CHATS_DIR):
+    os.makedirs(CHATS_DIR)
 
-def load_saved_history():
-    """Loads chat history from the backup file if it exists."""
-    if os.path.exists(BACKUP_FILE):
+def get_all_chats():
+    """Returns a sorted list of all saved chat names (without extension)."""
+    files = [f for f in os.listdir(CHATS_DIR) if f.endswith(".json")]
+    chats = [os.path.splitext(f)[0] for f in files]
+    return sorted(chats, reverse=True)
+
+def load_chat_history(chat_id):
+    """Loads a specific chat history file."""
+    filepath = os.path.join(CHATS_DIR, f"{chat_id}.json")
+    if os.path.exists(filepath):
         try:
-            with open(BACKUP_FILE, "r", encoding="utf-8") as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             pass
-    # Default starting message if no backup exists
     return [
         {"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below or type a message to start!"}
     ]
 
-def save_current_history():
-    """Saves the current session chat history to the backup file."""
+def save_chat_history(chat_id, history):
+    """Saves the current conversation to its specific file."""
+    filepath = os.path.join(CHATS_DIR, f"{chat_id}.json")
     try:
-        with open(BACKUP_FILE, "w", encoding="utf-8") as f:
-            json.dump(st.session_state.chat_history, f, ensure_ascii=False, indent=4)
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=4)
     except Exception:
         pass
 
-# Initialize history from backup file instead of resetting on refresh
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = load_saved_history()
-
+# Initialize tracking states
 if "autoplay_audio_data" not in st.session_state:
     st.session_state.autoplay_audio_data = None
 
 if "last_processed_audio" not in st.session_state:
     st.session_state.last_processed_audio = None
 
-GROQ_API_KEY = "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"
-
-# Verified high-quality web illustration image URLs
-ROBOT_AVATAR_URL = "https://cdn-icons-png.flaticon.com/512/4712/4712035.png"
-USER_AVATAR_URL = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png"
-
-# Sidebar Workspace Controls
+# =========================================================
+# SIDEBAR CONTROL PANEL (The ChatGPT Experience)
+# =========================================================
 with st.sidebar:
     st.header("Coach Workspace")
-    st.info("This secure dashboard uses artificial intelligence to evaluate speech syntax, pronunciation, and flow in real time.")
-    st.caption("Tip: Click 'Speak', say a sentence, and click 'Submit'.")
     
-    st.markdown("---")
-    # Clear Chat Button to reset the saved file manually
-    if st.button("🗑️ Clear Chat History", use_container_width=True):
-        if os.path.exists(BACKUP_FILE):
-            os.remove(BACKUP_FILE)
+    # 1. Start a New Chat Button
+    if st.button("➕ New Chat", use_container_width=True):
+        # Create a fresh unique chat ID based on current timestamp
+        from datetime import datetime
+        new_chat_id = f"Chat {datetime.now().strftime('%Y-%m-%d %H-%M-%S')}"
+        st.session_state.current_chat_id = new_chat_id
         st.session_state.chat_history = [
-            {"role": "coach", "content": "Hello! Let's start fresh. Tap the microphone below or type a message to start!"}
+            {"role": "coach", "content": "Hello! Let's start a brand new conversation. Tap the microphone below or type a message to start!"}
         ]
+        save_chat_history(new_chat_id, st.session_state.chat_history)
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# Render Conversation Timeline
-for message in st.session_state.chat_history:
-    if message["role"] == "user":
-        with st.chat_message("user", avatar=USER_AVATAR_URL):
-            st.markdown(message["content"])
-    else:
-        with st.chat_message("assistant", avatar=ROBOT_AVATAR_URL):
-            st.markdown(message["content"])
-
-# AUTOPLAY ENGINE
-if st.session_state.autoplay_audio_data:
-    st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-def get_coach_response(text_payload):
-    messages_payload = [
-        {
-            "role": "system",
-            "content": """You are an engaging, supportive, and highly advanced English language coach for kids. 
-            Provide a balanced, medium-length educational response. 
-            Do not give an endless or very long answer, and do not make it too short (like 2 sentences). Aim for a solid, medium paragraph.
-            Explain the requested grammar, vocabulary, or speaking concept clearly, provide 1 or 2 clear examples in quotation marks, and keep it easy to understand. 
-            Always close your response with one simple, engaging follow-up question to keep the conversation moving."""
-        }
-    ]
+    st.markdown("---")
+    st.subheader("Your Conversations")
     
-    for msg in st.session_state.chat_history:
-        role_map = "user" if msg["role"] == "user" else "assistant"
-        messages_payload.append({"role": role_map, "content": msg["content"]})
+    # Get list of all past chats
+    saved_chats_list = get_all_chats()
+    
+    # Fallback if there are no chats at all yet
+    if not saved_chats_list:
+        from datetime import datetime
+        default_id = f"Chat {datetime.now().strftime('%Y-%m-%d %H-%M-%S')}"
+        saved_chats_list = [default_id]
         
-    llm_payload = {
+    if "current_chat_id" not in st.session_state:
+        st.session_state.current_chat_id = saved_chats_list[0]
+
+    # 2. ChatGPT Selection Dropdown
+    selected_chat = st.selectbox(
+        "Select a conversation:",
+        options=saved_chats_list,
+        index=saved_chats_list.index(st.session_state.current_chat_id) if st.session_state.current_chat_id in saved_chats_list else 0
+    )
+    
+    # Switch history if user selects a different chat room
+    if selected_chat != st.session_state.current_chat_id:
+        st.session_state.current_chat_id = selected_chat
+        st.session_state.chat_history = load_chat_history(selected_chat)
+        st.session_state.autoplay_audio_data = None
+        st.rerun()
+
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    
+    # 3. Delete Current Chat Button
+    if st.button("🗑️ Delete Current Chat", use_container_width=True):
+        filepath = os.path.join(CHATS_DIR, f"{st.session_state.current_chat_id}.json")
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        # Clear local state variables
+        if "current_chat_id" in st.session_state:
+            del st.session_state.current_chat_id
+        if "chat_history" in st.session_state:
+            del st.session_state.chat_history
+        st.session_state.autoplay_audio_data = None
+        st.rerun()
+
+# Ensure variables exist before running main pipeline
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = load_chat_history(st.session_state.current_chat_id)
+
+GROQ_API_KEY = "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"
+
+# Verified high-quality web illustration image URLs
+ROBOT_AVATAR_URL = "
