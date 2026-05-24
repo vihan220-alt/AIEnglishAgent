@@ -167,9 +167,4 @@ with st.sidebar:
             
         button_label = f"{prefix} {room_title}"
         
-        if st.button(button_label, key=f"nav_{room_title}", use_container_width=True):
-            st.session_state.active_id = room_title
-            st.session_state.autoplay_audio_data = None
-            st.rerun()
-
-    st.markdown("<br><br
+        if st.button(button_label, key=f"
