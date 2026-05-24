@@ -15,10 +15,23 @@ from style import apply_custom_theme
 st.set_page_config(
     page_title="Fluency Coach - AI Speaking Companion",
     page_icon="🤖",
-    layout="wide"  # Sidebar looks best in wide layout mode
+    layout="centered"  # Changed to centered so buttons and chat boxes are compact!
 )
 
 apply_custom_theme()
+
+# Clean Custom CSS to keep our Voice Control Row compact and pretty
+st.markdown("""
+    <style>
+    .control-label {
+        font-weight: bold;
+        margin-bottom: 2px;
+    }
+    div[data-testid="stColumn"] {
+        padding: 5px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # =========================================================
 # SQLITE DATABASE ENGINE (Prevents data loss on refresh)
@@ -26,7 +39,6 @@ apply_custom_theme()
 DB_FILE = "coach_data.db"
 
 def init_db():
-    """Initializes the database table if it doesn't exist."""
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute('''
@@ -40,7 +52,6 @@ def init_db():
     conn.close()
 
 def get_all_rooms():
-    """Fetches all stored chat titles sorted by recent activity."""
     init_db()
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -50,7 +61,6 @@ def get_all_rooms():
     return rooms
 
 def load_room_history(room_id):
-    """Loads history array for a specific room title."""
     init_db()
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -64,7 +74,6 @@ def load_room_history(room_id):
     ]
 
 def save_room_history(room_id, history):
-    """Saves or updates history logs directly into the database file."""
     init_db()
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -80,14 +89,12 @@ def save_room_history(room_id, history):
     conn.close()
 
 def delete_room(room_id):
-    """Deletes a specific chat history file record from database."""
     init_db()
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("DELETE FROM conversations WHERE room_id = ?", (room_id,))
     conn.commit()
     conn.close()
-
 
 # =========================================================
 # CORE STATE INITIALIZATION
@@ -98,7 +105,6 @@ if "autoplay_audio_data" not in st.session_state:
 if "last_processed_audio" not in st.session_state:
     st.session_state.last_processed_audio = None
 
-# Pull rooms lists from database right away to handle refresh state smoothly
 existing_rooms = get_all_rooms()
 
 if not existing_rooms:
@@ -109,16 +115,13 @@ if not existing_rooms:
     save_room_history(default_title, initial_log)
     existing_rooms = [default_title]
 
-# Safeguard current selection across server reboots/refreshes
 if "active_id" not in st.session_state or st.session_state.active_id not in existing_rooms:
     st.session_state.active_id = existing_rooms[0]
 
-# Populate active transcript log out of database storage file
 current_history = load_room_history(st.session_state.active_id)
 
 ROBOT_AVATAR = "https://cdn-icons-png.flaticon.com/512/4712/4712035.png"
 USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png"
-
 
 # =========================================================
 # THE GEMINI-STYLE SIDEBAR NAV PANEL
@@ -126,7 +129,6 @@ USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png"
 with st.sidebar:
     st.markdown("### 🤖 Coach Workspace")
     
-    # Standalone action button for building a clean conversation room
     if st.button("➕ New chat", use_container_width=True, type="primary"):
         from datetime import datetime
         new_uid = f"Chat {datetime.now().strftime('%b %d, %H:%M')}"
@@ -141,7 +143,6 @@ with st.sidebar:
     st.markdown("---")
     st.write("##### Recents")
     
-    # Generate vertical, clickable buttons dynamically for every database record entry
     for room_title in existing_rooms:
         is_current = (room_title == st.session_state.active_id)
         button_label = f"👉 {room_title}" if is_current else f"💬 {room_title}"
@@ -154,14 +155,12 @@ with st.sidebar:
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     st.markdown("---")
     
-    # Delete Option pinned at footer area base
     if st.button("🗑️ Delete Current Session", use_container_width=True):
         delete_room(st.session_state.active_id)
         remaining = get_all_rooms()
         if remaining:
             st.session_state.active_id = remaining[0]
         else:
-            # Recreate factory base setting if last record cleared out
             st.session_state.active_id = "Conversation 1"
             save_room_history("Conversation 1", [
                 {"role": "coach", "content": "Hello! Let's start fresh again here. Speak or type away!"}
@@ -169,14 +168,12 @@ with st.sidebar:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-
 # =========================================================
 # MAIN APP CHAT SPACE DISPLAY AREA
 # =========================================================
 st.title("Fluency Coach")
 st.write(f"Currently Browsing: **{st.session_state.active_id}**")
 
-# Display the transcript messages
 for message in current_history:
     if message["role"] == "user":
         with st.chat_message("user", avatar=USER_AVATAR):
@@ -185,12 +182,10 @@ for message in current_history:
         with st.chat_message("assistant", avatar=ROBOT_AVATAR):
             st.markdown(message["content"])
 
-# Text-To-Speech Output Playback Mount
 if st.session_state.autoplay_audio_data:
     st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
-
 
 # =========================================================
 # BACKEND API CONNECTIONS
@@ -248,8 +243,7 @@ def text_to_speech_bytes(text_payload):
         st.error(f"TTS Error: {e}")
     return None
 
-
-# Control Buttons Row
+# Balanced Control Column row layout
 voice_col, stop_col = st.columns([1, 1])
 
 with voice_col:
@@ -266,8 +260,7 @@ with stop_col:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-
-# 1. Keyboard Input Bar Handling
+# 1. Text Input Handling
 text_input = st.chat_input("Type your message here...")
 if text_input:
     current_history.append({"role": "user", "content": text_input})
@@ -281,7 +274,6 @@ if text_input:
         if audio_data:
             st.session_state.autoplay_audio_data = audio_data
         st.rerun()
-
 
 # 2. Voice Input Microphone Handling
 if audio_source and "bytes" in audio_source:
