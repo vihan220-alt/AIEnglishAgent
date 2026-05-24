@@ -20,7 +20,7 @@ st.set_page_config(
 apply_custom_theme()
 
 # =========================================================
-# DATABASE STORAGE ENGINE (With Renaming, Pinning & Deleting)
+# DATABASE STORAGE ENGINE
 # =========================================================
 DB_FILE = "coach_data.db"
 
@@ -146,7 +146,6 @@ for r_id, p_val in existing_rooms_data:
 with st.sidebar:
     st.markdown("### 🤖 Coach Workspace")
     
-    # Create New Session
     if st.button("➕ New chat", use_container_width=True, type="primary"):
         from datetime import datetime
         time_stamp = datetime.now().strftime('%b %d, %H:%M')
@@ -159,16 +158,10 @@ with st.sidebar:
     st.markdown("---")
     st.write("##### Recents")
     
-    # List available sessions
     for room_title, pin_status in existing_rooms_data:
         is_current = (room_title == st.session_state.active_id)
         
-        # Display special prefix graphics for quick context tracking
-        if is_current:
-            prefix = "📌 👉" if pin_status == 1 else "👉"
-        else:
-            prefix = "📌 💬" if pin_status == 1 else "💬"
-            
+        prefix = "📌 👉" if (is_current and pin_status == 1) else ("👉" if is_current else ("📌 💬" if pin_status == 1 else "💬"))
         button_label = f"{prefix} {room_title}"
         
         if st.button(button_label, key=f"nav_{room_title}", use_container_width=True):
@@ -176,32 +169,7 @@ with st.sidebar:
             st.session_state.autoplay_audio_data = None
             st.rerun()
             
-        # The Three-Dots Dropdown Options Expander Panel
         if is_current:
             with st.expander("⚙️ Chat Settings Menu", expanded=False):
-                # 1. PIN ACTION BUTTON
                 pin_action_text = "📌 Unpin Session" if pin_status == 1 else "📌 Pin to Top List"
-                if st.button(pin_action_text, key=f"pin_{room_title}", use_container_width=True):
-                    toggle_pin_room(room_title, pin_status)
-                    st.rerun()
-                
-                # 2. RENAME CONFIGURATION FIELD
-                new_title_val = st.text_input("Edit Title Text:", value=room_title, key=f"edit_{room_title}")
-                if st.button("💾 Rename Title", key=f"save_{room_title}", use_container_width=True):
-                    if new_title_val.strip() and new_title_val.strip() != room_title:
-                        rename_room(room_title, new_title_val.strip())
-                        st.session_state.active_id = new_title_val.strip()
-                        st.rerun()
-                
-                st.markdown("---")
-                # 3. SECURE DELETION ENGINE
-                allow_delete = st.checkbox("Confirm Deletion", key=f"check_{room_title}")
-                if st.button("🗑️ Delete Chat Permanently", key=f"del_{room_title}", use_container_width=True, type="secondary"):
-                    if allow_delete:
-                        delete_room_from_db(room_title)
-                        updated_rooms = get_all_rooms()
-                        if updated_rooms:
-                            st.session_state.active_id = updated_rooms[0][0]
-                        else:
-                            st.session_state.active_id = "Conversation 1"
-                            save
+                if st.button(pin_action_text, key=f"pin_{room_title}",
