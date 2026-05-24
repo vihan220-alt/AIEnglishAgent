@@ -13,20 +13,18 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. Self-Healing Database Setup ---
+# --- 2. Database Setup (Self-Healing) ---
 DB_FILE = "coach_data.db"
-
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    # This force-resets the table structure to match exactly what the code expects
+    # Forces the table to match exactly what the code expects
     c.execute('DROP TABLE IF EXISTS conversations')
     c.execute('''CREATE TABLE conversations 
                  (room_id TEXT PRIMARY KEY, is_pinned INTEGER DEFAULT 0)''')
     conn.commit()
     conn.close()
 
-# Always ensure the DB is ready
 init_db()
 
 # --- 3. Sidebar (Chat Management) ---
@@ -34,9 +32,8 @@ with st.sidebar:
     st.header("🤖 Coach Workspace")
     if st.button("➕ New Chat", use_container_width=True):
         conn = sqlite3.connect(DB_FILE)
-        # Unique room ID
-        new_room = f"Chat {len(list(conn.execute('SELECT room_id FROM conversations')))+1}"
-        conn.execute("INSERT INTO conversations (room_id) VALUES (?)", (new_room,))
+        new_id = f"Chat {len(list(conn.execute('SELECT room_id FROM conversations')))+1}"
+        conn.execute("INSERT INTO conversations (room_id) VALUES (?)", (new_id,))
         conn.commit()
         conn.close()
         st.rerun()
@@ -49,7 +46,7 @@ with st.sidebar:
     for room_id, pinned in chats:
         col1, col2 = st.columns([3, 1])
         with col1:
-            if st.button(f"{'📌' if pinned else ''} {room_id}", key=f"btn_{room_id}"):
+            if st.button(f"{'📌' if pinned else ''} {room_id}", key=f"btn_{room_id}", use_container_width=True):
                 st.session_state.active_id = room_id
         with col2:
             with st.popover("⋮"):
