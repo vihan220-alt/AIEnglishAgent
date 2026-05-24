@@ -20,7 +20,7 @@ st.set_page_config(
 apply_custom_theme()
 
 # =========================================================
-# DATABASE STORAGE ENGINE (With Renaming & Pinning Support)
+# DATABASE STORAGE ENGINE (With Renaming, Pinning & Deleting)
 # =========================================================
 DB_FILE = "coach_data.db"
 
@@ -101,6 +101,14 @@ def toggle_pin_room(room_id, current_pin_status):
     conn.commit()
     conn.close()
 
+def delete_room_from_db(room_id):
+    init_db()
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("DELETE FROM conversations WHERE room_id = ?", (room_id,))
+    conn.commit()
+    conn.close()
+
 # =========================================================
 # SYSTEM CONTROL RUNTIME STATES
 # =========================================================
@@ -138,6 +146,7 @@ for r_id, p_val in existing_rooms_data:
 with st.sidebar:
     st.markdown("### 🤖 Coach Workspace")
     
+    # New Chat Creation Button
     if st.button("➕ New chat", use_container_width=True, type="primary"):
         from datetime import datetime
         time_stamp = datetime.now().strftime('%b %d, %H:%M')
@@ -150,36 +159,51 @@ with st.sidebar:
     st.markdown("---")
     st.write("##### Recents")
     
+    # Displaying chat items with nested option context trays (replacing bulk sidebar items)
     for room_title, pin_status in existing_rooms_data:
         is_current = (room_title == st.session_state.active_id)
         
-        if is_current:
-            prefix = "📌 👉" if pin_status == 1 else "👉"
-        else:
-            prefix = "📌 💬" if pin_status == 1 else "💬"
-            
+        # Format layout indicator prefixes
+        prefix = "📌 👉" if (is_current and pin_status == 1) else ("👉" if is_current else ("📌 💬" if pin_status == 1 else "💬"))
         button_label = f"{prefix} {room_title}"
         
+        # Primary Selection Row Button
         if st.button(button_label, key=f"nav_{room_title}", use_container_width=True):
             st.session_state.active_id = room_title
             st.session_state.autoplay_audio_data = None
             st.rerun()
-
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown("---")
-    st.write("##### 🛠️ Current Chat Actions")
-    
-    pin_btn_label = "📌 Unpin from Top" if is_currently_pinned == 1 else "📌 Pin to Top"
-    if st.button(pin_btn_label, use_container_width=True):
-        toggle_pin_room(st.session_state.active_id, is_currently_pinned)
-        st.rerun()
-        
-    new_name_input = st.text_input("Rename Current Chat:", value=st.session_state.active_id)
-    if st.button("💾 Save Title Name", use_container_width=True):
-        if new_name_input.strip() and new_name_input != st.session_state.active_id:
-            rename_room(st.session_state.active_id, new_name_input.strip())
-            st.session_state.active_id = new_name_input.strip()
-            st.rerun()
+            
+        # The Custom "3 Dots Options Tray" Container (Shown right below active/selected chats)
+        if is_current:
+            with st.expander("⚙️ Chat Settings Menu", expanded=False):
+                # Pin / Unpin Action Toggle
+                pin_action_text = "📌 Unpin Session" if pin_status == 1 else "📌 Pin to Top List"
+                if st.button(pin_action_text, key=f"pin_{room_title}", use_container_width=True):
+                    toggle_pin_room(room_title, pin_status)
+                    st.rerun()
+                
+                # Title Modification Tool
+                new_title_val = st.text_input("Edit Title Text:", value=room_title, key=f"edit_{room_title}")
+                if st.button("💾 Rename Title", key=f"save_{room_title}", use_container_width=True):
+                    if new_title_val.strip() and new_title_val.strip() != room_title:
+                        rename_room(room_title, new_title_val.strip())
+                        st.session_state.active_id = new_title_val.strip()
+                        st.rerun()
+                
+                st.markdown("---")
+                # Secure Removal Tool
+                allow_delete = st.checkbox("Confirm Deletion", key=f"check_{room_title}")
+                if st.button("🗑️ Delete Chat Permanently", key=f"del_{room_title}", use_container_width=True, type="secondary"):
+                    if allow_delete:
+                        delete_room_from_db(room_title)
+                        updated_rooms = get_all_rooms()
+                        if updated_rooms:
+                            st.session_state.active_id = updated_rooms[0][0]
+                        else:
+                            st.session_state.active_id = "Conversation 1"
+                            save_room_history("Conversation 1", [{"role": "coach", "content": "Hello! Let's practice speaking English together. Tap the microphone below or type a message to start!"}])
+                        st.session_state.autoplay_audio_data = None
+                        st.rerun()
 
 
 # =========================================================
@@ -245,50 +269,4 @@ def text_to_speech_bytes(text_payload):
     except Exception as e:
         return None
 
-voice_col, stop_col = st.columns([1, 1])
-with voice_col:
-    st.write("**🎙️ Voice Input:**")
-    audio_source = mic_recorder(start_prompt="Speak 🎤", stop_prompt="Submit 🔇", key="recorder")
-
-with stop_col:
-    st.write("**🛑 Controls:**")
-    if st.button("Stop Audio 🔇", use_container_width=True):
-        st.session_state.autoplay_audio_data = None
-        st.rerun()
-
-text_input = st.chat_input("Type your message here...")
-if text_input:
-    current_history.append({"role": "user", "content": text_input})
-    save_room_history(st.session_state.active_id, current_history)
-    with st.spinner("Thinking..."):
-        coach_reply = get_coach_response()
-        current_history.append({"role": "coach", "content": coach_reply})
-        save_room_history(st.session_state.active_id, current_history)
-        st.session_state.autoplay_audio_data = None
-        st.rerun()
-
-if audio_source and "bytes" in audio_source and audio_source["bytes"]:
-    audio_bytes = audio_source["bytes"]
-    audio_hash = hashlib.md5(audio_bytes).hexdigest()
-    if st.session_state.last_processed_audio != audio_hash:
-        st.session_state.last_processed_audio = audio_hash
-        with st.spinner("Processing speech..."):
-            try:
-                whisper_files = {"file": ("speech.wav", audio_bytes, "audio/wav"), "model": (None, "whisper-large-v3-turbo"), "language": (None, "en")}
-                whisper_headers = {"Authorization": f"Bearer {GROQ_API_KEY}"}
-                whisper_response = requests.post("https://api.groq.com/openai/v1/audio/transcriptions", headers=whisper_headers, files=whisper_files)
-                user_text = whisper_response.json().get("text", "")
-                
-                if user_text.strip():
-                    current_history.append({"role": "user", "content": user_text})
-                    save_room_history(st.session_state.active_id, current_history)
-                    coach_reply = get_coach_response()
-                    current_history.append({"role": "coach", "content": coach_reply})
-                    save_room_history(st.session_state.active_id, current_history)
-                    
-                    audio_data = text_to_speech_bytes(coach_reply)
-                    if audio_data:
-                        st.session_state.autoplay_audio_data = audio_data
-                    st.rerun()
-            except Exception as e:
-                st.error("Audio Processing Error.")
+voice_col,
