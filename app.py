@@ -20,7 +20,7 @@ st.set_page_config(
 apply_custom_theme()
 
 # =========================================================
-# DATABASE STORAGE ENGINE
+# DATABASE STORAGE ENGINE (With Renaming, Pinning & Deleting)
 # =========================================================
 DB_FILE = "coach_data.db"
 
@@ -146,6 +146,7 @@ for r_id, p_val in existing_rooms_data:
 with st.sidebar:
     st.markdown("### 🤖 Coach Workspace")
     
+    # Create New Session
     if st.button("➕ New chat", use_container_width=True, type="primary"):
         from datetime import datetime
         time_stamp = datetime.now().strftime('%b %d, %H:%M')
@@ -158,10 +159,16 @@ with st.sidebar:
     st.markdown("---")
     st.write("##### Recents")
     
+    # List available sessions
     for room_title, pin_status in existing_rooms_data:
         is_current = (room_title == st.session_state.active_id)
         
-        prefix = "📌 👉" if (is_current and pin_status == 1) else ("👉" if is_current else ("📌 💬" if pin_status == 1 else "💬"))
+        # Display special prefix graphics for quick context tracking
+        if is_current:
+            prefix = "📌 👉" if pin_status == 1 else "👉"
+        else:
+            prefix = "📌 💬" if pin_status == 1 else "💬"
+            
         button_label = f"{prefix} {room_title}"
         
         if st.button(button_label, key=f"nav_{room_title}", use_container_width=True):
@@ -169,13 +176,16 @@ with st.sidebar:
             st.session_state.autoplay_audio_data = None
             st.rerun()
             
+        # The Three-Dots Dropdown Options Expander Panel
         if is_current:
             with st.expander("⚙️ Chat Settings Menu", expanded=False):
+                # 1. PIN ACTION BUTTON
                 pin_action_text = "📌 Unpin Session" if pin_status == 1 else "📌 Pin to Top List"
                 if st.button(pin_action_text, key=f"pin_{room_title}", use_container_width=True):
                     toggle_pin_room(room_title, pin_status)
                     st.rerun()
                 
+                # 2. RENAME CONFIGURATION FIELD
                 new_title_val = st.text_input("Edit Title Text:", value=room_title, key=f"edit_{room_title}")
                 if st.button("💾 Rename Title", key=f"save_{room_title}", use_container_width=True):
                     if new_title_val.strip() and new_title_val.strip() != room_title:
@@ -184,6 +194,7 @@ with st.sidebar:
                         st.rerun()
                 
                 st.markdown("---")
+                # 3. SECURE DELETION ENGINE
                 allow_delete = st.checkbox("Confirm Deletion", key=f"check_{room_title}")
                 if st.button("🗑️ Delete Chat Permanently", key=f"del_{room_title}", use_container_width=True, type="secondary"):
                     if allow_delete:
@@ -221,7 +232,18 @@ if st.session_state.autoplay_audio_data:
 GROQ_API_KEY = "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"
 
 def get_coach_response():
-    messages_payload = [{"role": "system", "content": "You are an engaging English language coach for kids. Respond clearly and always close with one simple follow-up question."}]
+    messages_payload = [
+        {
+            "role": "system",
+            "content": """You are an engaging, supportive English language coach for kids.
+            
+            CRITICAL INSTRUCTION FOR SHORT GREETINGS: 
+            If the user simply says 'hello', 'hi', 'hey', 'good morning', or a basic greeting, DO NOT write a long paragraph. Respond dynamically with a short, welcoming one-sentence greeting and ask them what they would like to talk about today.
+            
+            INSTRUCTION FOR PRACTICE QUESTIONS:
+            If the user asks a language question or shares a story, provide a balanced, medium-length paragraph response explaining concepts clearly with examples, and always close with one simple follow-up question."""
+        }
+    ]
     for msg in current_history:
         role_map = "user" if msg["role"] == "user" else "assistant"
         messages_payload.append({"role": role_map, "content": msg["content"]})
@@ -250,7 +272,7 @@ def text_to_speech_bytes(text_payload):
     except Exception as e:
         return None
 
-# User Interaction Inputs
+# User Interaction Interface Columns
 voice_col, stop_col = st.columns([1, 1])
 with voice_col:
     st.write("**🎙️ Voice Input:**")
@@ -262,6 +284,7 @@ with stop_col:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
+# Text message handler
 text_input = st.chat_input("Type your message here...")
 if text_input:
     current_history.append({"role": "user", "content": text_input})
@@ -273,6 +296,7 @@ if text_input:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
+# Mic voice handler
 if audio_source and "bytes" in audio_source and audio_source["bytes"]:
     audio_bytes = audio_source["bytes"]
     audio_hash = hashlib.md5(audio_bytes).hexdigest()
