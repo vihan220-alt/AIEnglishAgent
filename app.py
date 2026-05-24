@@ -64,6 +64,10 @@ if "autoplay_audio_data" not in st.session_state:
 if "last_processed_audio" not in st.session_state:
     st.session_state.last_processed_audio = None
 
+# Verified high-quality web illustration image URLs
+ROBOT_AVATAR_URL = "https://cdn-icons-png.flaticon.com/512/4712/4712035.png"
+USER_AVATAR_URL = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png"
+
 # =========================================================
 # SIDEBAR CONTROL PANEL (The ChatGPT Experience)
 # =========================================================
@@ -72,7 +76,6 @@ with st.sidebar:
     
     # 1. Start a New Chat Button
     if st.button("➕ New Chat", use_container_width=True):
-        # Create a fresh unique chat ID based on current timestamp
         from datetime import datetime
         new_chat_id = f"Chat {datetime.now().strftime('%Y-%m-%d %H-%M-%S')}"
         st.session_state.current_chat_id = new_chat_id
@@ -119,7 +122,6 @@ with st.sidebar:
         filepath = os.path.join(CHATS_DIR, f"{st.session_state.current_chat_id}.json")
         if os.path.exists(filepath):
             os.remove(filepath)
-        # Clear local state variables
         if "current_chat_id" in st.session_state:
             del st.session_state.current_chat_id
         if "chat_history" in st.session_state:
@@ -127,11 +129,4 @@ with st.sidebar:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# Ensure variables exist before running main pipeline
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = load_chat_history(st.session_state.current_chat_id)
-
-GROQ_API_KEY = "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"
-
-# Verified high-quality web illustration image URLs
-ROBOT_AVATAR_URL = "
+# Ensure variables exist before running
