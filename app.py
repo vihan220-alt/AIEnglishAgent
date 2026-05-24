@@ -7,38 +7,20 @@ import json
 import sqlite3
 from io import BytesIO
 from gtts import gTTS
-
-# Connection Link
 from style import apply_custom_theme
 
-st.set_page_config(
-    page_title="Fluency Coach - AI Speaking Companion",
-    page_icon="🤖",
-    layout="centered"
-)
-
+# Page Setup
+st.set_page_config(page_title="Fluency Coach", page_icon="🤖", layout="centered")
 apply_custom_theme()
 
-# =========================================================
-# DATABASE STORAGE ENGINE
-# =========================================================
+# --- Database Setup ---
 DB_FILE = "coach_data.db"
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS conversations (
-            room_id TEXT PRIMARY KEY,
-            history_json TEXT,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            is_pinned INTEGER DEFAULT 0
-        )
-    ''')
-    try:
-        c.execute("ALTER TABLE conversations ADD COLUMN is_pinned INTEGER DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass 
+    c.execute('''CREATE TABLE IF NOT EXISTS conversations 
+                 (room_id TEXT PRIMARY KEY, history_json TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_pinned INTEGER DEFAULT 0)''')
     conn.commit()
     conn.close()
 
@@ -52,172 +34,68 @@ def get_all_rooms():
     return rooms
 
 def load_room_history(room_id):
-    init_db()
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("SELECT history_json FROM conversations WHERE room_id = ?", (room_id,))
     row = c.fetchone()
     conn.close()
-    if row:
-        return json.loads(row[0])
-    return [
-        {"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below or type a message to start!"}
-    ]
+    if row: return json.loads(row[0])
+    return [{"role": "coach", "content": "Hello! I am your language partner. Let's practice! How are you feeling today?"}]
 
 def save_room_history(room_id, history):
-    init_db()
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    history_string = json.dumps(history, ensure_ascii=False)
-    c.execute('''
-        INSERT INTO conversations (room_id, history_json, updated_at)
-        VALUES (?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(room_id) DO UPDATE SET
-            history_json = excluded.history_json,
-            updated_at = CURRENT_TIMESTAMP
-    ''', (room_id, history_string))
+    c.execute('''INSERT OR REPLACE INTO conversations (room_id, history_json, updated_at) 
+                 VALUES (?, ?, CURRENT_TIMESTAMP)''', (room_id, json.dumps(history)))
     conn.commit()
     conn.close()
 
-def rename_room(old_id, new_id):
-    if not new_id.strip() or old_id == new_id:
-        return
-    init_db()
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    try:
-        c.execute("UPDATE conversations SET room_id = ? WHERE room_id = ?", (new_id, old_id))
-        conn.commit()
-    except sqlite3.IntegrityError:
-        pass 
-    conn.close()
-
-def toggle_pin_room(room_id, current_pin_status):
-    init_db()
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    new_status = 1 if current_pin_status == 0 else 0
-    c.execute("UPDATE conversations SET is_pinned = ? WHERE room_id = ?", (new_status, room_id))
-    conn.commit()
-    conn.close()
-
-def delete_room_from_db(room_id):
-    init_db()
+def delete_room(room_id):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("DELETE FROM conversations WHERE room_id = ?", (room_id,))
     conn.commit()
     conn.close()
 
-# =========================================================
-# SYSTEM CONTROL RUNTIME STATES
-# =========================================================
-if "autoplay_audio_data" not in st.session_state:
-    st.session_state.autoplay_audio_data = None
+# --- Runtime State ---
+init_db()
+if "active_id" not in st.session_state:
+    rooms = get_all_rooms()
+    st.session_state.active_id = rooms[0][0] if rooms else "Chat 1"
 
-if "last_processed_audio" not in st.session_state:
-    st.session_state.last_processed_audio = None
-
-existing_rooms_data = get_all_rooms()
-
-if not existing_rooms_data:
-    save_room_history("Conversation 1", [{"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below or type a message to start!"}])
-    existing_rooms_data = [("Conversation 1", 0)]
-
-room_ids_list = [row[0] for row in existing_rooms_data]
-
-if "active_id" not in st.session_state or st.session_state.active_id not in room_ids_list:
-    st.session_state.active_id = room_ids_list[0]
-
-current_history = load_room_history(st.session_state.active_id)
-
-ROBOT_AVATAR = "https://cdn-icons-png.flaticon.com/512/4712/4712035.png"
-USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png"
-
-is_currently_pinned = 0
-for r_id, p_val in existing_rooms_data:
-    if r_id == st.session_state.active_id:
-        is_currently_pinned = p_val
-        break
-
-# =========================================================
-# THE SIDEBAR MANAGEMENT INTERFACE
-# =========================================================
+# --- Sidebar ---
 with st.sidebar:
     st.markdown("### 🤖 Coach Workspace")
-    
-    if st.button("➕ New chat", use_container_width=True, type="primary"):
-        from datetime import datetime
-        time_stamp = datetime.now().strftime('%b %d, %H:%M')
-        new_uid = "Chat " + str(time_stamp)
-        save_room_history(new_uid, [{"role": "coach", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}])
-        st.session_state.active_id = new_uid
-        st.session_state.autoplay_audio_data = None
+    if st.button("➕ New chat"):
+        new_id = f"Chat {len(get_all_rooms()) + 1}"
+        save_room_history(new_id, [{"role": "coach", "content": "Hello! Let's start a new chat."}])
+        st.session_state.active_id = new_id
         st.rerun()
-        
-    st.markdown("---")
-    st.write("##### Recents")
     
-    for room_title, pin_status in existing_rooms_data:
-        is_current = (room_title == st.session_state.active_id)
-        
-        prefix = "📌 👉" if (is_current and pin_status == 1) else ("👉" if is_current else ("📌 💬" if pin_status == 1 else "💬"))
-        button_label = f"{prefix} {room_title}"
-        
-        if st.button(button_label, key=f"nav_{room_title}", use_container_width=True):
-            st.session_state.active_id = room_title
-            st.session_state.autoplay_audio_data = None
+    for r_id, pinned in get_all_rooms():
+        if st.button(f"{'📌 ' if pinned else ''}{r_id}"):
+            st.session_state.active_id = r_id
             st.rerun()
-            
-        if is_current:
-            with st.expander("⚙️ Chat Settings Menu", expanded=False):
-                pin_action_text = "📌 Unpin Session" if pin_status == 1 else "📌 Pin to Top List"
-                if st.button(pin_action_text, key=f"pin_{room_title}", use_container_width=True):
-                    toggle_pin_room(room_title, pin_status)
-                    st.rerun()
-                
-                new_title_val = st.text_input("Edit Title Text:", value=room_title, key=f"edit_{room_title}")
-                if st.button("💾 Rename Title", key=f"save_{room_title}", use_container_width=True):
-                    if new_title_val.strip() and new_title_val.strip() != room_title:
-                        rename_room(room_title, new_title_val.strip())
-                        st.session_state.active_id = new_title_val.strip()
-                        st.rerun()
-                
-                st.markdown("---")
-                allow_delete = st.checkbox("Confirm Deletion", key=f"check_{room_title}")
-                if st.button("🗑️ Delete Chat Permanently", key=f"del_{room_title}", use_container_width=True, type="secondary"):
-                    if allow_delete:
-                        delete_room_from_db(room_title)
-                        updated_rooms = get_all_rooms()
-                        if updated_rooms:
-                            st.session_state.active_id = updated_rooms[0][0]
-                        else:
-                            st.session_state.active_id = "Conversation 1"
-                            save_room_history("Conversation 1", [{"role": "coach", "content": "Hello! Let's practice speaking English together. Tap the microphone below or type a message to start!"}])
-                        st.session_state.autoplay_audio_data = None
-                        st.rerun()
 
-
-# =========================================================
-# CHAT ROOM SURFACE DISPLAY
-# =========================================================
+# --- Chat Interface ---
 st.title("Fluency Coach")
-st.write(f"Active Session: **{st.session_state.active_id}**")
+history = load_room_history(st.session_state.active_id)
 
-for message in current_history:
-    if message["role"] == "user":
-        with st.chat_message("user", avatar=USER_AVATAR):
-            st.markdown(message["content"])
-    else:
-        with st.chat_message("assistant", avatar=ROBOT_AVATAR):
-            st.markdown(message["content"])
+for msg in history:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-if st.session_state.autoplay_audio_data:
-    st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
+if prompt := st.chat_input("Type here..."):
+    history.append({"role": "user", "content": prompt})
+    # Add API call logic for coach response here
+    save_room_history(st.session_state.active_id, history)
+    st.rerun()
 
-# =========================================================
-# BACKEND API CONNECTIONS
-# =========================================================
-GROQ_API_KEY = "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"
-
-def get_coach_response():
+# --- Voice & Cleanup ---
+col1, col2 = st.columns(2)
+with col1:
+    audio = mic_recorder(start_prompt="Speak 🎤", stop_prompt="Submit 🔇")
+with col2:
+    if st.button("Delete This Chat"):
+        delete_room(st.session_state.active_id)
+        st.rerun()
