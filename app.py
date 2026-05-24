@@ -25,7 +25,7 @@ for msg in st.session_state.messages:
     with st.chat_message("user"):
         st.markdown(msg)
 
-# Chat Input (This will work now)
+# Chat Input (Clean and standard)
 if prompt := st.chat_input("Type your message here..."):
     st.session_state.messages.append(prompt)
     st.rerun()
