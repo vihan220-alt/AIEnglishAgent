@@ -27,7 +27,6 @@ DB_FILE = "coach_data.db"
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    # Ensure tables and columns exist
     c.execute('''
         CREATE TABLE IF NOT EXISTS conversations (
             room_id TEXT PRIMARY KEY,
@@ -36,11 +35,10 @@ def init_db():
             is_pinned INTEGER DEFAULT 0
         )
     ''')
-    # Guard case if column is_pinned doesn't exist yet in an older database file
     try:
         c.execute("ALTER TABLE conversations ADD COLUMN is_pinned INTEGER DEFAULT 0")
     except sqlite3.OperationalError:
-        pass # Column already exists
+        pass 
     conn.commit()
     conn.close()
 
@@ -48,7 +46,6 @@ def get_all_rooms():
     init_db()
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    # Order first by pinned chats, then by latest updated time
     c.execute("SELECT room_id, is_pinned FROM conversations ORDER BY is_pinned DESC, updated_at DESC")
     rooms = c.fetchall()
     conn.close()
@@ -129,7 +126,6 @@ current_history = load_room_history(st.session_state.active_id)
 ROBOT_AVATAR = "https://cdn-icons-png.flaticon.com/512/4712/4712035.png"
 USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png"
 
-# Find if the current active room is pinned
 is_currently_pinned = 0
 for r_id, p_val in existing_rooms_data:
     if r_id == st.session_state.active_id:
@@ -142,29 +138,8 @@ for r_id, p_val in existing_rooms_data:
 with st.sidebar:
     st.markdown("### 🤖 Coach Workspace")
     
-    # 1. NEW CHAT CREATOR
     if st.button("➕ New chat", use_container_width=True, type="primary"):
         from datetime import datetime
         time_stamp = datetime.now().strftime('%b %d, %H:%M')
         new_uid = "Chat " + str(time_stamp)
-        save_room_history(new_uid, [{"role": "coach", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}])
-        st.session_state.active_id = new_uid
-        st.session_state.autoplay_audio_data = None
-        st.rerun()
-        
-    st.markdown("---")
-    st.write("##### Recents")
-    
-    # 2. SELECT RECENT CHAT ROOMS (Displays Pinned Chats First)
-    for room_title, pin_status in existing_rooms_data:
-        is_current = (room_title == st.session_state.active_id)
-        
-        # Determine prefix icon based on pinned vs standard status
-        if is_current:
-            prefix = "📌 👉" if pin_status == 1 else "👉"
-        else:
-            prefix = "📌 💬" if pin_status == 1 else "💬"
-            
-        button_label = f"{prefix} {room_title}"
-        
-        if st.button(button_label, key=f"
+        save_room_history(new_uid,
