@@ -20,7 +20,7 @@ st.set_page_config(
 apply_custom_theme()
 
 # =========================================================
-# DATABASE STORAGE ENGINE (With Renaming, Pinning & Deleting)
+# DATABASE STORAGE ENGINE (With Renaming & Pinning Support)
 # =========================================================
 DB_FILE = "coach_data.db"
 
@@ -101,14 +101,6 @@ def toggle_pin_room(room_id, current_pin_status):
     conn.commit()
     conn.close()
 
-def delete_room_from_db(room_id):
-    init_db()
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("DELETE FROM conversations WHERE room_id = ?", (room_id,))
-    conn.commit()
-    conn.close()
-
 # =========================================================
 # SYSTEM CONTROL RUNTIME STATES
 # =========================================================
@@ -146,7 +138,6 @@ for r_id, p_val in existing_rooms_data:
 with st.sidebar:
     st.markdown("### 🤖 Coach Workspace")
     
-    # 1. CREATE NEW SESSION
     if st.button("➕ New chat", use_container_width=True, type="primary"):
         from datetime import datetime
         time_stamp = datetime.now().strftime('%b %d, %H:%M')
@@ -159,7 +150,6 @@ with st.sidebar:
     st.markdown("---")
     st.write("##### Recents")
     
-    # 2. LIST SESSIONS (PINNED FIRST)
     for room_title, pin_status in existing_rooms_data:
         is_current = (room_title == st.session_state.active_id)
         
@@ -179,39 +169,17 @@ with st.sidebar:
     st.markdown("---")
     st.write("##### 🛠️ Current Chat Actions")
     
-    # 3. PIN CHAT BUTTON
     pin_btn_label = "📌 Unpin from Top" if is_currently_pinned == 1 else "📌 Pin to Top"
     if st.button(pin_btn_label, use_container_width=True):
         toggle_pin_room(st.session_state.active_id, is_currently_pinned)
         st.rerun()
         
-    # 4. RENAME CHAT FIELD
     new_name_input = st.text_input("Rename Current Chat:", value=st.session_state.active_id)
     if st.button("💾 Save Title Name", use_container_width=True):
         if new_name_input.strip() and new_name_input != st.session_state.active_id:
             rename_room(st.session_state.active_id, new_name_input.strip())
             st.session_state.active_id = new_name_input.strip()
             st.rerun()
-
-    st.markdown("---")
-    st.write("##### ⚠️ Danger Zone")
-    
-    # 5. SAFE DELETE FEATURE
-    confirm_delete = st.checkbox("Confirm I want to delete this chat")
-    if st.button("🗑️ Delete Current Session", use_container_width=True, type="secondary"):
-        if confirm_delete:
-            delete_room_from_db(st.session_state.active_id)
-            # Re-read list of rooms remaining
-            remaining_rooms = get_all_rooms()
-            if remaining_rooms:
-                st.session_state.active_id = remaining_rooms[0][0]
-            else:
-                st.session_state.active_id = "Conversation 1"
-                save_room_history("Conversation 1", [{"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below or type a message to start!"}])
-            st.session_state.autoplay_audio_data = None
-            st.rerun()
-        else:
-            st.sidebar.warning("Please check the confirmation box above first!")
 
 
 # =========================================================
@@ -299,7 +267,7 @@ if text_input:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-if audio_source and "bytes" in audio_source hoarding and audio_source["bytes"]:
+if audio_source and "bytes" in audio_source and audio_source["bytes"]:
     audio_bytes = audio_source["bytes"]
     audio_hash = hashlib.md5(audio_bytes).hexdigest()
     if st.session_state.last_processed_audio != audio_hash:
