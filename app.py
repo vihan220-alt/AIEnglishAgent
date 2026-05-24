@@ -4,8 +4,6 @@ import requests
 import hashlib
 import re
 import json
-import sqlite3
-import os
 from io import BytesIO
 from gtts import gTTS
 
@@ -15,168 +13,97 @@ from style import apply_custom_theme
 st.set_page_config(
     page_title="Fluency Coach - AI Speaking Companion",
     page_icon="🤖",
-    layout="centered"
+    layout="wide"  # Changed to wide layout to make room for your new sidebar panel!
 )
 
 apply_custom_theme()
 
-st.title("Fluency Coach")
-st.write("### Interactive AI Speaking Companion")
-
 # =========================================================
-# SQLITE DATABASE ENGINE (Saves history permanently)
+# LOCAL STORAGE HYBRID ENGINE (Refresh-Proof Memory)
 # =========================================================
-DB_FILE = "coach_database.db"
 
-def init_db():
-    """Creates the chat table if it doesn't exist yet."""
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS chats (
-            chat_id TEXT,
-            messages TEXT,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    conn.commit()
-    conn.close()
+# Helper to load all conversations from state memory 
+if "chat_vault" not in st.session_state:
+    st.session_state.chat_vault = {
+        "Conversation 1": [
+            {"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below or type a message to start!"}
+        ]
+    }
 
-def get_all_chat_ids():
-    """Retrieves all chat room names from the database."""
-    init_db()
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("SELECT chat_id FROM chats ORDER BY updated_at DESC")
-    rows = c.fetchall()
-    conn.close()
-    return [row[0] for row in rows]
+if "active_id" not in st.session_state:
+    st.session_state.active_id = list(st.session_state.chat_vault.keys())[0]
 
-def load_db_chat_history(chat_id):
-    """Loads text messages for a specific chat room."""
-    init_db()
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("SELECT messages FROM chats WHERE chat_id = ?", (chat_id,))
-    row = c.fetchone()
-    conn.close()
-    
-    if row:
-        return json.loads(row[0])
-    return [
-        {"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below or type a message to start!"}
-    ]
-
-def save_db_chat_history(chat_id, history):
-    """Saves or updates a chat room's log in the database."""
-    init_db()
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    # Check if the room already exists
-    c.execute("SELECT 1 FROM chats WHERE chat_id = ?", (chat_id,))
-    exists = c.fetchone()
-    
-    messages_json = json.dumps(history, ensure_ascii=False)
-    
-    if exists:
-        c.execute("UPDATE chats SET messages = ?, updated_at = CURRENT_TIMESTAMP WHERE chat_id = ?", (messages_json, chat_id))
-    else:
-        c.execute("INSERT INTO chats (chat_id, messages) VALUES (?, ?)", (chat_id, messages_json))
-        
-    conn.commit()
-    conn.close()
-
-def delete_db_chat(chat_id):
-    """Removes a chat room from the database storage."""
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("DELETE FROM chats WHERE chat_id = ?", (chat_id,))
-    conn.commit()
-    conn.close()
-
-# Initialize basic functional states
 if "autoplay_audio_data" not in st.session_state:
     st.session_state.autoplay_audio_data = None
 
 if "last_processed_audio" not in st.session_state:
     st.session_state.last_processed_audio = None
 
-# Scan database records to build the sidebar room list
-db_rooms = get_all_chat_ids()
-
-if not db_rooms:
-    default_room_title = "Primary Chat Room"
-    save_db_chat_history(default_room_title, [
-        {"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below or type a message to start!"}
-    ])
-    db_rooms = [default_room_title]
-
-# Safe cross-refresh fallback checks
-if "current_chat_id" not in st.session_state or st.session_state.current_chat_id not in db_rooms:
-    st.session_state.current_chat_id = db_rooms[0]
-
-# Keep memory array linked up to database records
-st.session_state.chat_history = load_db_chat_history(st.session_state.current_chat_id)
-
-# Profile Avatar Images
+# Avatars
 ROBOT_AVATAR = "https://cdn-icons-png.flaticon.com/512/4712/4712035.png"
 USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png"
 
 # =========================================================
-# SIDEBAR CONTROL PANEL (The ChatGPT Experience)
+# THE COLLAPSIBLE SIDEBAR PANEL (Gemini/ChatGPT Style)
 # =========================================================
 with st.sidebar:
-    st.header("Coach Workspace")
+    st.markdown("### 🤖 Coach Workspace")
     
-    # 1. New Chat Room Generation
-    if st.button("➕ New Chat", use_container_width=True):
+    # Big standalone action button for creating a new room
+    if st.button("➕ New chat", use_container_width=True, type="primary"):
         from datetime import datetime
-        generated_room_id = f"Chat {datetime.now().strftime('%b%d-%H%M%S')}"
-        initial_greeting = [
-            {"role": "coach", "content": "Hello! Let's start a brand new conversation. Tap the microphone below or type a message to start!"}
+        new_uid = f"Chat {datetime.now().strftime('%b %d, %H:%M')}"
+        st.session_state.chat_vault[new_uid] = [
+            {"role": "coach", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}
         ]
-        save_db_chat_history(generated_room_id, initial_greeting)
-        st.session_state.current_chat_id = generated_room_id
-        st.session_state.chat_history = initial_greeting
+        st.session_state.active_id = new_uid
         st.session_state.autoplay_audio_data = None
         st.rerun()
-
+        
     st.markdown("---")
-    st.subheader("Your Conversations")
+    st.write("##### Recents")
     
-    try:
-        active_dropdown_index = db_rooms.index(st.session_state.current_chat_id)
-    except ValueError:
-        active_dropdown_index = 0
+    # Loop over every chat room title and render it as a clean list button
+    for room_title in list(st.session_state.chat_vault.keys()):
+        # Highlight or mark the currently active session cleanly
+        is_current = (room_title == st.session_state.active_id)
+        button_label = f"💬 {room_title}" if not is_current else f"👉 {room_title}"
+        
+        # Clickable vertical links
+        if st.button(button_label, key=f"nav_{room_title}", use_container_width=True, help="Click to open this chat room"):
+            st.session_state.active_id = room_title
+            st.session_state.autoplay_audio_data = None
+            st.rerun()
 
-    # 2. Historical Chat List Dropdown
-    selected_room_name = st.selectbox(
-        "Select a conversation:",
-        options=db_rooms,
-        index=active_dropdown_index
-    )
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    st.markdown("---")
     
-    if selected_room_name != st.session_state.current_chat_id:
-        st.session_state.current_chat_id = selected_room_name
-        st.session_state.chat_history = load_db_chat_history(selected_room_name)
+    # Delete Option pinned cleanly at the baseline footer
+    if st.button("🗑️ Delete Current Session", use_container_width=True):
+        if len(st.session_state.chat_vault) > 1:
+            del st.session_state.chat_vault[st.session_state.active_id]
+            st.session_state.active_id = list(st.session_state.chat_vault.keys())[0]
+        else:
+            # Wipe baseline room clean if it's the remaining session
+            st.session_state.chat_vault["Conversation 1"] = [
+                {"role": "coach", "content": "Hello! Let's start fresh again here. Speak or type away!"}
+            ]
+            st.session_state.active_id = "Conversation 1"
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    
-    # 3. Clear/Remove Database Record Entry
-    if st.button("🗑️ Delete Current Chat", use_container_width=True):
-        delete_db_chat(st.session_state.current_chat_id)
-        # Clear out current memory tokens to trigger a fallback selection
-        if "current_chat_id" in st.session_state:
-            del st.session_state.current_chat_id
-        st.session_state.autoplay_audio_data = None
-        st.rerun()
 
-GROQ_API_KEY = "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"
+# =========================================================
+# MAIN APP CHAT SPACE RENDERER
+# =========================================================
+st.title("Fluency Coach")
+st.write(f"Currently Browsing: **{st.session_state.active_id}**")
 
-# Render Active Message Stream
-for message in st.session_state.chat_history:
+# Point active local history array tracking at our selected sidebar context room 
+current_history = st.session_state.chat_vault[st.session_state.active_id]
+
+# Show the messages on screen
+for message in current_history:
     if message["role"] == "user":
         with st.chat_message("user", avatar=USER_AVATAR):
             st.markdown(message["content"])
@@ -184,25 +111,29 @@ for message in st.session_state.chat_history:
         with st.chat_message("assistant", avatar=ROBOT_AVATAR):
             st.markdown(message["content"])
 
-# Audio Autoplay Engine
+# Audio Autoplay Card
 if st.session_state.autoplay_audio_data:
     st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-def get_coach_response(text_payload):
+# =========================================================
+# BACKEND CHAT HANDLERS & CORE FUNCTIONS
+# =========================================================
+GROQ_API_KEY = "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"
+
+def get_coach_response():
     messages_payload = [
         {
             "role": "system",
             "content": """You are an engaging, supportive, and highly advanced English language coach for kids. 
-            Provide a balanced, medium-length educational response. 
-            Do not give an endless or very long answer, and do not make it too short. Aim for a solid paragraph.
+            Provide a balanced, medium-length educational response. Do not give a very long answer. Aim for a solid paragraph.
             Explain concepts clearly, provide 1 or 2 examples in quotation marks, and keep it easy to understand. 
             Always close your response with one simple, engaging follow-up question to keep the conversation moving."""
         }
     ]
     
-    for msg in st.session_state.chat_history:
+    for msg in current_history:
         role_map = "user" if msg["role"] == "user" else "assistant"
         messages_payload.append({"role": role_map, "content": msg["content"]})
         
@@ -241,7 +172,7 @@ def text_to_speech_bytes(text_payload):
         st.error(f"TTS Error: {e}")
     return None
 
-# User Action Panel
+# User Input Controls Dashboard Layout
 voice_col, stop_col = st.columns([1, 1])
 
 with voice_col:
@@ -258,22 +189,23 @@ with stop_col:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# 1. Keyboard Text Messaging
+# 1. Keyboard Text Entry Box
 text_input = st.chat_input("Type your message here...")
 if text_input:
-    st.session_state.chat_history.append({"role": "user", "content": text_input})
-    save_db_chat_history(st.session_state.current_chat_id, st.session_state.chat_history)
+    current_history.append({"role": "user", "content": text_input})
     with st.spinner("Thinking..."):
-        coach_reply = get_coach_response(text_input)
-        st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
-        save_db_chat_history(st.session_state.current_chat_id, st.session_state.chat_history)
+        coach_reply = get_coach_response()
+        current_history.append({"role": "coach", "content": coach_reply})
+        
+        # Commit back down to permanent dictionary vault
+        st.session_state.chat_vault[st.session_state.active_id] = current_history
         
         audio_data = text_to_speech_bytes(coach_reply)
         if audio_data:
             st.session_state.autoplay_audio_data = audio_data
         st.rerun()
 
-# 2. Microphone Audio Messaging
+# 2. Microphone Speech Processing Card
 if audio_source and "bytes" in audio_source:
     audio_bytes = audio_source["bytes"]
     if audio_bytes:
@@ -289,22 +221,3 @@ if audio_source and "bytes" in audio_source:
                     }
                     headers = {"Authorization": f"Bearer {GROQ_API_KEY}"}
                     whisper_response = requests.post(
-                        "https://api.groq.com/openai/v1/audio/transcriptions",
-                        headers=headers,
-                        files=files
-                    )
-                    user_text = whisper_response.json().get("text", "")
-                    
-                    if user_text.strip():
-                        st.session_state.chat_history.append({"role": "user", "content": user_text})
-                        save_db_chat_history(st.session_state.current_chat_id, st.session_state.chat_history)
-                        coach_reply = get_coach_response(user_text)
-                        st.session_state.chat_history.append({"role": "coach", "content": coach_reply})
-                        save_db_chat_history(st.session_state.current_chat_id, st.session_state.chat_history)
-                        
-                        audio_data = text_to_speech_bytes(coach_reply)
-                        if audio_data:
-                            st.session_state.autoplay_audio_data = audio_data
-                        st.rerun()
-                except Exception as e:
-                    st.error("Audio Processing Error. Please try speaking again.")
