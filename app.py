@@ -1,19 +1,17 @@
-import streamlit as st
-from style import apply_custom_theme
-from message import display_chat
-from audio import audio_interface
+import sqlite3
 
-st.set_page_config(page_title="Fluency Coach", layout="centered")
-apply_custom_theme()
+def init_db():
+    conn = sqlite3.connect("coach_data.db")
+    c = conn.cursor()
+    # Ensure the table exists
+    c.execute('''CREATE TABLE IF NOT EXISTS conversations 
+                 (room_id TEXT PRIMARY KEY, is_pinned INTEGER DEFAULT 0)''')
+    # SAFELY add the missing column without crashing
+    try:
+        c.execute("ALTER TABLE conversations ADD COLUMN is_pinned INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass # Column already exists, no action needed
+    conn.commit()
+    conn.close()
 
-# Sidebar
-with st.sidebar:
-    st.header("🤖 Coach Workspace")
-    if st.button("➕ New Chat"):
-        st.session_state.messages = []
-        st.rerun()
-
-# Main UI
-st.title("Fluency Coach")
-display_chat()
-audio_interface()
+init_db()
