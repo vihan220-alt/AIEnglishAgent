@@ -16,8 +16,20 @@ def apply_custom_theme():
             border-radius: 15px;
             color: white !important;
         }
-        /* White text for everything */
+        /* Make Sidebar Text and Inputs Sharp */
         h1, h2, p, div, span, label { color: white !important; }
-        .stTextInput > div > div > input { background-color: #222 !important; color: white !important; }
+        
+        /* Style the Rename, Pin, Delete buttons inside the expander */
+        [data-testid="stSidebar"] button {
+            background-color: #333333 !important;
+            color: white !important;
+            border: 1px solid #555555 !important;
+            width: 100% !important;
+            padding: 5px !important;
+        }
+        [data-testid="stSidebar"] button:hover {
+            background-color: #555555 !important;
+            border-color: #00ea96 !important;
+        }
         </style>
         """, unsafe_allow_html=True)
