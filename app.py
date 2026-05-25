@@ -3,7 +3,6 @@ from style import apply_custom_theme
 from message import display_chat
 from audio import audio_interface
 
-# Set page config FIRST
 st.set_page_config(page_title="Fluency Coach", layout="centered")
 
 # Apply style
@@ -18,6 +17,9 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# Run components
-display_chat()
-audio_interface()
+# Execute components safely
+try:
+    display_chat()
+    audio_interface()
+except Exception as e:
+    st.error(f"An interface error occurred: {e}")
