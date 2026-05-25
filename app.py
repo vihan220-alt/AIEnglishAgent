@@ -119,12 +119,10 @@ if audio and "last_audio" not in st.session_state:
     st.session_state.last_audio = audio
     audio_bytes = audio['bytes']
     
-    # Fix 1: Typo safely cleared here
     r = sr.Recognizer()
     transcribed_text = ""
     
     try:
-        # Fix 2: Convert standard raw recorded audio bytes cleanly to an uncorrupted WAV file via pydub
         audio_segment = AudioSegment.from_file(io.BytesIO(audio_bytes))
         wav_buffer = io.BytesIO()
         audio_segment.export(wav_buffer, format="wav")
@@ -136,7 +134,7 @@ if audio and "last_audio" not in st.session_state:
     except sr.UnknownValueError:
         transcribed_text = "⚠️ [Could not understand your speech. Try speaking again clearly!]"
     except Exception as e:
-        transcribed_text = f"⚠️ [Audio processing issue]"
+        transcribed_text = "⚠️ [Audio processing issue]"
 
     if transcribed_text:
         active_chat["messages"].append({"role": "user", "content": f"🎤 Spoken: {transcribed_text}"})
