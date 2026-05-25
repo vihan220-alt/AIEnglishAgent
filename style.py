@@ -5,16 +5,23 @@ def apply_custom_theme():
         <style>
         .stApp {
             background-color: #000000 !important;
-            /* Use the clean robot face icon */
-            background-image: url("https://cdn-icons-png.flaticon.com/512/2040/2040901.png");
-            background-size: 80px;
-            background-repeat: repeat;
-            /* Makes the icon subtle so text remains readable */
-            background-blend-mode: overlay;
+            /* Using a high-quality robot-themed background */
+            background-image: url("https://img.freepik.com/free-vector/digital-technology-background-with-abstract-robot-head_23-2148425143.jpg");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
         }
         
-        /* Ensure everything else stays dark and readable */
-        h1, h2, p, div, span, label { color: white !important; }
+        /* Darken the overlay so white text is always readable */
+        .stApp::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: -1;
+        }
+
+        h1, h2, p, div, span, label { color: #ffffff !important; }
         
         [data-testid="stSidebar"] {
             background-color: #1a1a1a !important;
