@@ -41,22 +41,24 @@ with st.sidebar:
 # --- Main Interaction ---
 active_chat = next((c for c in st.session_state.chats if c["id"] == st.session_state.active_chat_id), st.session_state.chats[0])
 
+# Display existing messages
 for msg in active_chat["messages"]:
     st.chat_message("user").markdown(msg)
 
 # Voice Recorder
 st.write("### 🎙️ Speech Input")
-audio = mic_recorder(start_prompt="Speak 🎤", stop_prompt="Stop ⏹️", key="recorder")
+# Use a unique key and only act if audio data is returned
+audio_info = mic_recorder(start_prompt="Speak 🎤", stop_prompt="Stop ⏹️", key="recorder_unique")
 
-if audio:
-    # Logic: Convert audio to text here (place holder)
-    text = "Audio detected! (Integrate Whisper API here)"
+if audio_info and "audio" in audio_info:
+    # Only append if this is a NEW recording (to prevent loop)
+    text = "User (Voice): [Audio Processed]"
     active_chat["messages"].append(text)
     save_data(st.session_state.chats)
     st.rerun()
 
 # Text Input
 if prompt := st.chat_input("Type your message..."):
-    active_chat["messages"].append(prompt)
+    active_chat["messages"].append(f"User: {prompt}")
     save_data(st.session_state.chats)
     st.rerun()
