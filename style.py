@@ -5,9 +5,12 @@ def apply_custom_theme():
         <style>
         .stApp {
             background-color: #0e1117;
-            background-image: url("https://cdn-icons-png.flaticon.com/512/4712/4712035.png");
+            /* New robot face below */
+            background-image: url("https://cdn-icons-png.flaticon.com/512/2040/2040901.png");
             background-size: 80px;
+            background-repeat: repeat;
+            opacity: 0.8;
         }
-        h1, h2, p { color: black !important; }
+        h1, h2, p { color: white !important; }
         </style>
         """, unsafe_allow_html=True)
