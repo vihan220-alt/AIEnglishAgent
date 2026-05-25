@@ -1,8 +1,23 @@
-.stApp {
+import streamlit as st
+
+def apply_custom_theme():
+    st.markdown("""
+        <style>
+        /* Robot face background */
+        .stApp {
             background-color: #000000 !important;
-            /* Replace the link below with one of the URLs above */
-            background-image: url("https://cdn-icons-png.flaticon.com/512/1000/1000966.png");
-            background-size: 80px;
+            background-image: url("https://cdn-icons-png.flaticon.com/512/2040/2040901.png");
+            background-size: 100px;
             background-repeat: repeat;
-            opacity: 0.9;
         }
+        /* Green Chat Bubbles */
+        [data-testid="stChatMessage"] {
+            background-color: #004d40 !important;
+            border-radius: 15px;
+            color: white !important;
+        }
+        /* White text for everything */
+        h1, h2, p, div, span, label { color: white !important; }
+        .stTextInput > div > div > input { background-color: #222 !important; color: white !important; }
+        </style>
+        """, unsafe_allow_html=True)
