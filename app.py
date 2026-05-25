@@ -36,19 +36,16 @@ with st.sidebar:
         with open(DATA_FILE, "w") as f: json.dump(st.session_state.chats, f)
         st.rerun()
 
-    # Fixed sorting line syntax error
     sorted_chats = sorted(st.session_state.chats, key=lambda x: x.get("pinned", False), reverse=True)
 
     for chat in sorted_chats:
         display_label = f"{'📌 ' if chat.get('pinned') else ''}{chat['name']}"
         with st.expander(display_label):
-            # Rename Input Box
             new_name = st.text_input("Rename Chat", value=chat['name'], key=f"rn_{chat['id']}")
             if new_name != chat['name']:
                 chat['name'] = new_name
                 with open(DATA_FILE, "w") as f: json.dump(st.session_state.chats, f)
             
-            # Action Buttons Layout
             c1, c2, c3 = st.columns(3)
             if c1.button("Open", key=f"op_{chat['id']}"): 
                 st.session_state.active_id = chat['id']
@@ -73,29 +70,38 @@ active_chat = next((c for c in st.session_state.chats if c["id"] == st.session_s
 
 # Render chat bubbles cleanly
 for msg in active_chat["messages"]:
-    if isinstance(msg, dict):
-        role = msg.get("role", "user")
-        content = msg.get("content", "")
-    else:
-        role = "user"
-        content = msg
-    
+    role = msg.get("role", "user") if isinstance(msg, dict) else "user"
+    content = msg.get("content", msg) if isinstance(msg, dict) else msg
     with st.chat_message(role):
         st.markdown(content)
 
-# Audio Microphone Input
+# Audio Microphone Input Setup
 audio = mic_recorder(start_prompt="Speak 🎤", stop_prompt="Stop ⏹️", key="rec")
 
-# Text Input
-if prompt := st.chat_input("Type your message..."):
-    # 1. Save user message
-    active_chat["messages"].append({"role": "user", "content": prompt})
+# Fix 1: Handle Voice Input safely without infinite repetition loops
+if audio and "last_audio" not in st.session_state:
+    st.session_state.last_audio = audio
+    # Note: To turn voice to text here, an audio transcription API is needed.
+    # For now, we log the audio entry cleanly to keep your app from freezing.
+    user_voice_placeholder = "🎤 [Recorded Audio Message]"
+    active_chat["messages"].append({"role": "user", "content": user_voice_placeholder})
     
-    # 2. Generate immediate Coach answer
-    reply = f"Hello! I am your Fluency Coach. I received your message: '{prompt}'. Let's keep practicing your English conversational skills!"
+    reply = "I received your audio recording! Once we connect our Speech-to-Text API engine, I will transcribe and critique your spoken pronunciation right here."
     active_chat["messages"].append({"role": "assistant", "content": reply})
     
-    # 3. Save to file and refresh screen
-    with open(DATA_FILE, "w") as f:
-        json.dump(st.session_state.chats, f)
+    with open(DATA_FILE, "w") as f: json.dump(st.session_state.chats, f)
+    st.rerun()
+
+# Clear out the audio trigger flag if the mic state is empty/reset
+if not audio and "last_audio" in st.session_state:
+    del st.session_state.last_audio
+
+# Fix 2: Text Input Box processing
+if prompt := st.chat_input("Type your message..."):
+    active_chat["messages"].append({"role": "user", "content": prompt})
+    
+    reply = f"Hello! I am your Fluency Coach. I received your text message: '{prompt}'. Let's keep practicing your English conversational skills!"
+    active_chat["messages"].append({"role": "assistant", "content": reply})
+    
+    with open(DATA_FILE, "w") as f: json.dump(st.session_state.chats, f)
     st.rerun()
