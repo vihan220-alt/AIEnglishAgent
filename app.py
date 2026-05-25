@@ -99,16 +99,17 @@ if not active_chat:
     active_chat = st.session_state.chats[0]
     st.session_state.active_id = active_chat["id"]
 
-# Function to generate auto-playing HTML audio players with an embedded stop control
+# Helper function to compile audio speech track
 def generate_audio_html(text):
     tts = gTTS(text=text, lang='en', tld='co.uk')
     mp3_fp = io.BytesIO()
     tts.write_to_fp(mp3_fp)
     mp3_fp.seek(0)
     b64 = base64.b64encode(mp3_fp.read()).decode()
-    return f'<audio src="data:audio/mp3;base64,{b64}" autoplay controls></audio>'
+    # Renders audio block player equipped with native browser stop/pause buttons
+    return f'<div style="margin-top:10px;"><audio src="data:audio/mp3;base64,{b64}" autoplay controls></audio></div>'
 
-# Render conversation bubbles cleanly
+# Render message items
 for msg in active_chat["messages"]:
     role = msg.get("role", "user") if isinstance(msg, dict) else "user"
     content = msg.get("content", "") if isinstance(msg, dict) else str(msg)
@@ -118,58 +119,51 @@ for msg in active_chat["messages"]:
         if role == "assistant" and isinstance(msg, dict) and msg.get("audio_html"):
             st.markdown(msg["audio_html"], unsafe_allow_html=True)
 
-# Main Voice Input Component
-st.write("### Speak to your Coach:")
-audio_file = st.audio_input("Record your voice")
+st.write("---")
+# Main Input Form to handle voice recording safely
+audio_file = st.audio_input("Speak to your Coach 🎤")
 
 if audio_file is not None:
-    # Read file bytes
     audio_bytes = audio_file.read()
+    # Guard tracker to prevent duplicate processing loop runs
+    audio_signature = str(len(audio_bytes))
     
-    # Check if this is a new voice message to avoid processing loops
-    audio_hash = str(len(audio_bytes))
-    if st.session_state.get("last_processed_audio") != audio_hash:
-        st.session_state.last_processed_audio = audio_hash
+    if st.session_state.get("processed_sig") != audio_signature:
+        st.session_state.processed_sig = audio_signature
         
         r = sr.Recognizer()
-        transcribed_text = ""
-        
+        # Process the incoming audio data stream directly
         try:
             with sr.AudioFile(io.BytesIO(audio_bytes)) as source:
                 audio_data = r.record(source)
                 transcribed_text = r.recognize_google(audio_data)
-        except sr.UnknownValueError:
-            transcribed_text = "⚠️ [Could not interpret audio track clearly. Please speak again!]"
-        except Exception as e:
-            transcribed_text = "⚠️ [Voice data translation issue]"
+        except Exception:
+            transcribed_text = ""
 
-        if transcribed_text and not transcribed_text.startswith("⚠️"):
-            active_chat["messages"].append({"role": "user", "content": f"🎤 Spoken: {transcribed_text}"})
+        if transcribed_text:
+            active_chat["messages"].append({"role": "user", "content": f"🎤 Spoken: *{transcribed_text}*"})
             
-            reply_text = f"I heard you say: '{transcribed_text}'. Let's continue working on your language flow!"
-            audio_player_html = generate_audio_html(reply_text)
+            # Condition: Spoken input answers with text AND audio playback containing a stop element
+            reply_text = f"I heard you speak clearly! You said: '{transcribed_text}'. Let's continue working on your conversational english."
+            audio_html = generate_audio_html(reply_text)
             
             active_chat["messages"].append({
-                "role": "assistant", 
+                "role": "assistant",
                 "content": reply_text,
-                "audio_html": audio_player_html
+                "audio_html": audio_html
             })
-            
-            with open(DATA_FILE, "w") as f: 
-                json.dump(st.session_state.chats, f)
+            with open(DATA_FILE, "w") as f: json.dump(st.session_state.chats, f)
             st.rerun()
 
-# Chat Processing Text Input Bar
-if prompt := st.chat_input("Type your message..."):
+# Text input handling
+if prompt := st.chat_input("Type your message here..."):
     active_chat["messages"].append({"role": "user", "content": prompt})
     
-    # Text-only replies do NOT attach audio streams
-    reply_text = f"Hello! I am your Fluency Coach. I received your text message: '{prompt}'. Let's keep practicing your English conversational skills!"
+    # Condition: Written text answers strictly in text format (No audio layer attached)
+    reply_text = f"Hello! I received your text message: '{prompt}'. Let's practice building your sentence layout structure."
     active_chat["messages"].append({
-        "role": "assistant", 
+        "role": "assistant",
         "content": reply_text
     })
-    
-    with open(DATA_FILE, "w") as f: 
-        json.dump(st.session_state.chats, f)
+    with open(DATA_FILE, "w") as f: json.dump(st.session_state.chats, f)
     st.rerun()
