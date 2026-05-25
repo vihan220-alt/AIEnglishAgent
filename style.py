@@ -3,32 +3,31 @@ import streamlit as st
 def apply_custom_theme():
     st.markdown("""
         <style>
-        /* Robot face background */
+        /* Robot face wall background design */
         .stApp {
             background-color: #000000 !important;
             background-image: url("https://cdn-icons-png.flaticon.com/512/2040/2040901.png");
             background-size: 100px;
             background-repeat: repeat;
         }
-        /* Green Chat Bubbles */
+        /* Green Chat Containers */
         [data-testid="stChatMessage"] {
             background-color: #004d40 !important;
-            border-radius: 15px;
-            color: white !important;
+            border-radius: 12px;
+            color: #ffffff !important;
+            margin-bottom: 10px;
         }
-        /* Make Sidebar Text and Inputs Sharp */
-        h1, h2, p, div, span, label { color: white !important; }
+        /* Text visibility overrides */
+        h1, h2, h3, p, div, span, label { color: #ffffff !important; }
         
-        /* Style the Rename, Pin, Delete buttons inside the expander */
+        /* Make sidebar elements distinct and visible */
         [data-testid="stSidebar"] button {
-            background-color: #333333 !important;
-            color: white !important;
-            border: 1px solid #555555 !important;
-            width: 100% !important;
-            padding: 5px !important;
+            background-color: #2b2b2b !important;
+            color: #ffffff !important;
+            border: 1px solid #444444 !important;
         }
         [data-testid="stSidebar"] button:hover {
-            background-color: #555555 !important;
+            background-color: #444444 !important;
             border-color: #00ea96 !important;
         }
         </style>
