@@ -1,44 +1,32 @@
 import streamlit as st
 from streamlit_mic_recorder import mic_recorder
+from style import apply_custom_theme  # This matches the file name style.py
 
-# --- 1. Styling & Theme ---
-st.set_page_config(page_title="Fluency Coach", layout="centered")
-st.markdown("""
-    <style>
-    .stApp {
-        background-color: #0e1117;
-        background-image: url("https://cdn-icons-png.flaticon.com/512/4712/4712035.png");
-        background-size: 80px;
-    }
-    h1, h2, p { color: white !important; }
-    </style>
-    """, unsafe_allow_html=True)
+# 1. Apply the style
+apply_custom_theme()
 
-# --- 2. State Initialization ---
+# 2. Chat logic
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- 3. UI Components ---
+# 3. UI
 st.title("Fluency Coach")
 
-# Sidebar
 with st.sidebar:
     st.header("🤖 Coach Workspace")
     if st.button("➕ New Chat"):
         st.session_state.messages = []
         st.rerun()
 
-# Chat Display
 for msg in st.session_state.messages:
     with st.chat_message("user"):
         st.markdown(msg)
 
-# Chat Input (Simplified)
+# 4. Input and Controls
 if prompt := st.chat_input("Type your message here..."):
     st.session_state.messages.append(prompt)
     st.rerun()
 
-# Audio Controls
 c1, c2 = st.columns(2)
 with c1:
     mic_recorder(start_prompt="Speak 🎤", stop_prompt="Submit 🔇", key="rec")
