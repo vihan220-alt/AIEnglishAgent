@@ -1,31 +1,26 @@
 import streamlit as st
+from style import apply_custom_theme
+from streamlit_mic_recorder import mic_recorder
 
-def apply_custom_theme():
-    st.markdown("""
-        <style>
-        /* Dark background with a single, centered robot face */
-        .stApp {
-            background-color: #000000 !important;
-            background-image: url("https://cdn-icons-png.flaticon.com/512/2040/2040901.png");
-            background-size: 200px; /* Adjust this to make the face larger or smaller */
-            background-repeat: no-repeat;
-            background-position: center;
-        }
-        
-        /* Ensure chat bubbles are distinct and readable */
-        .stChatMessage {
-            background-color: rgba(30, 30, 30, 0.8) !important;
-            border: 1px solid #444;
-            color: #ffffff !important;
-        }
+# 1. Apply styles
+apply_custom_theme()
 
-        /* Ensure all text is white */
-        h1, h2, p, div, span, label { color: #ffffff !important; }
-        
-        /* Dark inputs */
-        .stTextInput > div > div > input, .stChatInput textarea { 
-            background-color: #1a1a1a !important; 
-            color: white !important; 
-        }
-        </style>
-        """, unsafe_allow_html=True)
+st.title("Fluency Coach")
+
+# 2. Simple Chat Input
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# 3. Display
+for msg in st.session_state.messages:
+    st.write(msg)
+
+# 4. Input
+if prompt := st.chat_input("Say something..."):
+    st.session_state.messages.append(prompt)
+    st.rerun()
+
+# 5. Simple mic trigger
+audio = mic_recorder(start_prompt="Speak", stop_prompt="Stop")
+if audio:
+    st.write("Audio detected!")
