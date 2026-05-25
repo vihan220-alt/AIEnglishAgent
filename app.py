@@ -3,9 +3,10 @@ import json
 import os
 import io
 import time
+import base64
 from streamlit_mic_recorder import mic_recorder
 import speech_recognition as sr
-from pydub import AudioSegment
+from gtts import gTTS
 from style import apply_custom_theme
 
 # Apply CSS styles
@@ -53,10 +54,8 @@ with st.sidebar:
             json.dump(st.session_state.chats, f)
         st.rerun()
 
-    # Sort Pinned items to the top
     sorted_chats = sorted(st.session_state.chats, key=lambda x: x.get("pinned", False), reverse=True)
 
-    # Use index enumeration to guarantee unique element keys
     for idx, chat in enumerate(sorted_chats):
         chat_id = chat["id"]
         is_active = (str(chat_id) == str(st.session_state.active_id))
@@ -101,19 +100,30 @@ if not active_chat:
     active_chat = st.session_state.chats[0]
     st.session_state.active_id = active_chat["id"]
 
-# Render conversation bubbles safely
-for msg in active_chat["messages"]:
-    if isinstance(msg, dict):
-        role = msg.get("role", "user")
-        content = msg.get("content", "")
-    else:
-        role = "user"
-        content = str(msg)
-    with st.chat_message(role):
-        st.markdown(content)
+# Function to generate auto-playing HTML audio players with an embedded stop control
+def generate_audio_html(text):
+    tts = gTTS(text=text, lang='en', tld='co.uk')
+    mp3_fp = io.BytesIO()
+    tts.write_to_fp(mp3_fp)
+    mp3_fp.seek(0)
+    b64 = base64.b64encode(mp3_fp.read()).decode()
+    # Returns an HTML5 audio component with native controls (Play/Pause/Mute/Stop tracking)
+    return f'<audio src="data:audio/mp3;base64,{b64}" autoplay controls></audio>'
 
-# Audio Microphone Component Interface 
-audio = mic_recorder(start_prompt="Speak 🎤", stop_prompt="Stop ⏹️", key="rec")
+# Render conversation bubbles cleanly
+for msg in active_chat["messages"]:
+    role = msg.get("role", "user") if isinstance(msg, dict) else "user"
+    content = msg.get("content", "") if isinstance(msg, dict) else str(msg)
+    
+    with st.chat_message(role):
+        st.markdown(content, unsafe_allow_html=True)
+        # If the bot message contains audio data, render the audio player underneath the text
+        if role == "assistant" and isinstance(msg, dict) and msg.get("audio_html"):
+            st.markdown(msg["audio_html"], unsafe_allow_html=True)
+
+# Audio Microphone Component Interface
+# The stop button appears dynamically inside this component automatically while recording
+audio = mic_recorder(start_prompt="Speak 🎤", stop_prompt="Stop Recording ⏹️", key="rec")
 
 if audio and "last_audio" not in st.session_state:
     st.session_state.last_audio = audio
@@ -123,23 +133,27 @@ if audio and "last_audio" not in st.session_state:
     transcribed_text = ""
     
     try:
-        audio_segment = AudioSegment.from_file(io.BytesIO(audio_bytes))
-        wav_buffer = io.BytesIO()
-        audio_segment.export(wav_buffer, format="wav")
-        wav_buffer.seek(0)
-        
-        with sr.AudioFile(wav_buffer) as source:
+        # Stream raw sound bytes directly into standard format data chunks
+        with sr.AudioFile(io.BytesIO(audio_bytes)) as source:
             audio_data = r.record(source)
             transcribed_text = r.recognize_google(audio_data)
     except sr.UnknownValueError:
         transcribed_text = "⚠️ [Could not understand your speech. Try speaking again clearly!]"
     except Exception as e:
-        transcribed_text = "⚠️ [Audio processing issue]"
+        transcribed_text = "⚠️ [Audio data capture issue. Try again!]"
 
-    if transcribed_text:
+    if transcribed_text and not transcribed_text.startswith("⚠️"):
         active_chat["messages"].append({"role": "user", "content": f"🎤 Spoken: {transcribed_text}"})
-        reply = f"I heard you say: '{transcribed_text}'. Let's continue working on your language flow!"
-        active_chat["messages"].append({"role": "assistant", "content": reply})
+        
+        reply_text = f"I heard you say: '{transcribed_text}'. Let's continue working on your pronunciation!"
+        # Generate speak back audio track
+        audio_player_html = generate_audio_html(reply_text)
+        
+        active_chat["messages"].append({
+            "role": "assistant", 
+            "content": reply_text,
+            "audio_html": audio_player_html
+        })
         
         with open(DATA_FILE, "w") as f: json.dump(st.session_state.chats, f)
         st.rerun()
@@ -147,11 +161,16 @@ if audio and "last_audio" not in st.session_state:
 if not audio and "last_audio" in st.session_state:
     del st.session_state.last_audio
 
-# Chat Processing Text Bar
+# Chat Processing Text Input Bar
 if prompt := st.chat_input("Type your message..."):
     active_chat["messages"].append({"role": "user", "content": prompt})
-    reply = f"Hello! I am your Fluency Coach. I received your text message: '{prompt}'. Let's keep practicing your English conversational skills!"
-    active_chat["messages"].append({"role": "assistant", "content": reply})
+    
+    # Text-only replies do NOT attach audio streams
+    reply_text = f"Hello! I am your Fluency Coach. I received your text message: '{prompt}'. Let's keep practicing your conversational skills!"
+    active_chat["messages"].append({
+        "role": "assistant", 
+        "content": reply_text
+    })
     
     with open(DATA_FILE, "w") as f: json.dump(st.session_state.chats, f)
     st.rerun()
