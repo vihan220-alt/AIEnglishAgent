@@ -8,6 +8,6 @@ def apply_custom_theme():
             background-image: url("https://cdn-icons-png.flaticon.com/512/4712/4712035.png");
             background-size: 80px;
         }
-        h1, h2, p { color: white !important; }
+        h1, h2, p { color: black !important; }
         </style>
         """, unsafe_allow_html=True)
