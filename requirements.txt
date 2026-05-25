@@ -1,4 +1,2 @@
 streamlit
 streamlit-mic-recorder
-requests
-gtts
