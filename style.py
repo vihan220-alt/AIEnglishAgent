@@ -1,46 +1,13 @@
 import streamlit as st
 
 def apply_custom_theme():
-    st.markdown(
-        """
+    st.markdown("""
         <style>
-        /* 1. HIGH-VISIBILITY MULTICOLOR ROBOT WALLPAPER GRID */
-        .stApp, [data-testid="stSidebar"] {
-            background-color: #0b0f19; /* Deep space canvas */
-            background-image: 
-                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 160 160'%3E%3Cg opacity='0.55'%3E%3C!-- SOLID BRIGHT RED ROBOT --%3E%3Cpath d='M20,25 h30 v25 h-30 z' stroke='%23ff4b4b' stroke-width='3' fill='%23ff4b4b' fill-opacity='0.25'/%3E%3Cpath d='M15,35 h5 M50,35 h5 M25,20 h5 M40,20 h5 M27,33 h4 M41,33 h4 M30,43 h12' stroke='%23ff4b4b' stroke-width='3' stroke-linecap='round'/%3E%3C!-- SOLID BRIGHT BLUE ROBOT --%3E%3Cpath d='M100,25 h30 v25 h-30 z' stroke='%233b82f6' stroke-width='3' fill='%233b82f6' fill-opacity='0.25'/%3E%3Cpath d='M95,35 h5 M130,35 h5 M105,20 h5 M120,20 h5 M107,33 h4 M121,33 h4 M110,43 h12' stroke='%233b82f6' stroke-width='3' stroke-linecap='round'/%3E%3C!-- SOLID BRIGHT GREEN ROBOT --%3E%3Cpath d='M20,105 h30 v25 h-30 z' stroke='%2310b981' stroke-width='3' fill='%2310b981' fill-opacity='0.25'/%3E%3Cpath d='M15,115 h5 M50,115 h5 M25,100 h5 M40,100 h5 M27,113 h4 M41,113 h4 M30,123 h12' stroke='%2310b981' stroke-width='3' stroke-linecap='round'/%3E%3C!-- SOLID BRIGHT YELLOW ROBOT --%3E%3Cpath d='M100,105 h30 v25 h-30 z' stroke='%23eab308' stroke-width='3' fill='%23eab308' fill-opacity='0.25'/%3E%3Cpath d='M95,115 h5 M130,115 h5 M105,100 h5 M120,100 h5 M107,113 h4 M121,113 h4 M110,123 h12' stroke='%23eab308' stroke-width='3' stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E");
-            background-repeat: repeat;
+        .stApp {
+            background-color: #0e1117;
+            background-image: url("https://cdn-icons-png.flaticon.com/512/4712/4712035.png");
+            background-size: 80px;
         }
-
-        /* 2. CHAT BUBBLE SHAPES WITH MATCHING GLOW EFFECTS */
-        [data-testid="stChatMessage"] {
-            background-color: rgba(18, 24, 38, 0.96) !important;
-            border-radius: 20px;
-            margin-bottom: 15px;
-            padding: 16px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-        }
-
-        /* Blue glowing border accent for Coach messages */
-        [data-testid="stChatMessage"]:nth-child(even) {
-            border: 2px solid #3b82f6 !important;
-            box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
-        }
-
-        /* Green glowing border accent for User messages */
-        [data-testid="stChatMessage"]:nth-child(odd) {
-            border: 2px solid #10b981 !important;
-            box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
-        }
-
-        /* 3. SHARP AND CLEAN CONTRAST FOR TEXT */
-        .stMarkdown p {
-            color: #ffffff !important;
-            font-size: 17px !important;
-            font-weight: 500;
-            letter-spacing: 0.3px;
-        }
+        h1, h2, p { color: white !important; }
         </style>
-        """,
-        unsafe_allow_html=True
-    )
+        """, unsafe_allow_html=True)
