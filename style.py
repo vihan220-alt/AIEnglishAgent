@@ -3,31 +3,40 @@ import streamlit as st
 def apply_custom_theme():
     st.markdown("""
         <style>
-        /* Force the main app background to black */
-        .stApp { 
-            background-color: #000000 !important; 
+        /* Force the entire page background to dark black */
+        .stApp {
+            background-color: #000000 !important;
+            /* New URL with high-contrast, clean robot faces */
             background-image: url("https://cdn-icons-png.flaticon.com/512/2040/2040901.png");
-            background-size: 100px;
+            background-size: 80px;
             background-repeat: repeat;
+            opacity: 0.85; /* Makes text easier to read */
         }
         
-        /* Force all text elements to white */
-        h1, h2, h3, p, div, span, label { 
+        /* Ensure all text is bright white */
+        h1, h2, h3, p, div, span, label, .stMarkdown { 
             color: #ffffff !important; 
         }
         
-        /* Force inputs and text areas to be dark with white text */
+        /* Style input fields (chat input, text boxes) to be dark */
         .stTextInput > div > div > input, .stChatInput textarea { 
             background-color: #1a1a1a !important; 
-            color: white !important; 
+            color: #ffffff !important; 
             border: 1px solid #444 !important;
         }
         
-        /* Force buttons to be dark */
+        /* Style buttons to be visible but dark */
         .stButton button { 
-            background-color: #262626 !important; 
-            color: white !important; 
-            border: 1px solid #444 !important; 
+            background-color: #333333 !important; 
+            color: #ffffff !important; 
+            border: 1px solid #555 !important; 
+        }
+        
+        /* Specifically target chat messages to have dark backgrounds */
+        .stChatMessage {
+            background-color: rgba(26, 26, 26, 0.9) !important;
+            border-radius: 10px;
+            color: white !important;
         }
         </style>
         """, unsafe_allow_html=True)
