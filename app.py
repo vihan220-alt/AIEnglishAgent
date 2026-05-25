@@ -2,25 +2,28 @@ import streamlit as st
 from style import apply_custom_theme
 from streamlit_mic_recorder import mic_recorder
 
-# 1. Apply styles
+# Apply style
 apply_custom_theme()
 
 st.title("Fluency Coach")
 
-# 2. Simple Chat Input
+# --- Sidebar ---
+with st.sidebar:
+    st.header("🤖 Coach Workspace")
+    if st.button("➕ New Chat"):
+        st.session_state.messages = []
+        st.rerun()
+
+# --- Main Interaction ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# 3. Display
 for msg in st.session_state.messages:
-    st.write(msg)
+    st.chat_message("user").markdown(msg)
 
-# 4. Input
-if prompt := st.chat_input("Say something..."):
+st.write("### 🎙️ Speech Input")
+audio = mic_recorder(start_prompt="Speak 🎤", stop_prompt="Stop ⏹️", key="recorder")
+
+if prompt := st.chat_input("Type your message..."):
     st.session_state.messages.append(prompt)
     st.rerun()
-
-# 5. Simple mic trigger
-audio = mic_recorder(start_prompt="Speak", stop_prompt="Stop")
-if audio:
-    st.write("Audio detected!")
