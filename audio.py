@@ -1,16 +1,12 @@
 import streamlit as st
 from streamlit_mic_recorder import mic_recorder
+from gtts import gTTS
+import io
 
-def audio_interface():
-    st.write("### 🎙️ Voice Controls")
-    c1, c2 = st.columns(2)
-    with c1:
-        # Wrapped in a try/except to prevent total app failure
-        try:
-            mic_recorder(start_prompt="Speak 🎤", stop_prompt="Submit 🔇", key="rec")
-        except Exception as e:
-            st.error("Audio failed to load.")
-    with c2:
-        if st.button("Clear Chat"):
-            st.session_state.messages = []
-            st.rerun()
+def get_audio_bytes(text):
+    # This converts text to speech and returns the audio binary
+    tts = gTTS(text=text, lang='en', tld='co.uk')
+    fp = io.BytesIO()
+    tts.write_to_fp(fp)
+    fp.seek(0)
+    return fp.read()
