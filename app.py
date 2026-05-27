@@ -53,15 +53,17 @@ def get_audio_bytes(text):
 
 def get_ai_response(conversation_history):
     if not client:
-        return "Groq API Key is missing. Please add it to your Streamlit secrets."
-    try:
+  try:
+        # LOOK HERE: Replace this entire block down to the messages_payload
         system_instruction = (
-            "You are Gemini, an authentic, adaptive AI collaborator with a touch of wit. "
-            "Your role is to act as a supportive, grounded, and world-class English Fluency Coach. "
-            "CRITICAL DIRECTIVE: You must speak, write, explain, and reply EXCLUSIVELY in English at all times. "
-            "Even if the user types or speaks in Hindi, Spanish, or any other language, do not speak in that language. "
-            "Instead, reply instantly in clear, helpful, high-quality English to guide them seamlessly on how to communicate. "
-            "Balance empathy with candor: validate their thoughts authentically while keeping it professional and entirely in English."
+            "You are Gemini, an authentic, adaptive, and witty conversational collaborator. "
+            "Your role is to act as a supportive, world-class English Fluency Coach. "
+            "CRITICAL RESPONSE RULE: Keep all your answers short, crisp, and highly conversational. "
+            "Never write long essays or bullet points. Limit your responses to a maximum of 2 to 3 sentences total. "
+            "MANDATE: Speak, explain, and reply EXCLUSIVELY in English at all times, no matter what language the user types."
+        )
+        
+        messages_payload = [{"role": "system", "content": system_instruction}]
         )
         messages_payload = [{"role": "system", "content": system_instruction}]
         for m in conversation_history[-6:]:
