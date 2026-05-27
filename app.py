@@ -1,59 +1,31 @@
 import streamlit as st
-import json
 import os
-import time
-import io
-import hashlib
 from groq import Groq
-from gtts import gTTS
-from style import apply_custom_css
+from audio import get_audio_bytes
+from message import save_data, load_data
 
-# Initial configurations
-st.set_page_config(layout="wide", page_title="Fluency Coach")
-apply_custom_css()
+# Initialize Groq Client
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-DATA_FILE = "chat_history.json"
-client = Groq(api_key=st.secrets["GROQ_API_KEY"]) if "GROQ_API_KEY" in st.secrets else None
+# Page Configuration
+st.set_page_config(page_title="Fluency Coach", page_icon="👑", layout="wide")
 
-if "stop_audio" not in st.session_state:
-    st.session_state.stop_audio = False
+# Custom CSS Import safely handled at top level
+try:
+    from style import apply_custom_css
+    apply_custom_css()
+except Exception as e:
+    pass
+
+# Helper to Initialize Session States
+if "chats" not in st.session_state:
+    st.session_state.chats = load_data()
+if "active_chat_id" not in st.session_state:
+    st.session_state.active_chat_id = "Chat 1"
 if "active_audio_bytes" not in st.session_state:
     st.session_state.active_audio_bytes = None
-if "last_processed_audio_hash" not in st.session_state:
-    st.session_state.last_processed_audio_hash = None
 
-def load_data():
-    default_chat = [{"id": "chat_default", "name": "Chat 1", "messages": [], "pinned": False}]
-    if os.path.exists(DATA_FILE):
-        try:
-            with open(DATA_FILE, "r") as f:
-                content = f.read().strip()
-                return json.loads(content) if content else default_chat
-        except Exception:
-            return default_chat
-    return default_chat
-
-def save_data(data):
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f)
-
-if "chats" not in st.session_state: 
-    st.session_state.chats = load_data()
-if "active_idx" not in st.session_state: 
-    st.session_state.active_idx = 0
-
-def get_audio_bytes(text):
-    try:
-        tts = gTTS(text=text, lang='en', tld='co.uk')
-        mp3_fp = io.BytesIO()
-        tts.write_to_fp(mp3_fp)
-        return mp3_fp.getvalue()
-    except Exception:
-        return None
-
-def get_ai_response(conversation_history):
-    if not client:
-  def get_ai_response(messages):
+def get_ai_response(messages):
     try:
         system_instruction = (
             "You are Gemini, an authentic, adaptive, and witty conversational collaborator. "
@@ -65,139 +37,77 @@ def get_ai_response(conversation_history):
         
         messages_payload = [{"role": "system", "content": system_instruction}] + messages
         
-        messages_payload = [{"role": "system", "content": system_instruction}]
-        )
-        messages_payload = [{"role": "system", "content": system_instruction}]
-        for m in conversation_history[-6:]:
-            messages_payload.append({"role": m["role"], "content": m["content"]})
-            
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=messages_payload,
-            temperature=0.6
+            temperature=0.7,
+            max_tokens=150,
+            top_p=1,
+            stream=False
         )
-        return completion.choices[0].message.content.strip()
+        return completion.choices[0].message.content
     except Exception as e:
-        return f"Error connecting to coach: {str(e)}"
+        return f"Error: {str(e)}"
 
-# --- Workspace Sidebar Layout ---
-with st.sidebar:
-    st.header("Coach Workspace")
-    if st.button("➕ New Chat"):
-        new_chat = {"id": f"chat_{time.time()}", "name": f"Chat {len(st.session_state.chats)+1}", "messages": [], "pinned": False}
-        st.session_state.chats.append(new_chat)
-        save_data(st.session_state.chats)
-        st.session_state.active_idx = len(st.session_state.chats) - 1
-        st.session_state.active_audio_bytes = None  
-        st.session_state.last_processed_audio_hash = None
-        st.rerun()
+# --- Sidebar Workspace Navigation ---
+st.sidebar.title("Workspace")
+if st.sidebar.button("➕ New Chat", key="new_chat_btn"):
+    new_id = f"Chat {len(st.session_state.chats) + 1}"
+    st.session_state.chats[new_id] = []
+    st.session_state.active_chat_id = new_id
+    save_data(st.session_state.chats)
+    st.rerun()
 
-    st.divider()
-    
-    for idx, chat in enumerate(st.session_state.chats):
-        with st.expander(f"{'📌' if chat.get('pinned', False) else ''} {chat.get('name', 'Chat')}"):
-            new_name = st.text_input("Rename", value=chat.get('name', 'Chat'), key=f"name_{idx}")
-            if new_name != chat.get('name'):
-                chat['name'] = new_name
-                save_data(st.session_state.chats)
-            
-            c1, c2, c3 = st.columns(3)
-            if c1.button("Open", key=f"open_{idx}"):
-                st.session_state.active_idx = idx
-                st.session_state.active_audio_bytes = None  
-                st.session_state.last_processed_audio_hash = None
-                st.rerun()
-            if c2.button("📌", key=f"pin_{idx}"):
-                chat['pinned'] = not chat.get('pinned', False)
-                save_data(st.session_state.chats)
-                st.rerun()
-            if c3.button("🗑️", key=f"del_{idx}"):
-                if len(st.session_state.chats) > 1:
-                    st.session_state.chats.pop(idx)
-                    st.session_state.active_idx = 0
-                    st.session_state.active_audio_bytes = None
-                    st.session_state.last_processed_audio_hash = None
-                    save_data(st.session_state.chats)
-                    st.rerun()
-
-if st.session_state.active_idx >= len(st.session_state.chats):
-    st.session_state.active_idx = 0
-
-active_chat = st.session_state.chats[st.session_state.active_idx]
-st.title(f"Fluency Coach: {active_chat.get('name', 'Chat')}")
-
-if "messages" in active_chat and active_chat["messages"]:
-    for msg in active_chat["messages"]:
-        avatar_icon = "🤖" if msg["role"] == "assistant" else "👤"
-        with st.chat_message(msg["role"], avatar=avatar_icon):
-            st.markdown(msg["content"])
-else:
-    st.caption("This conversation is empty. Talk or type below!")
-
-if st.session_state.active_audio_bytes and not st.session_state.stop_audio:
-    st.audio(st.session_state.active_audio_bytes, format="audio/mp3", autoplay=True)
-    st.session_state.active_audio_bytes = None  
-
-st.divider()
-
-if not st.session_state.stop_audio:
-    if st.button("🛑 Stop Audio Response"):
-        st.session_state.stop_audio = True
+# List Available Chats
+for chat_id in list(st.session_state.chats.keys()):
+    if st.sidebar.button(f"👉 {chat_id}", key=f"nav_{chat_id}"):
+        st.session_state.active_chat_id = chat_id
         st.session_state.active_audio_bytes = None
         st.rerun()
+
+# Set current active chat reference context
+active_chat_id = st.session_state.active_chat_id
+active_chat = st.session_state.chats[active_chat_id]
+
+st.title(f"Fluency Coach: {active_chat_id}")
+
+# --- Render Chat History Interface ---
+if not active_chat:
+    st.info("This conversation is empty. Talk or type below!")
 else:
-    if st.button("▶️ Enable Audio Response"):
-        st.session_state.stop_audio = False
+    for msg in active_chat:
+        role_class = "user-bubble" if msg["role"] == "user" else "bot-bubble"
+        st.markdown(f'<div class="{role_class}">{msg["content"]}</div>', unsafe_allow_html=True)
+
+# --- Render Persistent Audio Output ---
+if st.session_state.active_audio_bytes:
+    st.audio(st.session_state.active_audio_bytes, format="audio/mp3", autoplay=True)
+    if st.button("🛑 Stop Audio Response"):
+        st.session_state.active_audio_bytes = None
         st.rerun()
 
-# --- Custom Dual Input Container ---
-with st.container():
-    col_input, col_voice = st.columns([6, 2])
-    with col_input:
-        prompt = st.text_input(
-            label="Ask Gemini Input", 
-            placeholder="➕   Ask Gemini...", 
-            label_visibility="collapsed",
-            key="gemini_text_prompt"
-        )
-    with col_voice:
-        audio_file = st.audio_input("Speak to your Coach 🎤", label_visibility="collapsed")
+st.write("---")
 
-if audio_file:
-    audio_bytes = audio_file.read()
-    current_audio_hash = hashlib.sha256(audio_bytes).hexdigest()
+# --- Process New Messages (Inputs) ---
+user_text = st.chat_input("Type your message here...")
+if user_text:
+    # Append User Message
+    active_chat.append({"role": "user", "content": user_text})
     
-    if st.session_state.last_processed_audio_hash != current_audio_hash:
-        st.session_state.last_processed_audio_hash = current_audio_hash
-        if client:
-            with st.spinner("Listening to your voice..."):
-                buffer = io.BytesIO(audio_bytes)
-                buffer.name = "audio.wav"
-                translation = client.audio.transcriptions.create(file=buffer, model="whisper-large-v3", response_format="text")
-                user_text = translation.strip()
-                
-                if user_text:
-                    if "messages" not in active_chat:
-                        active_chat["messages"] = []
-                    active_chat["messages"].append({"role": "user", "content": user_text})
-                    
-                    bot_reply = get_ai_response(active_chat["messages"])
-                    active_chat["messages"].append({"role": "assistant", "content": bot_reply})
-                    save_data(st.session_state.chats)
-                    
-                    st.session_state.active_audio_bytes = get_audio_bytes(bot_reply)
-                    st.rerun()
-
-if prompt:
-    if "last_processed_prompt" not in st.session_state or st.session_state.last_processed_prompt != prompt:
-        st.session_state.last_processed_prompt = prompt
-        st.session_state.active_audio_bytes = None  
+    # Prune history keeping only the latest 6 interactions to avoid token spillover
+    context_history = active_chat[-6:]
+    
+    # Generate Assistant Short Response
+    bot_reply = get_ai_response(context_history)
+    active_chat.append({"role": "assistant", "content": bot_reply})
+    
+    # Save Data Permanently
+    save_data(st.session_state.chats)
+    
+    # Process Voice Generation
+    try:
+        st.session_state.active_audio_bytes = get_audio_bytes(bot_reply)
+    except Exception:
+        st.session_state.active_audio_bytes = None
         
-        if "messages" not in active_chat:
-            active_chat["messages"] = []
-        active_chat["messages"].append({"role": "user", "content": prompt})
-        
-        bot_reply = get_ai_response(active_chat["messages"])
-        active_chat["messages"].append({"role": "assistant", "content": bot_reply})
-        save_data(st.session_state.chats)
-        st.rerun()
+    st.rerun()
