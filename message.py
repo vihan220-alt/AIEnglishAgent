@@ -1,12 +1,17 @@
-import streamlit as st
+import json
+import os
 
-def display_chat():
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-    for msg in st.session_state.messages:
-        with st.chat_message("user"):
-            st.markdown(msg)
+DATA_FILE = "chat_history.json"
 
-    if prompt := st.chat_input("Type your message here..."):
-        st.session_state.messages.append(prompt)
-        st.rerun()
+def load_data():
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return {"Chat 1": []}
+    return {"Chat 1": []}
+
+def save_data(data):
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f)
