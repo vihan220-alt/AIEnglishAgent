@@ -63,7 +63,6 @@ def get_ai_response(conversation_history):
     if not client:
         return "Groq API Key is missing. Please add it to your Streamlit secrets."
     try:
-        # ABSOLUTE RULE: Mandate English responses under any condition to match professional standard
         system_instruction = (
             "You are Gemini, an authentic, adaptive AI collaborator with a touch of wit. "
             "Your role is to act as a supportive, grounded, and world-class English Fluency Coach. "
@@ -75,7 +74,6 @@ def get_ai_response(conversation_history):
         
         messages_payload = [{"role": "system", "content": system_instruction}]
         
-        # Include conversational context window
         for m in conversation_history[-6:]:
             messages_payload.append({"role": m["role"], "content": m["content"]})
             
@@ -163,8 +161,21 @@ else:
         st.session_state.stop_audio = False
         st.rerun()
 
-# Voice input widget
-audio_file = st.audio_input("Speak to your Coach 🎤")
+# --- GEMINI STYLE MESSAGE BAR INPUT ---
+# Create an elegant single row containing the custom visual inputs
+with st.container():
+    col_input, col_voice = st.columns([6, 2])
+    
+    with col_input:
+        prompt = st.text_input(
+            label="Ask Gemini Input", 
+            placeholder="➕   Ask Gemini...                                                                            Flash ⌵", 
+            label_visibility="collapsed",
+            key="gemini_text_prompt"
+        )
+        
+    with col_voice:
+        audio_file = st.audio_input("Speak to your Coach 🎤", label_visibility="collapsed")
 
 # --- Voice Processing Block ---
 if audio_file:
@@ -194,15 +205,6 @@ if audio_file:
                     st.rerun()
 
 # --- Text Input Block ---
-if prompt := st.chat_input("Type your message here..."):
-    st.session_state.active_audio_bytes = None  
-    
-    if "messages" not in active_chat:
-        active_chat["messages"] = []
-    active_chat["messages"].append({"role": "user", "content": prompt})
-    
-    bot_reply = get_ai_response(active_chat["messages"])
-    active_chat["messages"].append({"role": "assistant", "content": bot_reply})
-    save_data(st.session_state.chats)
-    
-    st.rerun()
+if prompt:
+    # Check if this prompt was already processed to avoid form reload loop
+    if "
