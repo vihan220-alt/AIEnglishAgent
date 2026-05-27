@@ -138,7 +138,6 @@ def get_ai_response(conversation_history):
         for m in conversation_history[-6:]:
             messages_payload.append({"role": m["role"], "content": m["content"]})
             
-        # Standard flagship production-tier model
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=messages_payload,
@@ -184,85 +183,4 @@ with st.sidebar:
                     st.session_state.chats.pop(idx)
                     st.session_state.active_idx = 0
                     st.session_state.active_audio_bytes = None
-                    st.session_state.last_processed_audio_hash = None
-                    save_data(st.session_state.chats)
-                    st.rerun()
-
-# --- Main Chat Screen ---
-if st.session_state.active_idx >= len(st.session_state.chats):
-    st.session_state.active_idx = 0
-
-active_chat = st.session_state.chats[st.session_state.active_idx]
-
-st.title(f"Fluency Coach: {active_chat.get('name', 'Chat')}")
-
-# Render message history cleanly
-if "messages" in active_chat and active_chat["messages"]:
-    for msg in active_chat["messages"]:
-        avatar_icon = "🤖" if msg["role"] == "assistant" else "👤"
-        with st.chat_message(msg["role"], avatar=avatar_icon):
-            st.markdown(msg["content"])
-else:
-    st.caption("This conversation is empty. Talk or type below!")
-
-# --- ONE-TIME VOICE PLAYBACK ENGINE ---
-if st.session_state.active_audio_bytes and not st.session_state.stop_audio:
-    st.audio(st.session_state.active_audio_bytes, format="audio/mp3", autoplay=True)
-    st.session_state.active_audio_bytes = None  
-
-st.divider()
-
-# --- Control & Input Section ---
-if not st.session_state.stop_audio:
-    if st.button("🛑 Stop Audio Response"):
-        st.session_state.stop_audio = True
-        st.session_state.active_audio_bytes = None
-        st.rerun()
-else:
-    if st.button("▶️ Enable Audio Response"):
-        st.session_state.stop_audio = False
-        st.rerun()
-
-audio_file = st.audio_input("Speak to your Coach 🎤")
-
-# --- SECURE VOICE PROCESSING AND LOOP PROTECTION ---
-if audio_file:
-    # 1. Read the audio element from memory
-    audio_bytes = audio_file.read()
-    # 2. Extract its absolute hash value
-    current_audio_hash = hashlib.sha256(audio_bytes).hexdigest()
-    
-    # 3. ONLY run if this is a fresh recording that hasn't been evaluated yet
-    if st.session_state.last_processed_audio_hash != current_audio_hash:
-        st.session_state.last_processed_audio_hash = current_audio_hash
-        
-        if client:
-            with st.spinner("Listening to your voice..."):
-                buffer = io.BytesIO(audio_bytes)
-                buffer.name = "audio.wav"
-                translation = client.audio.transcriptions.create(file=buffer, model="whisper-large-v3", response_format="text")
-                user_text = translation.strip()
-                
-                if user_text:
-                    if "messages" not in active_chat: active_chat["messages"] = []
-                    active_chat["messages"].append({"role": "user", "content": user_text})
-                    
-                    bot_reply = get_ai_response(active_chat["messages"])
-                    active_chat["messages"].append({"role": "assistant", "content": bot_reply})
-                    save_data(st.session_state.chats)
-                    
-                    st.session_state.active_audio_bytes = get_audio_bytes(bot_reply)
-                    st.rerun()
-
-# --- Keyboard Typing Processing ---
-if prompt := st.chat_input("Type your message here..."):
-    st.session_state.active_audio_bytes = None  
-    
-    if "messages" not in active_chat: active_chat["messages"] = []
-    active_chat["messages"].append({"role": "user", "content": prompt})
-    
-    bot_reply = get_ai_response(active_chat["messages"])
-    active_chat["messages"].append({"role": "assistant", "content": bot_reply})
-    save_data(st.session_state.chats)
-    
-    st.rerun()
+                    st
