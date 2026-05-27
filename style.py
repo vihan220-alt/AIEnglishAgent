@@ -32,17 +32,19 @@ def apply_custom_css():
             box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.5) !important;
         }
         
-        /* Force all chat bubble content to be bright white */
-        div[data-testid="stChatMessage"] p, 
-        div[data-testid="stChatMessage"] span,
-        div[data-testid="stChatMessage"] div,
-        div[data-testid="stChatMessage"] li,
-        div[data-testid="stChatMessage"] ul,
-        div[data-testid="stChatMessage"] ol,
-        div[data-testid="stChatMessage"] .stMarkdown p {
+        /* Force all chat bubble text content to be bright white and visible */
+        div[data-testid="stChatMessageContent"] p,
+        div[data-testid="stChatMessageContent"] span,
+        div[data-testid="stChatMessageContent"] div,
+        div[data-testid="stChatMessageContent"] .stMarkdown p {
             color: #ffffff !important;
             font-weight: 600 !important;
             font-size: 1.1rem !important;
+        }
+        
+        /* Fix the profile icon labels/boxes if they override colors */
+        div[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] p {
+            color: #ffffff !important;
         }
         
         /* 5. Headings & Titles Brightness */
