@@ -16,7 +16,13 @@ def apply_custom_css():
             font-weight: 500 !important;
         }
         
-        /* 3. High-Contrast Chat Message Container Blocks */
+        /* 3. Fix Layout Padding to prevent header overlap */
+        .block-container {
+            padding-top: 4.5rem !important;
+            padding-bottom: 2rem !important;
+        }
+        
+        /* 4. High-Contrast Chat Message Container Blocks */
         div[data-testid="stChatMessage"] {
             background-color: #161b22 !important;
             border: 2px solid #444c56 !important;
@@ -39,20 +45,20 @@ def apply_custom_css():
             font-size: 1.1rem !important;
         }
         
-        /* 4. Headings & Titles Brightness */
+        /* 5. Headings & Titles Brightness */
         h1, h2, h3, .stApp h1, .stApp h2, [data-testid="stHeader"] {
             color: #ffffff !important;
             font-weight: 700 !important;
         }
         
-        /* 5. Fix Chat Input Box Text Color */
+        /* 6. Fix Chat Input Box Text Color */
         div[data-testid="stChatInput"] textarea {
             color: #ffffff !important;
             background-color: #161b22 !important;
             font-size: 1.05rem !important;
         }
         
-        /* 6. Sidebar & Expanders Contrast */
+        /* 7. Sidebar & Expanders Contrast */
         .stSidebar {
             background-color: #161b22 !important;
             border-right: 1px solid #30363d !important;
@@ -65,7 +71,7 @@ def apply_custom_css():
             border: 1px solid #444c56 !important;
         }
         
-        /* 7. Caption Text Adjustment */
+        /* 8. Caption Text Adjustment */
         .stApp .stCaption, .stApp p.caption, div[data-testid="stCaptionContainer"] {
             color: #c9d1d9 !important;
             font-size: 1rem !important;
