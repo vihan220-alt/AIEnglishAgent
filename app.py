@@ -3,68 +3,62 @@ import json
 import os
 import time
 from groq import Groq
-from gtts import gTTS
-import io
-import base64
 
-# --- Setup ---
 DATA_FILE = "chat_history.json"
-client = Groq(api_key=st.secrets["GROQ_API_KEY"]) if "GROQ_API_KEY" in st.secrets else None
 
-st.set_page_config(layout="wide")
+# --- Persistent Data Load/Save ---
+def load_data():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as f: return json.load(f)
+    return [{"id": "chat_0", "name": "Chat 1", "messages": [], "pinned": False}]
 
-# Custom CSS for Background and UI
-st.markdown("""
-    <style>
-    .stApp { background-color: #0e1117; color: white; }
-    </style>
-""", unsafe_allow_html=True)
+def save_data(data):
+    with open(DATA_FILE, "w") as f: json.dump(data, f)
 
-# --- Initialization ---
-if "chats" not in st.session_state:
-    st.session_state.chats = [{"id": "Chat 1", "messages": []}]
+if "chats" not in st.session_state: st.session_state.chats = load_data()
+if "active_idx" not in st.session_state: st.session_state.active_idx = 0
 
-if "active_chat_idx" not in st.session_state:
-    st.session_state.active_chat_idx = 0
-
-active_chat = st.session_state.chats[st.session_state.active_chat_idx]
-
-# --- Sidebar (Chat List) ---
+# --- Sidebar with Advanced Controls ---
 with st.sidebar:
     st.header("Coach Workspace")
-    if st.button("New Chat"):
-        new_chat = {"id": f"Chat {len(st.session_state.chats) + 1}", "messages": []}
+    if st.button("➕ New Chat"):
+        new_chat = {"id": f"chat_{time.time()}", "name": f"Chat {len(st.session_state.chats)+1}", "messages": [], "pinned": False}
         st.session_state.chats.append(new_chat)
-        st.session_state.active_chat_idx = len(st.session_state.chats) - 1
+        save_data(st.session_state.chats)
         st.rerun()
-    
-    st.divider()
+
     for idx, chat in enumerate(st.session_state.chats):
-        if st.button(chat["id"], key=f"btn_{idx}"):
-            st.session_state.active_chat_idx = idx
-            st.rerun()
+        with st.expander(f"{'📌' if chat.get('pinned') else ''} {chat['name']}"):
+            new_name = st.text_input("Rename", value=chat['name'], key=f"name_{idx}")
+            if new_name != chat['name']:
+                chat['name'] = new_name
+                save_data(st.session_state.chats)
+            
+            c1, c2, c3 = st.columns(3)
+            if c1.button("Open", key=f"open_{idx}"):
+                st.session_state.active_idx = idx
+                st.rerun()
+            if c2.button("📌", key=f"pin_{idx}"):
+                chat['pinned'] = not chat.get('pinned', False)
+                save_data(st.session_state.chats)
+                st.rerun()
+            if c3.button("🗑️", key=f"del_{idx}"):
+                if len(st.session_state.chats) > 1:
+                    st.session_state.chats.pop(idx)
+                    st.session_state.active_idx = 0
+                    save_data(st.session_state.chats)
+                    st.rerun()
 
 # --- Main Logic ---
-st.title("Fluency Coach")
+active_chat = st.session_state.chats[st.session_state.active_idx]
+st.title(f"Fluency Coach: {active_chat['name']}")
 
-# Render chat with explicit robot avatar
 for msg in active_chat["messages"]:
-    avatar = "🤖" if msg["role"] == "assistant" else "👤"
-    with st.chat_message(msg["role"], avatar=avatar):
+    with st.chat_message(msg["role"], avatar="🤖" if msg["role"] == "assistant" else "👤"):
         st.markdown(msg["content"])
-        if "audio_html" in msg:
-            st.markdown(msg["audio_html"], unsafe_allow_html=True)
 
-# --- Input Handling ---
-# Text Input
 if prompt := st.chat_input("Type your message..."):
     active_chat["messages"].append({"role": "user", "content": prompt})
     active_chat["messages"].append({"role": "assistant", "content": "I received your message."})
-    st.rerun()
-
-# Audio Input
-audio_file = st.audio_input("Speak to your Coach 🎤")
-if audio_file and not st.session_state.get("last_audio") == audio_file:
-    st.session_state.last_audio = audio_file
-    # Add your Groq transcription logic here
+    save_data(st.session_state.chats)
     st.rerun()
