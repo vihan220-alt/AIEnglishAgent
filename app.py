@@ -23,8 +23,8 @@ st.markdown("""
         background-repeat: repeat !important;
     }
     
-    /* 2. Global Text Overrides for Brightness */
-    .stApp, .stApp p, span, div, label, li, .stMarkdown {
+    /* 2. Global Text Overrides for Ultimate Brightness */
+    .stApp, .stApp p, span, div, label, li, ul, ol, .stMarkdown {
         color: #ffffff !important;
         font-weight: 500 !important;
     }
@@ -39,11 +39,13 @@ st.markdown("""
         box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.5) !important;
     }
     
-    /* FORCE ALL CHAT BUBBLE CONTENT TO BE BRIGHT WHITE */
+    /* FORCE ALL CHAT BUBBLE CONTENT & NESTED LISTS TO BE BRIGHT WHITE */
     div[data-testid="stChatMessage"] p, 
     div[data-testid="stChatMessage"] span,
     div[data-testid="stChatMessage"] div,
     div[data-testid="stChatMessage"] li,
+    div[data-testid="stChatMessage"] ul,
+    div[data-testid="stChatMessage"] ol,
     div[data-testid="stChatMessage"] .stMarkdown p {
         color: #ffffff !important;
         font-weight: 600 !important;
@@ -136,9 +138,9 @@ def get_ai_response(conversation_history):
         for m in conversation_history[-6:]:
             messages_payload.append({"role": m["role"], "content": m["content"]})
             
-        # FIXED: Updated to an active, supported model to clear 400 errors
+        # UPDATED: Using production flagship model 'llama-3.3-70b-versatile'
         completion = client.chat.completions.create(
-            model="llama-3.3-70b-specdec",
+            model="llama-3.3-70b-versatile",
             messages=messages_payload,
             temperature=0.7
         )
