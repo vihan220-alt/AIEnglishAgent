@@ -27,11 +27,12 @@ with st.sidebar:
         save_data(st.session_state.chats)
         st.rerun()
 
+    # --- Sidebar (Chat List) ---
+    st.divider()
     for idx, chat in enumerate(st.session_state.chats):
-# Change this line in your app.py:
-with st.expander(f"{'📌' if chat.get('pinned', False) else ''} {chat.get('name', 'Chat')}"):
-        new_name = st.text_input("Rename", value=chat['name'], key=f"name_{idx}")
-            if new_name != chat['name']:
+        with st.expander(f"{'📌' if chat.get('pinned', False) else ''} {chat.get('name', 'Chat')}"):
+            new_name = st.text_input("Rename", value=chat.get('name', 'Chat'), key=f"name_{idx}")
+            if new_name != chat.get('name'):
                 chat['name'] = new_name
                 save_data(st.session_state.chats)
             
@@ -49,17 +50,3 @@ with st.expander(f"{'📌' if chat.get('pinned', False) else ''} {chat.get('name
                     st.session_state.active_idx = 0
                     save_data(st.session_state.chats)
                     st.rerun()
-
-# --- Main Logic ---
-active_chat = st.session_state.chats[st.session_state.active_idx]
-st.title(f"Fluency Coach: {active_chat['name']}")
-
-for msg in active_chat["messages"]:
-    with st.chat_message(msg["role"], avatar="🤖" if msg["role"] == "assistant" else "👤"):
-        st.markdown(msg["content"])
-
-if prompt := st.chat_input("Type your message..."):
-    active_chat["messages"].append({"role": "user", "content": prompt})
-    active_chat["messages"].append({"role": "assistant", "content": "I received your message."})
-    save_data(st.session_state.chats)
-    st.rerun()
