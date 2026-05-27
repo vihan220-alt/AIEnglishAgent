@@ -30,11 +30,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Initialize Session States
+# Initialize Session States Safely
 if "stop_audio" not in st.session_state:
     st.session_state.stop_audio = False
-if "play_audio_text" not in st.session_state:
-    st.session_state.play_audio_text = None
 
 # --- Safe Data Load/Save ---
 def load_data():
@@ -61,6 +59,8 @@ if "active_idx" not in st.session_state:
 
 # Helper function to generate auto-playing speech HTML
 def generate_audio_html(text):
+    if st.session_state.stop_audio:
+        return ""
     try:
         tts = gTTS(text=text, lang='en', tld='co.uk')
         mp3_fp = io.BytesIO()
@@ -78,7 +78,6 @@ with st.sidebar:
         st.session_state.chats.append(new_chat)
         save_data(st.session_state.chats)
         st.session_state.active_idx = len(st.session_state.chats) - 1
-        st.session_state.play_audio_text = None  
         st.rerun()
 
     st.divider()
@@ -93,7 +92,6 @@ with st.sidebar:
             c1, c2, c3 = st.columns(3)
             if c1.button("Open", key=f"open_{idx}"):
                 st.session_state.active_idx = idx
-                st.session_state.play_audio_text = None  
                 st.rerun()
             if c2.button("📌", key=f"pin_{idx}"):
                 chat['pinned'] = not chat.get('pinned', False)
@@ -103,7 +101,6 @@ with st.sidebar:
                 if len(st.session_state.chats) > 1:
                     st.session_state.chats.pop(idx)
                     st.session_state.active_idx = 0
-                    st.session_state.play_audio_text = None
                     save_data(st.session_state.chats)
                     st.rerun()
 
@@ -121,10 +118,9 @@ with stop_col:
     st.write("")  
     if st.button("🛑 Stop Audio"):
         st.session_state.stop_audio = True
-        st.session_state.play_audio_text = None
         st.rerun()
 
-# Render message history
+# Render message history safely
 if "messages" in active_chat and active_chat["messages"]:
     for msg in active_chat["messages"]:
         avatar_icon = "🤖" if msg["role"] == "assistant" else "👤"
@@ -133,23 +129,17 @@ if "messages" in active_chat and active_chat["messages"]:
 else:
     st.caption("This conversation is empty. Talk or type below!")
 
-# --- ONE-TIME PLAYBACK ENGINE ---
-if st.session_state.play_audio_text and not st.session_state.stop_audio:
-    audio_html = generate_audio_html(st.session_state.play_audio_text)
-    st.markdown(audio_html, unsafe_allow_html=True)
-    st.session_state.play_audio_text = None  
-
 st.divider()
 
 # --- Input Section ---
 audio_file = st.audio_input("Speak to your Coach 🎤")
 
+# Voice Microphone Processing
 if audio_file and not st.session_state.get("last_audio") == audio_file:
     st.session_state.last_audio = audio_file
     st.session_state.stop_audio = False  
     
     if client:
-        # Fixed the line 150 layout right here
         buffer = io.BytesIO(audio_file.read())
         buffer.name = "audio.wav"
         translation = client.audio.transcriptions.create(file=buffer, model="whisper-large-v3", response_format="text")
@@ -160,11 +150,16 @@ if audio_file and not st.session_state.get("last_audio") == audio_file:
         if "messages" not in active_chat: active_chat["messages"] = []
         active_chat["messages"].append({"role": "user", "content": user_text})
         active_chat["messages"].append({"role": "assistant", "content": bot_reply})
-        
-        st.session_state.play_audio_text = bot_reply
         save_data(st.session_state.chats)
+        
+        # Inject the voice element EXACTLY ONCE here right before re-rendering
+        audio_html = generate_audio_html(bot_reply)
+        st.markdown(audio_html, unsafe_allow_html=True)
+        
+        time.sleep(0.5)  # Let browser begin playback engine safely
         st.rerun()
 
+# Keyboard Typing Processing
 if prompt := st.chat_input("Type your message here..."):
     st.session_state.stop_audio = False
     if "messages" not in active_chat: active_chat["messages"] = []
@@ -172,7 +167,11 @@ if prompt := st.chat_input("Type your message here..."):
     active_chat["messages"].append({"role": "user", "content": prompt})
     bot_reply = f"Awesome! I've received your text: '{prompt}'."
     active_chat["messages"].append({"role": "assistant", "content": bot_reply})
-    
-    st.session_state.play_audio_text = bot_reply  
     save_data(st.session_state.chats)
+    
+    # Inject voice element EXACTLY ONCE here for text input
+    audio_html = generate_audio_html(bot_reply)
+    st.markdown(audio_html, unsafe_allow_html=True)
+    
+    time.sleep(0.5)
     st.rerun()
