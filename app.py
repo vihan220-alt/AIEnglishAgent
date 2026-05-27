@@ -71,14 +71,12 @@ def get_audio_bytes(text):
 # Helper function to get real text completions from Groq AI model
 def get_ai_response(conversation_history):
     if not client:
-        return "API Key missing. Please check your st.secrets."
+        return "Groq API Key is missing. Please add it to your Streamlit secrets."
     try:
-        # Build systemic language tutor formatting instructions
         messages_payload = [
-            {"role": "system", "content": "You are a helpful, encouraging English fluency coach. Keep your responses conversational, concise (2-3 sentences max), and optimized for spoken dialogue."}
+            {"role": "system", "content": "You are an encouraging English fluency coach. Keep responses conversational, brief (2 sentences max), and optimized for spoken practice."}
         ]
-        # Append historical logs
-        for m in conversation_history[-6:]: # look at recent context window
+        for m in conversation_history[-6:]:
             messages_payload.append({"role": m["role"], "content": m["content"]})
             
         completion = client.chat.completions.create(
@@ -88,7 +86,7 @@ def get_ai_response(conversation_history):
         )
         return completion.choices[0].message.content.strip()
     except Exception as e:
-        return f"Error connecting to coach brain: {str(e)}"
+        return f"Error connecting to coach: {str(e)}"
 
 # --- Sidebar Configuration ---
 with st.sidebar:
@@ -128,4 +126,72 @@ with st.sidebar:
                     st.rerun()
 
 # --- Main Chat Screen ---
-if st.session_state.active_idx
+if st.session_state.active_idx >= len(st.session_state.chats):
+    st.session_state.active_idx = 0
+
+active_chat = st.session_state.chats[st.session_state.active_idx]
+
+# Title and Stop Button row
+title_col, stop_col = st.columns([4, 1])
+with title_col:
+    st.title(f"Fluency Coach: {active_chat.get('name', 'Chat')}")
+with stop_col:
+    st.write("")  
+    if st.button("🛑 Stop Audio"):
+        st.session_state.stop_audio = True
+        st.session_state.active_audio_bytes = None
+        st.rerun()
+
+# Render message history cleanly
+if "messages" in active_chat and active_chat["messages"]:
+    for msg in active_chat["messages"]:
+        avatar_icon = "🤖" if msg["role"] == "assistant" else "👤"
+        with st.chat_message(msg["role"], avatar=avatar_icon):
+            st.markdown(msg["content"])
+else:
+    st.caption("This conversation is empty. Talk or type below!")
+
+# --- ONE-TIME VOICE PLAYBACK ENGINE ---
+if st.session_state.active_audio_bytes and not st.session_state.stop_audio:
+    st.audio(st.session_state.active_audio_bytes, format="audio/mp3", autoplay=True)
+    st.session_state.active_audio_bytes = None  
+
+st.divider()
+
+# --- Input Section ---
+audio_file = st.audio_input("Speak to your Coach 🎤")
+
+# 1. Voice Microphone Processing -> WILL RESPOND WITH TEXT + VOICE
+if audio_file and not st.session_state.get("last_audio") == audio_file:
+    st.session_state.last_audio = audio_file
+    st.session_state.stop_audio = False  
+    
+    if client:
+        buffer = io.BytesIO(audio_file.read())
+        buffer.name = "audio.wav"
+        translation = client.audio.transcriptions.create(file=buffer, model="whisper-large-v3", response_format="text")
+        user_text = translation.strip()
+        
+        if "messages" not in active_chat: active_chat["messages"] = []
+        active_chat["messages"].append({"role": "user", "content": user_text})
+        
+        bot_reply = get_ai_response(active_chat["messages"])
+        active_chat["messages"].append({"role": "assistant", "content": bot_reply})
+        save_data(st.session_state.chats)
+        
+        st.session_state.active_audio_bytes = get_audio_bytes(bot_reply)
+        st.rerun()
+
+# 2. Keyboard Typing Processing -> WILL RESPOND WITH TEXT ONLY (SILENT)
+if prompt := st.chat_input("Type your message here..."):
+    st.session_state.stop_audio = False
+    st.session_state.active_audio_bytes = None  # Clear out any past microphone track immediately
+    
+    if "messages" not in active_chat: active_chat["messages"] = []
+    active_chat["messages"].append({"role": "user", "content": prompt})
+    
+    bot_reply = get_ai_response(active_chat["messages"])
+    active_chat["messages"].append({"role": "assistant", "content": bot_reply})
+    save_data(st.session_state.chats)
+    
+    st.rerun()
