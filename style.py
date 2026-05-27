@@ -13,17 +13,43 @@ client = Groq(api_key=st.secrets["GROQ_API_KEY"]) if "GROQ_API_KEY" in st.secret
 
 st.set_page_config(layout="wide")
 
-# --- Custom CSS for Dark Theme with Robot Face Background ---
+# --- Custom CSS for High-Contrast Text & Robot Face Background ---
 st.markdown("""
     <style>
-    /* Main App Background with SVG Robot Face Pattern */
+    /* Main App Background with Crisp SVG Robot Face Pattern */
     .stApp {
         background-color: #0e1117 !important;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M10 20h10v10H10zm30 0h10v10H40zM15 42h30v4H15zM5 10h50v40H5zm2 2v36h46V12zm18-7h10v3H25z' fill='%231f242c' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E") !important;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M10 20h10v10H10zm30 0h10v10H40zM15 42h30v4H15zM5 10h50v40H5zm2 2v36h46V12zm18-7h10v3H25z' fill='%231f242c' fill-opacity='0.6' fill-rule='evenodd'/%3E%3C/svg%3E") !important;
         background-repeat: repeat !important;
-        color: #ffffff;
     }
     
+    /* Global Text Contrast Rules */
+    .stApp, .stApp p, div[data-testid="stMarkdownContainer"] p {
+        color: #ffffff !important;
+        font-weight: 500 !important;
+        font-size: 1.05rem !important;
+    }
+    
+    /* Make chat bubbles high contrast */
+    div[data-testid="stChatMessage"] {
+        background-color: #1f242c !important;
+        border: 1px solid #30363d !important;
+        border-radius: 8px !important;
+        padding: 10px !important;
+        margin-bottom: 10px !important;
+    }
+    
+    /* Ensure chat input text is dark/readable during typing */
+    div[data-testid="stChatInput"] textarea {
+        color: #ffffff !important;
+    }
+    
+    /* Clear captions */
+    .stApp .stCaption, div[data-testid="stCaptionContainer"] {
+        color: #9ca3af !important;
+        font-size: 0.95rem !important;
+    }
+
     /* Sidebar Background styling */
     .stSidebar {
         background-color: #161b22 !important;
@@ -161,4 +187,19 @@ else:
 # --- ONE-TIME VOICE PLAYBACK ENGINE ---
 if st.session_state.active_audio_bytes and not st.session_state.stop_audio:
     st.audio(st.session_state.active_audio_bytes, format="audio/mp3", autoplay=True)
-    st.session
+    st.session_state.active_audio_bytes = None  
+
+st.divider()
+
+# --- Control & Input Section ---
+if not st.session_state.stop_audio:
+    if st.button("🛑 Stop Audio Response"):
+        st.session_state.stop_audio = True
+        st.session_state.active_audio_bytes = None
+        st.rerun()
+else:
+    if st.button("▶️ Enable Audio Response"):
+        st.session_state.stop_audio = False
+        st.rerun()
+
+audio_file
