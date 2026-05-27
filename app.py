@@ -1,82 +1,71 @@
 import streamlit as st
+import json
+import os
+from groq import Groq
+from gtts import gTTS
+import io
+from style import apply_custom_css  # Importing your style file
 
-def apply_custom_css():
-    st.markdown("""
-        <style>
-        /* 1. Main App Background with Tiled Robot Pattern */
-        .stApp {
-            background-color: #0e1117 !important;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M10 20h10v10H10zm30 0h10v10H40zM15 42h30v4H15zM5 10h50v40H5zm2 2v36h46V12zm18-7h10v3H25z' fill='%2330363d' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E") !important;
-            background-repeat: repeat !important;
-        }
-        
-        /* 2. Global Text Overrides for Ultimate Brightness */
-        .stApp, .stApp p, span, div, label, li, ul, ol, .stMarkdown {
-            color: #ffffff !important;
-            font-weight: 500 !important;
-        }
-        
-        /* 3. Fix Layout Padding to prevent header overlap */
-        .block-container {
-            padding-top: 4.5rem !important;
-            padding-bottom: 2rem !important;
-        }
-        
-        /* 4. High-Contrast Chat Message Container Blocks */
-        div[data-testid="stChatMessage"] {
-            background-color: #161b22 !important;
-            border: 2px solid #444c56 !important;
-            border-radius: 8px !important;
-            padding: 15px !important;
-            margin-bottom: 12px !important;
-            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.5) !important;
-        }
-        
-        /* Force all chat bubble text content to be bright white and visible */
-        div[data-testid="stChatMessageContent"] p,
-        div[data-testid="stChatMessageContent"] span,
-        div[data-testid="stChatMessageContent"] div,
-        div[data-testid="stChatMessageContent"] .stMarkdown p {
-            color: #ffffff !important;
-            font-weight: 600 !important;
-            font-size: 1.1rem !important;
-        }
-        
-        /* Fix the profile icon labels/boxes if they override colors */
-        div[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] p {
-            color: #ffffff !important;
-        }
-        
-        /* 5. Headings & Titles Brightness */
-        h1, h2, h3, .stApp h1, .stApp h2, [data-testid="stHeader"] {
-            color: #ffffff !important;
-            font-weight: 700 !important;
-        }
-        
-        /* 6. Fix Chat Input Box Text Color */
-        div[data-testid="stChatInput"] textarea {
-            color: #ffffff !important;
-            background-color: #161b22 !important;
-            font-size: 1.05rem !important;
-        }
-        
-        /* 7. Sidebar & Expanders Contrast */
-        .stSidebar {
-            background-color: #161b22 !important;
-            border-right: 1px solid #30363d !important;
-        }
-        .stSidebar h1, .stSidebar h2, .stSidebar h3, .stSidebar p, .stSidebar label {
-            color: #ffffff !important;
-        }
-        div[data-testid="stExpander"] {
-            background-color: #1f242c !important;
-            border: 1px solid #444c56 !important;
-        }
-        
-        /* 8. Caption Text Adjustment */
-        .stApp .stCaption, .stApp p.caption, div[data-testid="stCaptionContainer"] {
-            color: #c9d1d9 !important;
-            font-size: 1rem !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+# Apply the custom styles
+apply_custom_css()
+
+# Setup
+st.set_page_config(page_title="Fluency Coach", layout="wide")
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+
+# Data persistence
+DATA_FILE = "chat_history.json"
+def save_data(data):
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f)
+
+def load_data():
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r") as f:
+                return json.load(f)
+        except: pass
+    return {"Chat 1": []}
+
+if "chats" not in st.session_state: st.session_state.chats = load_data()
+if "active_chat" not in st.session_state: st.session_state.active_chat = "Chat 1"
+
+# Sidebar
+st.sidebar.title("Workspace")
+if st.sidebar.button("➕ New Chat"):
+    new_id = f"Chat {len(st.session_state.chats) + 1}"
+    st.session_state.chats[new_id] = []
+    st.session_state.active_chat = new_id
+    save_data(st.session_state.chats)
+    st.rerun()
+
+for chat_id in st.session_state.chats.keys():
+    if st.sidebar.button(chat_id):
+        st.session_state.active_chat = chat_id
+        st.rerun()
+
+# UI: Chat
+st.title(f"Fluency Coach: {st.session_state.active_chat}")
+for msg in st.session_state.chats[st.session_state.active_chat]:
+    with st.chat_message(msg["role"]):
+        st.write(msg["content"])
+
+if prompt := st.chat_input("Say something..."):
+    st.session_state.chats[st.session_state.active_chat].append({"role": "user", "content": prompt})
+    
+    # AI Logic
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "system", "content": "You are a concise English coach. Limit response to 2 sentences."}] + 
+                 st.session_state.chats[st.session_state.active_chat][-5:]
+    ).choices[0].message.content
+    
+    st.session_state.chats[st.session_state.active_chat].append({"role": "assistant", "content": response})
+    save_data(st.session_state.chats)
+    
+    # Text-to-Speech
+    tts = gTTS(text=response, lang='en')
+    fp = io.BytesIO()
+    tts.write_to_fp(fp)
+    st.audio(fp.getvalue(), format="audio/mp3", autoplay=True)
+    st.rerun()
