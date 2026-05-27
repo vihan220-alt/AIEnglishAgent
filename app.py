@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import os
-import time  # Fixes the NameError
+import time
 from groq import Groq
 from gtts import gTTS
 import io
@@ -11,24 +11,18 @@ import base64
 DATA_FILE = "chat_history.json"
 client = Groq(api_key=st.secrets["GROQ_API_KEY"]) if "GROQ_API_KEY" in st.secrets else None
 
-# Custom CSS for Background and UI
+st.set_page_config(layout="wide")
+
+# Dark Theme with Robot style
 st.markdown("""
     <style>
-    .stApp {
-        background-color: #1a1a2e;
-        color: white;
-    }
-    .stChatInput { background-color: #16213e; }
+    .stApp { background-color: #0e1117; color: white; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Initialization ---
+# --- State ---
 if "chats" not in st.session_state:
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r") as f: st.session_state.chats = json.load(f)
-    else:
-        st.session_state.chats = [{"id": "main", "messages": []}]
-
+    st.session_state.chats = [{"id": "main", "messages": []}]
 active_chat = st.session_state.chats[0]
 
 # --- Sidebar ---
@@ -36,45 +30,35 @@ with st.sidebar:
     st.header("Coach Workspace")
     if st.button("New Chat"):
         st.session_state.chats = [{"id": str(time.time()), "messages": []}]
-        with open(DATA_FILE, "w") as f: json.dump(st.session_state.chats, f)
         st.rerun()
 
 # --- Main Logic ---
 st.title("Fluency Coach")
 
-# Display messages
+# Render chat with specific avatars
 for msg in active_chat["messages"]:
-    with st.chat_message(msg["role"]):
+    avatar = "🤖" if msg["role"] == "assistant" else "👤"
+    with st.chat_message(msg["role"], avatar=avatar):
         st.markdown(msg["content"])
         if "audio_html" in msg:
             st.markdown(msg["audio_html"], unsafe_allow_html=True)
 
-# --- 1. Audio Input Block ---
-audio_file = st.audio_input("Speak to your Coach 🎤")
-if audio_file:
-    # Transcribe
-    buffer = io.BytesIO(audio_file.read())
-    buffer.name = "audio.wav"
-    translation = client.audio.transcriptions.create(file=buffer, model="whisper-large-v3", response_format="text")
-    text = translation.strip()
-    
-    # Generate Response
-    response = f"I heard you say: {text}. That's a great start!"
-    
-    # Generate Audio
-    tts = gTTS(text=response, lang='en')
-    fp = io.BytesIO()
-    tts.write_to_fp(fp)
-    b64 = base64.b64encode(fp.getvalue()).decode()
-    audio_html = f'<audio autoplay controls src="data:audio/mp3;base64,{b64}"></audio>'
-    
-    active_chat["messages"].append({"role": "user", "content": text})
-    active_chat["messages"].append({"role": "assistant", "content": response, "audio_html": audio_html})
-    st.rerun()
+# Use a container for input to prevent loop errors
+input_container = st.container()
 
-# --- 2. Text Input Block ---
-if prompt := st.chat_input("Type your message..."):
-    active_chat["messages"].append({"role": "user", "content": prompt})
-    # Text only response (No audio_html added here)
-    active_chat["messages"].append({"role": "assistant", "content": "I received your message."})
+with input_container:
+    # 1. Audio Input
+    audio_file = st.audio_input("Speak to your Coach 🎤")
+    
+    # 2. Text Input
+    if prompt := st.chat_input("Type your message..."):
+        active_chat["messages"].append({"role": "user", "content": prompt})
+        active_chat["messages"].append({"role": "assistant", "content": "I received your message."})
+        st.rerun()
+
+# Handle Audio only if file is new
+if audio_file and not st.session_state.get("last_audio") == audio_file:
+    st.session_state.last_audio = audio_file
+    # (Your existing Groq transcription logic here)
+    # ... after response ...
     st.rerun()
