@@ -136,8 +136,9 @@ def get_ai_response(conversation_history):
         for m in conversation_history[-6:]:
             messages_payload.append({"role": m["role"], "content": m["content"]})
             
+        # FIXED: Updated to an active, supported model to clear 400 errors
         completion = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.3-70b-specdec",
             messages=messages_payload,
             temperature=0.7
         )
@@ -222,7 +223,7 @@ else:
 
 audio_file = st.audio_input("Speak to your Coach 🎤")
 
-# --- FIXED SECURE VOICE PROCESSING ---
+# --- SECURE VOICE PROCESSING ---
 if audio_file:
     audio_bytes = audio_file.read()
     current_audio_hash = hashlib.sha256(audio_bytes).hexdigest()
