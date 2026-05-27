@@ -13,64 +13,45 @@ client = Groq(api_key=st.secrets["GROQ_API_KEY"]) if "GROQ_API_KEY" in st.secret
 
 st.set_page_config(layout="wide")
 
-# --- Custom CSS for High-Contrast Text & Sharp Robot Faces Background ---
+# --- Custom CSS for Sharp Robot Background & Readable Chat Text ---
 st.markdown("""
     <style>
-    /* Main App Background with Distinct Robot Face Pattern */
+    /* Main App Background with Tiled Robot Pattern */
     .stApp {
         background-color: #0e1117 !important;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M10 20h10v10H10zm30 0h10v10H40zM15 42h30v4H15zM5 10h50v40H5zm2 2v36h46V12zm18-7h10v3H25z' fill='%2330363d' fill-opacity='0.6' fill-rule='evenodd'/%3E%3C/svg%3E") !important;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M10 20h10v10H10zm30 0h10v10H40zM15 42h30v4H15zM5 10h50v40H5zm2 2v36h46V12zm18-7h10v3H25z' fill='%2330363d' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E") !important;
         background-repeat: repeat !important;
     }
     
-    /* Global Base Text Brightness Overrides */
-    .stApp, .stApp p, span, div {
-        color: #f0f6fc !important;
-    }
-    
-    /* High-Contrast Chat Message Container Blocks */
+    /* Force All Chat Bubble Containers to stand out */
     div[data-testid="stChatMessage"] {
         background-color: #161b22 !important;
-        border: 2px solid #30363d !important;
-        border-radius: 10px !important;
-        padding: 15px !important;
-        margin-bottom: 12px !important;
-        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3) !important;
+        border: 1px solid #30363d !important;
+        border-radius: 8px !important;
+        padding: 12px !important;
+        margin-bottom: 10px !important;
     }
     
-    /* FORCE ALL CHAT BUBBLE TEXT TO BE CRISP WHITE */
-    div[data-testid="stChatMessage"] p {
+    /* FORCE TEXT INSIDE CHAT BUBBLES TO BE BRIGHT WHITE */
+    div[data-testid="stChatMessage"] p, 
+    div[data-testid="stChatMessage"] span,
+    div[data-testid="stChatMessage"] div {
         color: #ffffff !important;
-        font-weight: 500 !important;
-        font-size: 1.1rem !important;
+        font-size: 1.05rem !important;
     }
     
-    /* Make Title and Header Texts Pop Vibrant White */
-    h1, h2, h3, .stApp h1, .stApp h2 {
-        color: #ffffff !important;
-        font-weight: 700 !important;
-    }
-    
-    /* Fix Input Box Typing Text Color */
-    div[data-testid="stChatInput"] textarea {
-        color: #ffffff !important;
-        background-color: #0e1117 !important;
-    }
-    
-    /* Sidebar Text and Container Tweaks */
+    /* Sidebar styling */
     .stSidebar {
         background-color: #161b22 !important;
-        border-right: 1px solid #30363d !important;
     }
     div[data-testid="stExpander"] {
         background-color: #1f242c !important;
         border: 1px solid #30363d !important;
     }
     
-    /* Audio Controls Styling Context */
-    audio {
-        max-width: 100% !important;
-        margin-top: 5px !important;
+    /* Input box placeholder and text clarity */
+    div[data-testid="stChatInput"] textarea {
+        color: #ffffff !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -127,7 +108,7 @@ def get_ai_response(conversation_history):
         for m in conversation_history[-6:]:
             messages_payload.append({"role": m["role"], "content": m["content"]})
             
-        # FIXED: Updated model parameter to match an active Groq ecosystem model
+        # Updated to active Groq model architecture 
         completion = client.chat.completions.create(
             model="llama3-8b-8192",
             messages=messages_payload,
@@ -190,4 +171,65 @@ if "messages" in active_chat and active_chat["messages"]:
     for msg in active_chat["messages"]:
         avatar_icon = "🤖" if msg["role"] == "assistant" else "👤"
         with st.chat_message(msg["role"], avatar=avatar_icon):
-            st.markdown(
+            st.markdown(msg["content"])
+else:
+    st.caption("This conversation is empty. Talk or type below!")
+
+# --- ONE-TIME VOICE PLAYBACK ENGINE ---
+if st.session_state.active_audio_bytes and not st.session_state.stop_audio:
+    st.audio(st.session_state.active_audio_bytes, format="audio/mp3", autoplay=True)
+    st.session_state.active_audio_bytes = None  
+
+st.divider()
+
+# --- Control & Input Section ---
+if not st.session_state.stop_audio:
+    if st.button("🛑 Stop Audio Response"):
+        st.session_state.stop_audio = True
+        st.session_state.active_audio_bytes = None
+        st.rerun()
+else:
+    if st.button("▶️ Enable Audio Response"):
+        st.session_state.stop_audio = False
+        st.rerun()
+
+audio_file = st.audio_input("Speak to your Coach 🎤")
+
+# --- FIXED SECURE VOICE PROCESSING ---
+if audio_file:
+    audio_bytes = audio_file.read()
+    current_audio_hash = hashlib.sha256(audio_bytes).hexdigest()
+    
+    if st.session_state.last_processed_audio_hash != current_audio_hash:
+        st.session_state.last_processed_audio_hash = current_audio_hash
+        
+        if client:
+            with st.spinner("Listening to your voice..."):
+                buffer = io.BytesIO(audio_bytes)
+                buffer.name = "audio.wav"
+                translation = client.audio.transcriptions.create(file=buffer, model="whisper-large-v3", response_format="text")
+                user_text = translation.strip()
+                
+                if user_text:
+                    if "messages" not in active_chat: active_chat["messages"] = []
+                    active_chat["messages"].append({"role": "user", "content": user_text})
+                    
+                    bot_reply = get_ai_response(active_chat["messages"])
+                    active_chat["messages"].append({"role": "assistant", "content": bot_reply})
+                    save_data(st.session_state.chats)
+                    
+                    st.session_state.active_audio_bytes = get_audio_bytes(bot_reply)
+                    st.rerun()
+
+# --- Keyboard Typing Processing ---
+if prompt := st.chat_input("Type your message here..."):
+    st.session_state.active_audio_bytes = None  
+    
+    if "messages" not in active_chat: active_chat["messages"] = []
+    active_chat["messages"].append({"role": "user", "content": prompt})
+    
+    bot_reply = get_ai_response(active_chat["messages"])
+    active_chat["messages"].append({"role": "assistant", "content": bot_reply})
+    save_data(st.session_state.chats)
+    
+    st.rerun()
