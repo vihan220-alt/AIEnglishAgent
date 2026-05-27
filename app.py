@@ -206,4 +206,62 @@ else:
 
 # --- Auto-Audio Playback ---
 if st.session_state.active_audio_bytes and not st.session_state.stop_audio:
-    st.audio(st.session
+    st.audio(st.session_state.active_audio_bytes, format="audio/mp3", autoplay=True)
+    st.session_state.active_audio_bytes = None  
+
+st.divider()
+
+# --- Audio Controls ---
+if not st.session_state.stop_audio:
+    if st.button("🛑 Stop Audio Response"):
+        st.session_state.stop_audio = True
+        st.session_state.active_audio_bytes = None
+        st.rerun()
+else:
+    if st.button("▶️ Enable Audio Response"):
+        st.session_state.stop_audio = False
+        st.rerun()
+
+# Voice input widget
+audio_file = st.audio_input("Speak to your Coach 🎤")
+
+# --- Voice Processing Block ---
+if audio_file:
+    audio_bytes = audio_file.read()
+    current_audio_hash = hashlib.sha256(audio_bytes).hexdigest()
+    
+    if st.session_state.last_processed_audio_hash != current_audio_hash:
+        st.session_state.last_processed_audio_hash = current_audio_hash
+        
+        if client:
+            with st.spinner("Listening to your voice..."):
+                buffer = io.BytesIO(audio_bytes)
+                buffer.name = "audio.wav"
+                translation = client.audio.transcriptions.create(file=buffer, model="whisper-large-v3", response_format="text")
+                user_text = translation.strip()
+                
+                if user_text:
+                    if "messages" not in active_chat:
+                        active_chat["messages"] = []
+                    active_chat["messages"].append({"role": "user", "content": user_text})
+                    
+                    bot_reply = get_ai_response(active_chat["messages"])
+                    active_chat["messages"].append({"role": "assistant", "content": bot_reply})
+                    save_data(st.session_state.chats)
+                    
+                    st.session_state.active_audio_bytes = get_audio_bytes(bot_reply)
+                    st.rerun()
+
+# --- Text Input Block ---
+if prompt := st.chat_input("Type your message here..."):
+    st.session_state.active_audio_bytes = None  
+    
+    if "messages" not in active_chat:
+        active_chat["messages"] = []
+    active_chat["messages"].append({"role": "user", "content": prompt})
+    
+    bot_reply = get_ai_response(active_chat["messages"])
+    active_chat["messages"].append({"role": "assistant", "content": bot_reply})
+    save_data(st.session_state.chats)
+    
+    st.rerun()
