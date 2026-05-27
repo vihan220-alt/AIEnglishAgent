@@ -68,6 +68,28 @@ def get_audio_bytes(text):
     except Exception:
         return None
 
+# Helper function to get real text completions from Groq AI model
+def get_ai_response(conversation_history):
+    if not client:
+        return "API Key missing. Please check your st.secrets."
+    try:
+        # Build systemic language tutor formatting instructions
+        messages_payload = [
+            {"role": "system", "content": "You are a helpful, encouraging English fluency coach. Keep your responses conversational, concise (2-3 sentences max), and optimized for spoken dialogue."}
+        ]
+        # Append historical logs
+        for m in conversation_history[-6:]: # look at recent context window
+            messages_payload.append({"role": m["role"], "content": m["content"]})
+            
+        completion = client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=messages_payload,
+            temperature=0.7
+        )
+        return completion.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Error connecting to coach brain: {str(e)}"
+
 # --- Sidebar Configuration ---
 with st.sidebar:
     st.header("Coach Workspace")
@@ -76,7 +98,7 @@ with st.sidebar:
         st.session_state.chats.append(new_chat)
         save_data(st.session_state.chats)
         st.session_state.active_idx = len(st.session_state.chats) - 1
-        st.session_state.active_audio_bytes = None  # Reset audio on context switch
+        st.session_state.active_audio_bytes = None  
         st.rerun()
 
     st.divider()
@@ -91,7 +113,7 @@ with st.sidebar:
             c1, c2, c3 = st.columns(3)
             if c1.button("Open", key=f"open_{idx}"):
                 st.session_state.active_idx = idx
-                st.session_state.active_audio_bytes = None  # Silence audio when clicking between chats
+                st.session_state.active_audio_bytes = None  
                 st.rerun()
             if c2.button("📌", key=f"pin_{idx}"):
                 chat['pinned'] = not chat.get('pinned', False)
@@ -106,72 +128,4 @@ with st.sidebar:
                     st.rerun()
 
 # --- Main Chat Screen ---
-if st.session_state.active_idx >= len(st.session_state.chats):
-    st.session_state.active_idx = 0
-
-active_chat = st.session_state.chats[st.session_state.active_idx]
-
-# Title and Stop Button row
-title_col, stop_col = st.columns([4, 1])
-with title_col:
-    st.title(f"Fluency Coach: {active_chat.get('name', 'Chat')}")
-with stop_col:
-    st.write("")  
-    if st.button("🛑 Stop Audio"):
-        st.session_state.stop_audio = True
-        st.session_state.active_audio_bytes = None
-        st.rerun()
-
-# Render message history cleanly without printing persistent hidden raw HTML loops
-if "messages" in active_chat and active_chat["messages"]:
-    for msg in active_chat["messages"]:
-        avatar_icon = "🤖" if msg["role"] == "assistant" else "👤"
-        with st.chat_message(msg["role"], avatar=avatar_icon):
-            st.markdown(msg["content"])
-else:
-    st.caption("This conversation is empty. Talk or type below!")
-
-# --- ONE-TIME PLAYBACK WIDGET ENGINE ---
-if st.session_state.active_audio_bytes and not st.session_state.stop_audio:
-    st.audio(st.session_state.active_audio_bytes, format="audio/mp3", autoplay=True)
-    st.session_state.active_audio_bytes = None  # Wipes the memory instantly after rendering so it cannot repeat!
-
-st.divider()
-
-# --- Input Section ---
-audio_file = st.audio_input("Speak to your Coach 🎤")
-
-# Voice Microphone Processing
-if audio_file and not st.session_state.get("last_audio") == audio_file:
-    st.session_state.last_audio = audio_file
-    st.session_state.stop_audio = False  
-    
-    if client:
-        buffer = io.BytesIO(audio_file.read())
-        buffer.name = "audio.wav"
-        translation = client.audio.transcriptions.create(file=buffer, model="whisper-large-v3", response_format="text")
-        user_text = translation.strip()
-        
-        bot_reply = f"I heard you say: '{user_text}'. Let's keep practicing!"
-        
-        if "messages" not in active_chat: active_chat["messages"] = []
-        active_chat["messages"].append({"role": "user", "content": user_text})
-        active_chat["messages"].append({"role": "assistant", "content": bot_reply})
-        save_data(st.session_state.chats)
-        
-        # Load audio file data directly into dynamic state cache memory
-        st.session_state.active_audio_bytes = get_audio_bytes(bot_reply)
-        st.rerun()
-
-# Keyboard Typing Processing
-if prompt := st.chat_input("Type your message here..."):
-    st.session_state.stop_audio = False
-    if "messages" not in active_chat: active_chat["messages"] = []
-    
-    active_chat["messages"].append({"role": "user", "content": prompt})
-    bot_reply = f"Awesome! I've received your text: '{prompt}'."
-    active_chat["messages"].append({"role": "assistant", "content": bot_reply})
-    save_data(st.session_state.chats)
-    
-    st.session_state.active_audio_bytes = get_audio_bytes(bot_reply)
-    st.rerun()
+if st.session_state.active_idx
