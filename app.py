@@ -79,8 +79,9 @@ def get_ai_response(conversation_history):
         for m in conversation_history[-6:]:
             messages_payload.append({"role": m["role"], "content": m["content"]})
             
+        # FIXED: Swapped decommissioned model with the active llama-3.1 speed-model
         completion = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             messages=messages_payload,
             temperature=0.7
         )
@@ -131,16 +132,8 @@ if st.session_state.active_idx >= len(st.session_state.chats):
 
 active_chat = st.session_state.chats[st.session_state.active_idx]
 
-# Title and Stop Button row
-title_col, stop_col = st.columns([4, 1])
-with title_col:
-    st.title(f"Fluency Coach: {active_chat.get('name', 'Chat')}")
-with stop_col:
-    st.write("")  
-    if st.button("🛑 Stop Audio"):
-        st.session_state.stop_audio = True
-        st.session_state.active_audio_bytes = None
-        st.rerun()
+# Clean Top Title
+st.title(f"Fluency Coach: {active_chat.get('name', 'Chat')}")
 
 # Render message history cleanly
 if "messages" in active_chat and active_chat["messages"]:
@@ -158,13 +151,23 @@ if st.session_state.active_audio_bytes and not st.session_state.stop_audio:
 
 st.divider()
 
-# --- Input Section ---
+# --- Control & Input Section ---
+# FIXED: Moved the Stop Audio button down here so it sits right above the recording panel!
+if not st.session_state.stop_audio:
+    if st.button("🛑 Stop Audio Response"):
+        st.session_state.stop_audio = True
+        st.session_state.active_audio_bytes = None
+        st.rerun()
+else:
+    if st.button("▶️ Enable Audio Response"):
+        st.session_state.stop_audio = False
+        st.rerun()
+
 audio_file = st.audio_input("Speak to your Coach 🎤")
 
 # 1. Voice Microphone Processing -> WILL RESPOND WITH TEXT + VOICE
 if audio_file and not st.session_state.get("last_audio") == audio_file:
     st.session_state.last_audio = audio_file
-    st.session_state.stop_audio = False  
     
     if client:
         buffer = io.BytesIO(audio_file.read())
@@ -184,8 +187,7 @@ if audio_file and not st.session_state.get("last_audio") == audio_file:
 
 # 2. Keyboard Typing Processing -> WILL RESPOND WITH TEXT ONLY (SILENT)
 if prompt := st.chat_input("Type your message here..."):
-    st.session_state.stop_audio = False
-    st.session_state.active_audio_bytes = None  # Clear out any past microphone track immediately
+    st.session_state.active_audio_bytes = None  
     
     if "messages" not in active_chat: active_chat["messages"] = []
     active_chat["messages"].append({"role": "user", "content": prompt})
