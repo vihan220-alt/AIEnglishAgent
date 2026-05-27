@@ -38,8 +38,7 @@ st.markdown("""
         box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3) !important;
     }
     
-    /* FORCE USER MESSAGES TO BE CRISP WHITE */
-    div[data-testid="stChatMessage"][data-content-name="user"] p,
+    /* FORCE USER & ASSISTANT MESSAGES TO BE CRISP WHITE */
     div[data-testid="stChatMessage"] p {
         color: #ffffff !important;
         font-weight: 500 !important;
@@ -131,7 +130,6 @@ def get_ai_response(conversation_history):
         for m in conversation_history[-6:]:
             messages_payload.append({"role": m["role"], "content": m["content"]})
             
-        # FIXED: Updated model parameter to match active Groq ecosystem model
         completion = client.chat.completions.create(
             model="llama3-8b-8192",
             messages=messages_payload,
@@ -237,6 +235,7 @@ if audio_file:
                     if "messages" not in active_chat: active_chat["messages"] = []
                     active_chat["messages"].append({"role": "user", "content": user_text})
                     
+                    # FIXED: Restored complete function call name
                     bot_reply = get_ai_response(active_chat["messages"])
                     active_chat["messages"].append({"role": "assistant", "content": bot_reply})
                     save_data(st.session_state.chats)
@@ -251,4 +250,9 @@ if prompt := st.chat_input("Type your message here..."):
     if "messages" not in active_chat: active_chat["messages"] = []
     active_chat["messages"].append({"role": "user", "content": prompt})
     
-    bot_reply = get_ai
+    # FIXED: Restored complete function call name
+    bot_reply = get_ai_response(active_chat["messages"])
+    active_chat["messages"].append({"role": "assistant", "content": bot_reply})
+    save_data(st.session_state.chats)
+    
+    st.rerun()
