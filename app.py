@@ -28,8 +28,9 @@ with st.sidebar:
         st.rerun()
 
     for idx, chat in enumerate(st.session_state.chats):
-        with st.expander(f"{'📌' if chat.get('pinned') else ''} {chat['name']}"):
-            new_name = st.text_input("Rename", value=chat['name'], key=f"name_{idx}")
+# Change this line in your app.py:
+with st.expander(f"{'📌' if chat.get('pinned', False) else ''} {chat.get('name', 'Chat')}"):
+        new_name = st.text_input("Rename", value=chat['name'], key=f"name_{idx}")
             if new_name != chat['name']:
                 chat['name'] = new_name
                 save_data(st.session_state.chats)
