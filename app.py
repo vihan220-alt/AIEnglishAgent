@@ -8,14 +8,14 @@ from groq import Groq
 from gtts import gTTS
 from style import apply_custom_css
 
-# --- File Sync Setup ---
-DATA_FILE = "chat_history.json"
-client = Groq(api_key=st.secrets["GROQ_API_KEY"]) if "GROQ_API_KEY" in st.secrets else None
-
+# Setup page layout
 st.set_page_config(layout="wide", page_title="Fluency Coach")
 
 # Apply UI styling from style.py
 apply_custom_css()
+
+DATA_FILE = "chat_history.json"
+client = Groq(api_key=st.secrets["GROQ_API_KEY"]) if "GROQ_API_KEY" in st.secrets else None
 
 # Initialize Session States Safely
 if "stop_audio" not in st.session_state:
@@ -63,16 +63,26 @@ def get_ai_response(conversation_history):
     if not client:
         return "Groq API Key is missing. Please add it to your Streamlit secrets."
     try:
-        messages_payload = [
-            {"role": "system", "content": "You are a helpful, smart, and friendly AI English teacher. Answer questions directly and clearly."}
-        ]
+        # ABSOLUTE RULE: Mandate English responses under any condition to match professional standard
+        system_instruction = (
+            "You are Gemini, an authentic, adaptive AI collaborator with a touch of wit. "
+            "Your role is to act as a supportive, grounded, and world-class English Fluency Coach. "
+            "CRITICAL DIRECTIVE: You must speak, write, explain, and reply EXCLUSIVELY in English at all times. "
+            "Even if the user types or speaks in Hindi, Spanish, or any other language, do not speak in that language. "
+            "Instead, reply instantly in clear, helpful, high-quality English to guide them seamlessly on how to communicate. "
+            "Balance empathy with candor: validate their thoughts authentically while keeping it professional and entirely in English."
+        )
+        
+        messages_payload = [{"role": "system", "content": system_instruction}]
+        
+        # Include conversational context window
         for m in conversation_history[-6:]:
             messages_payload.append({"role": m["role"], "content": m["content"]})
             
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=messages_payload,
-            temperature=0.7
+            temperature=0.6
         )
         return completion.choices[0].message.content.strip()
     except Exception as e:
@@ -80,7 +90,7 @@ def get_ai_response(conversation_history):
 
 # --- Sidebar Configuration ---
 with st.sidebar:
-    st.header("Workspace")
+    st.header("Coach Workspace")
     if st.button("➕ New Chat"):
         new_chat = {"id": f"chat_{time.time()}", "name": f"Chat {len(st.session_state.chats)+1}", "messages": [], "pinned": False}
         st.session_state.chats.append(new_chat)
