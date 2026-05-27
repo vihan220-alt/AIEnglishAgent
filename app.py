@@ -8,16 +8,13 @@ from groq import Groq
 from gtts import gTTS
 from style import apply_custom_css
 
-# Setup page layout
+# Initial configurations
 st.set_page_config(layout="wide", page_title="Fluency Coach")
-
-# Apply UI styling from style.py
 apply_custom_css()
 
 DATA_FILE = "chat_history.json"
 client = Groq(api_key=st.secrets["GROQ_API_KEY"]) if "GROQ_API_KEY" in st.secrets else None
 
-# Initialize Session States Safely
 if "stop_audio" not in st.session_state:
     st.session_state.stop_audio = False
 if "active_audio_bytes" not in st.session_state:
@@ -25,16 +22,13 @@ if "active_audio_bytes" not in st.session_state:
 if "last_processed_audio_hash" not in st.session_state:
     st.session_state.last_processed_audio_hash = None
 
-# --- Safe Data Load/Save ---
 def load_data():
     default_chat = [{"id": "chat_default", "name": "Chat 1", "messages": [], "pinned": False}]
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r") as f:
                 content = f.read().strip()
-                if not content:
-                    return default_chat
-                return json.loads(content)
+                return json.loads(content) if content else default_chat
         except Exception:
             return default_chat
     return default_chat
@@ -48,7 +42,6 @@ if "chats" not in st.session_state:
 if "active_idx" not in st.session_state: 
     st.session_state.active_idx = 0
 
-# Helper function to generate audio
 def get_audio_bytes(text):
     try:
         tts = gTTS(text=text, lang='en', tld='co.uk')
@@ -58,7 +51,6 @@ def get_audio_bytes(text):
     except Exception:
         return None
 
-# Helper function to get AI response using production-ready model
 def get_ai_response(conversation_history):
     if not client:
         return "Groq API Key is missing. Please add it to your Streamlit secrets."
@@ -71,9 +63,7 @@ def get_ai_response(conversation_history):
             "Instead, reply instantly in clear, helpful, high-quality English to guide them seamlessly on how to communicate. "
             "Balance empathy with candor: validate their thoughts authentically while keeping it professional and entirely in English."
         )
-        
         messages_payload = [{"role": "system", "content": system_instruction}]
-        
         for m in conversation_history[-6:]:
             messages_payload.append({"role": m["role"], "content": m["content"]})
             
@@ -86,7 +76,7 @@ def get_ai_response(conversation_history):
     except Exception as e:
         return f"Error connecting to coach: {str(e)}"
 
-# --- Sidebar Configuration ---
+# --- Workspace Sidebar Layout ---
 with st.sidebar:
     st.header("Coach Workspace")
     if st.button("➕ New Chat"):
@@ -126,15 +116,12 @@ with st.sidebar:
                     save_data(st.session_state.chats)
                     st.rerun()
 
-# --- Main Chat Screen ---
 if st.session_state.active_idx >= len(st.session_state.chats):
     st.session_state.active_idx = 0
 
 active_chat = st.session_state.chats[st.session_state.active_idx]
-
 st.title(f"Fluency Coach: {active_chat.get('name', 'Chat')}")
 
-# Render message history
 if "messages" in active_chat and active_chat["messages"]:
     for msg in active_chat["messages"]:
         avatar_icon = "🤖" if msg["role"] == "assistant" else "👤"
@@ -143,14 +130,12 @@ if "messages" in active_chat and active_chat["messages"]:
 else:
     st.caption("This conversation is empty. Talk or type below!")
 
-# --- Auto-Audio Playback ---
 if st.session_state.active_audio_bytes and not st.session_state.stop_audio:
     st.audio(st.session_state.active_audio_bytes, format="audio/mp3", autoplay=True)
     st.session_state.active_audio_bytes = None  
 
 st.divider()
 
-# --- Audio Controls ---
 if not st.session_state.stop_audio:
     if st.button("🛑 Stop Audio Response"):
         st.session_state.stop_audio = True
@@ -161,30 +146,25 @@ else:
         st.session_state.stop_audio = False
         st.rerun()
 
-# --- GEMINI STYLE MESSAGE BAR INPUT ---
-# Create an elegant single row containing the custom visual inputs
+# --- Custom Dual Input Container ---
 with st.container():
     col_input, col_voice = st.columns([6, 2])
-    
     with col_input:
         prompt = st.text_input(
             label="Ask Gemini Input", 
-            placeholder="➕   Ask Gemini...                                                                            Flash ⌵", 
+            placeholder="➕   Ask Gemini...", 
             label_visibility="collapsed",
             key="gemini_text_prompt"
         )
-        
     with col_voice:
         audio_file = st.audio_input("Speak to your Coach 🎤", label_visibility="collapsed")
 
-# --- Voice Processing Block ---
 if audio_file:
     audio_bytes = audio_file.read()
     current_audio_hash = hashlib.sha256(audio_bytes).hexdigest()
     
     if st.session_state.last_processed_audio_hash != current_audio_hash:
         st.session_state.last_processed_audio_hash = current_audio_hash
-        
         if client:
             with st.spinner("Listening to your voice..."):
                 buffer = io.BytesIO(audio_bytes)
@@ -204,7 +184,16 @@ if audio_file:
                     st.session_state.active_audio_bytes = get_audio_bytes(bot_reply)
                     st.rerun()
 
-# --- Text Input Block ---
 if prompt:
-    # Check if this prompt was already processed to avoid form reload loop
-    if "
+    if "last_processed_prompt" not in st.session_state or st.session_state.last_processed_prompt != prompt:
+        st.session_state.last_processed_prompt = prompt
+        st.session_state.active_audio_bytes = None  
+        
+        if "messages" not in active_chat:
+            active_chat["messages"] = []
+        active_chat["messages"].append({"role": "user", "content": prompt})
+        
+        bot_reply = get_ai_response(active_chat["messages"])
+        active_chat["messages"].append({"role": "assistant", "content": bot_reply})
+        save_data(st.session_state.chats)
+        st.rerun()
