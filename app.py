@@ -3,7 +3,6 @@ import json
 import os
 import time
 import io
-import base64
 from groq import Groq
 from gtts import gTTS
 
@@ -33,6 +32,8 @@ st.markdown("""
 # Initialize Session States Safely
 if "stop_audio" not in st.session_state:
     st.session_state.stop_audio = False
+if "active_audio_bytes" not in st.session_state:
+    st.session_state.active_audio_bytes = None
 
 # --- Safe Data Load/Save ---
 def load_data():
@@ -57,18 +58,15 @@ if "chats" not in st.session_state:
 if "active_idx" not in st.session_state: 
     st.session_state.active_idx = 0
 
-# Helper function to generate auto-playing speech HTML
-def generate_audio_html(text):
-    if st.session_state.stop_audio:
-        return ""
+# Helper function to generate clean audio binary data
+def get_audio_bytes(text):
     try:
         tts = gTTS(text=text, lang='en', tld='co.uk')
         mp3_fp = io.BytesIO()
         tts.write_to_fp(mp3_fp)
-        b64 = base64.b64encode(mp3_fp.getvalue()).decode()
-        return f'<audio src="data:audio/mp3;base64,{b64}" autoplay></audio>'
+        return mp3_fp.getvalue()
     except Exception:
-        return ""
+        return None
 
 # --- Sidebar Configuration ---
 with st.sidebar:
@@ -78,6 +76,7 @@ with st.sidebar:
         st.session_state.chats.append(new_chat)
         save_data(st.session_state.chats)
         st.session_state.active_idx = len(st.session_state.chats) - 1
+        st.session_state.active_audio_bytes = None  # Reset audio on context switch
         st.rerun()
 
     st.divider()
@@ -92,6 +91,7 @@ with st.sidebar:
             c1, c2, c3 = st.columns(3)
             if c1.button("Open", key=f"open_{idx}"):
                 st.session_state.active_idx = idx
+                st.session_state.active_audio_bytes = None  # Silence audio when clicking between chats
                 st.rerun()
             if c2.button("📌", key=f"pin_{idx}"):
                 chat['pinned'] = not chat.get('pinned', False)
@@ -101,6 +101,7 @@ with st.sidebar:
                 if len(st.session_state.chats) > 1:
                     st.session_state.chats.pop(idx)
                     st.session_state.active_idx = 0
+                    st.session_state.active_audio_bytes = None
                     save_data(st.session_state.chats)
                     st.rerun()
 
@@ -118,9 +119,10 @@ with stop_col:
     st.write("")  
     if st.button("🛑 Stop Audio"):
         st.session_state.stop_audio = True
+        st.session_state.active_audio_bytes = None
         st.rerun()
 
-# Render message history safely
+# Render message history cleanly without printing persistent hidden raw HTML loops
 if "messages" in active_chat and active_chat["messages"]:
     for msg in active_chat["messages"]:
         avatar_icon = "🤖" if msg["role"] == "assistant" else "👤"
@@ -128,6 +130,11 @@ if "messages" in active_chat and active_chat["messages"]:
             st.markdown(msg["content"])
 else:
     st.caption("This conversation is empty. Talk or type below!")
+
+# --- ONE-TIME PLAYBACK WIDGET ENGINE ---
+if st.session_state.active_audio_bytes and not st.session_state.stop_audio:
+    st.audio(st.session_state.active_audio_bytes, format="audio/mp3", autoplay=True)
+    st.session_state.active_audio_bytes = None  # Wipes the memory instantly after rendering so it cannot repeat!
 
 st.divider()
 
@@ -152,11 +159,8 @@ if audio_file and not st.session_state.get("last_audio") == audio_file:
         active_chat["messages"].append({"role": "assistant", "content": bot_reply})
         save_data(st.session_state.chats)
         
-        # Inject the voice element EXACTLY ONCE here right before re-rendering
-        audio_html = generate_audio_html(bot_reply)
-        st.markdown(audio_html, unsafe_allow_html=True)
-        
-        time.sleep(0.5)  # Let browser begin playback engine safely
+        # Load audio file data directly into dynamic state cache memory
+        st.session_state.active_audio_bytes = get_audio_bytes(bot_reply)
         st.rerun()
 
 # Keyboard Typing Processing
@@ -169,9 +173,5 @@ if prompt := st.chat_input("Type your message here..."):
     active_chat["messages"].append({"role": "assistant", "content": bot_reply})
     save_data(st.session_state.chats)
     
-    # Inject voice element EXACTLY ONCE here for text input
-    audio_html = generate_audio_html(bot_reply)
-    st.markdown(audio_html, unsafe_allow_html=True)
-    
-    time.sleep(0.5)
+    st.session_state.active_audio_bytes = get_audio_bytes(bot_reply)
     st.rerun()
