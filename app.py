@@ -77,7 +77,7 @@ def get_ai_response(conversation_history):
         return "Groq API Key is missing. Please add it to your Streamlit secrets."
     try:
         messages_payload = [
-            {"role": "system", "content": "You are an encouraging English fluency coach. Keep responses conversational, brief (2 sentences max), and optimized for spoken practice."}
+            {"role": "system", "content": "You are a helpful, smart, and friendly AI assistant. Answer questions directly and clearly."}
         ]
         for m in conversation_history[-6:]:
             messages_payload.append({"role": m["role"], "content": m["content"]})
