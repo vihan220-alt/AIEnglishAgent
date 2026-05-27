@@ -10,20 +10,25 @@ client = Groq(api_key=st.secrets["GROQ_API_KEY"]) if "GROQ_API_KEY" in st.secret
 
 st.set_page_config(layout="wide")
 
-# --- Persistent Data Load/Save ---
+# --- Safe Data Load/Save ---
 def load_data():
+    default_chat = [{"id": "chat_default", "name": "Chat 1", "messages": [], "pinned": False}]
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r") as f:
-                return json.load(f)
-        except:
-            pass
-    return [{"id": "chat_default", "name": "Chat 1", "messages": [], "pinned": False}]
+                content = f.read().strip()
+                if not content:  # If file is empty string
+                    return default_chat
+                return json.loads(content)
+        except Exception:
+            return default_chat  # Fallback if JSON is corrupted
+    return default_chat
 
 def save_data(data):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f)
 
+# Initialize Session States safely
 if "chats" not in st.session_state: 
     st.session_state.chats = load_data()
 if "active_idx" not in st.session_state: 
@@ -41,7 +46,7 @@ with st.sidebar:
 
     st.divider()
     
-    # Loop to render your options dropdown (st.expander)
+    # Render option dropdowns
     for idx, chat in enumerate(st.session_state.chats):
         with st.expander(f"{'📌' if chat.get('pinned', False) else ''} {chat.get('name', 'Chat')}"):
             new_name = st.text_input("Rename", value=chat.get('name', 'Chat'), key=f"name_{idx}")
@@ -65,20 +70,30 @@ with st.sidebar:
                     st.rerun()
 
 # --- Main Chat Screen ---
+# Fallback index check to prevent out-of-bounds rendering errors
+if st.session_state.active_idx >= len(st.session_state.chats):
+    st.session_state.active_idx = 0
+
 active_chat = st.session_state.chats[st.session_state.active_idx]
 st.title(f"Fluency Coach: {active_chat.get('name', 'Chat')}")
 
-# Always show past messages if they exist
-for msg in active_chat["messages"]:
-    avatar_icon = "🤖" if msg["role"] == "assistant" else "👤"
-    with st.chat_message(msg["role"], avatar=avatar_icon):
-        st.markdown(msg["content"])
+# Render message history
+if "messages" in active_chat and active_chat["messages"]:
+    for msg in active_chat["messages"]:
+        avatar_icon = "🤖" if msg["role"] == "assistant" else "👤"
+        with st.chat_message(msg["role"], avatar=avatar_icon):
+            st.markdown(msg["content"])
+else:
+    st.caption("This conversation is empty. Say hello below!")
 
-# Main Input Controls (Always visible at the bottom)
+# Main Input Text Box (Always rendered at the bottom)
 if prompt := st.chat_input("Type your message here..."):
+    if "messages" not in active_chat:
+        active_chat["messages"] = []
+        
     active_chat["messages"].append({"role": "user", "content": prompt})
     
-    # Simple direct reply text to keep it responsive
+    # Generate response text
     bot_reply = f"Awesome! I've received your text: '{prompt}'. Let's chat!"
     active_chat["messages"].append({"role": "assistant", "content": bot_reply})
     
