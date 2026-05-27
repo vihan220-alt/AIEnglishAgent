@@ -53,8 +53,8 @@ def get_audio_bytes(text):
 
 def get_ai_response(conversation_history):
     if not client:
-  try:
-        # LOOK HERE: Replace this entire block down to the messages_payload
+  def get_ai_response(messages):
+    try:
         system_instruction = (
             "You are Gemini, an authentic, adaptive, and witty conversational collaborator. "
             "Your role is to act as a supportive, world-class English Fluency Coach. "
@@ -62,6 +62,8 @@ def get_ai_response(conversation_history):
             "Never write long essays or bullet points. Limit your responses to a maximum of 2 to 3 sentences total. "
             "MANDATE: Speak, explain, and reply EXCLUSIVELY in English at all times, no matter what language the user types."
         )
+        
+        messages_payload = [{"role": "system", "content": system_instruction}] + messages
         
         messages_payload = [{"role": "system", "content": system_instruction}]
         )
