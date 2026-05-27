@@ -1,81 +1,51 @@
 import streamlit as st
 import json
 import os
-import io
-import time
-import base64
 from groq import Groq
 from gtts import gTTS
-from style import apply_custom_theme
+import io
+import base64
 
-apply_custom_theme()
+# --- Setup ---
 DATA_FILE = "chat_history.json"
-
-# Initialize Groq
 client = Groq(api_key=st.secrets["GROQ_API_KEY"]) if "GROQ_API_KEY" in st.secrets else None
 
-# --- Session State for Audio Control ---
-if "stop_audio" not in st.session_state: st.session_state.stop_audio = False
+if "chats" not in st.session_state:
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as f: st.session_state.chats = json.load(f)
+    else:
+        st.session_state.chats = [{"id": "main", "messages": []}]
+        
+active_chat = st.session_state.chats[0]
 
+# --- Sidebar ---
+with st.sidebar:
+    st.header("Coach Workspace")
+    if st.button("New Chat"):
+        st.session_state.chats = [{"id": str(time.time()), "messages": []}]
+        st.rerun()
+
+# --- Main Interface ---
 st.title("Fluency Coach")
 
-# --- Permanent Stop Button ---
-if st.button("🛑 Stop Audio"):
-    st.session_state.stop_audio = True
-    st.rerun()
+# Render existing messages
+for msg in active_chat["messages"]:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-def generate_audio_html(text):
-    if st.session_state.stop_audio:
-        return ""
-    tts = gTTS(text=text, lang='en', tld='co.uk')
-    mp3_fp = io.BytesIO()
-    tts.write_to_fp(mp3_fp)
-    mp3_fp.seek(0)
-    b64 = base64.b64encode(mp3_fp.read()).decode()
-    return f'<audio src="data:audio/mp3;base64,{b64}" autoplay controls></audio>'
-
-# --- Load Data (Keep your existing function) ---
-def load_data():
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r") as f:
-            try: return json.load(f)
-            except: pass
-    return [{"id": "main_default", "name": "Chat 1", "messages": []}]
-
-if "chats" not in st.session_state: st.session_state.chats = load_data()
-active_chat = st.session_state.chats[0] # Simplified for brevity
-
-# --- Voice Input Logic ---
+# --- 1. Audio Input Block ---
 audio_file = st.audio_input("Speak to your Coach 🎤")
-
 if audio_file:
-    # 1. Transcribe
-    buffer = io.BytesIO(audio_file.read())
-    buffer.name = "audio.wav"
-    translation = client.audio.transcriptions.create(file=buffer, model="whisper-large-v3", response_format="text")
-    transcribed_text = translation.strip()
-    
-    # 2. Generate Reply Text
-    reply_text = f"I heard you say: '{transcribed_text}'. Let's keep practicing!"
-    
-    # 3. Add to chat
-    active_chat["messages"].append({"role": "user", "content": transcribed_text})
-    active_chat["messages"].append({"role": "assistant", "content": reply_text})
-    
-    # 4. Generate Audio ONLY if not stopped
-    st.session_state.stop_audio = False
-    audio_html = generate_audio_html(reply_text)
-    
-    with st.chat_message("assistant"):
-        st.write(reply_text)
-        if audio_html:
-            st.markdown(audio_html, unsafe_allow_html=True)
-    
-    st.rerun()
+    # Transcribe and append logic here...
+    st.info("Processing voice...")
+    # (Use your Groq transcribe block here)
 
-# --- Text Input Logic ---
+# --- 2. Text Input Block ---
 if prompt := st.chat_input("Type your message..."):
-    reply_text = f"Received your text: '{prompt}'."
+    # Append text message to chat
     active_chat["messages"].append({"role": "user", "content": prompt})
-    active_chat["messages"].append({"role": "assistant", "content": reply_text})
+    # Add response
+    active_chat["messages"].append({"role": "assistant", "content": "I received your text."})
+    # Save and Refresh
+    with open(DATA_FILE, "w") as f: json.dump(st.session_state.chats, f)
     st.rerun()
