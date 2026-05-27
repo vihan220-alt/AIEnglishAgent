@@ -13,19 +13,65 @@ client = Groq(api_key=st.secrets["GROQ_API_KEY"]) if "GROQ_API_KEY" in st.secret
 
 st.set_page_config(layout="wide")
 
-# --- Custom CSS for Solid Dark AI Background ---
+# --- Custom CSS for Maximum High-Contrast Text & Sharp Robot Faces ---
 st.markdown("""
     <style>
+    /* Main App Background with Distinct Robot Face Pattern */
     .stApp {
         background-color: #0e1117 !important;
-        color: #ffffff;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M10 20h10v10H10zm30 0h10v10H40zM15 42h30v4H15zM5 10h50v40H5zm2 2v36h46V12zm18-7h10v3H25z' fill='%2330363d' fill-opacity='0.6' fill-rule='evenodd'/%3E%3C/svg%3E") !important;
+        background-repeat: repeat !important;
     }
+    
+    /* Global Base Text Brightness Overrides */
+    .stApp, .stApp p, span, div {
+        color: #f0f6fc !important;
+    }
+    
+    /* High-Contrast Chat Message Container Blocks */
+    div[data-testid="stChatMessage"] {
+        background-color: #161b22 !important;
+        border: 2px solid #30363d !important;
+        border-radius: 10px !important;
+        padding: 15px !important;
+        margin-bottom: 12px !important;
+        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    /* FORCE USER MESSAGES TO BE CRISP WHITE */
+    div[data-testid="stChatMessage"][data-content-name="user"] p,
+    div[data-testid="stChatMessage"] p {
+        color: #ffffff !important;
+        font-weight: 500 !important;
+        font-size: 1.1rem !important;
+    }
+    
+    /* Make Title and Header Texts Pop Vibrant White */
+    h1, h2, h3, .stApp h1, .stApp h2 {
+        color: #ffffff !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Fix Input Box Typing Text Color */
+    div[data-testid="stChatInput"] textarea {
+        color: #ffffff !important;
+        background-color: #0e1117 !important;
+    }
+    
+    /* Sidebar Text and Container Tweaks */
     .stSidebar {
         background-color: #161b22 !important;
+        border-right: 1px solid #30363d !important;
     }
     div[data-testid="stExpander"] {
         background-color: #1f242c !important;
         border: 1px solid #30363d !important;
+    }
+    
+    /* Audio Controls Styling Context */
+    audio {
+        max-width: 100% !important;
+        margin-top: 5px !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -64,7 +110,7 @@ if "active_idx" not in st.session_state:
 # Helper function to generate clean audio binary data
 def get_audio_bytes(text):
     try:
-        tts = gTTS(text=text, lang='en', tld='co.uk')
+        tts = gTTS(text=text, lang='en', tld='co.in')
         mp3_fp = io.BytesIO()
         tts.write_to_fp(mp3_fp)
         return mp3_fp.getvalue()
@@ -77,23 +123,27 @@ def get_ai_response(conversation_history):
         return "Groq API Key is missing. Please add it to your Streamlit secrets."
     try:
         messages_payload = [
-            {"role": "system", "content": "You are a helpful, smart, and friendly AI assistant. Answer questions directly and clearly."}
+            {
+                "role": "system", 
+                "content": "You are a helpful, direct, and concise AI assistant. Provide short, exact responses (maximum 1-2 sentences). Do not give long explanations or ask unnecessary follow-up questions."
+            }
         ]
         for m in conversation_history[-6:]:
             messages_payload.append({"role": m["role"], "content": m["content"]})
             
+        # FIXED: Updated model parameter to match active Groq ecosystem model
         completion = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="llama3-8b-8192",
             messages=messages_payload,
-            temperature=0.7
+            temperature=0.5
         )
         return completion.choices[0].message.content.strip()
     except Exception as e:
-        return f"Error connecting to coach: {str(e)}"
+        return f"Error connecting to assistant: {str(e)}"
 
 # --- Sidebar Configuration ---
 with st.sidebar:
-    st.header("Coach Workspace")
+    st.header("Workspace")
     if st.button("➕ New Chat"):
         new_chat = {"id": f"chat_{time.time()}", "name": f"Chat {len(st.session_state.chats)+1}", "messages": [], "pinned": False}
         st.session_state.chats.append(new_chat)
@@ -137,7 +187,7 @@ if st.session_state.active_idx >= len(st.session_state.chats):
 
 active_chat = st.session_state.chats[st.session_state.active_idx]
 
-st.title(f"Fluency Coach: {active_chat.get('name', 'Chat')}")
+st.title(f"AI Assistant: {active_chat.get('name', 'Chat')}")
 
 # Render message history cleanly
 if "messages" in active_chat and active_chat["messages"]:
@@ -146,7 +196,7 @@ if "messages" in active_chat and active_chat["messages"]:
         with st.chat_message(msg["role"], avatar=avatar_icon):
             st.markdown(msg["content"])
 else:
-    st.caption("This conversation is empty. Talk or type below!")
+    st.caption("Ask a question by typing or speaking below!")
 
 # --- ONE-TIME VOICE PLAYBACK ENGINE ---
 if st.session_state.active_audio_bytes and not st.session_state.stop_audio:
@@ -166,20 +216,18 @@ else:
         st.session_state.stop_audio = False
         st.rerun()
 
-audio_file = st.audio_input("Speak to your Coach 🎤")
+audio_file = st.audio_input("Speak your question 🎤")
 
-# --- FIXED SECURE VOICE PROCESSING ---
+# --- SECURE VOICE PROCESSING ---
 if audio_file:
-    # Read raw audio data and generate a permanent fingerprint hash
     audio_bytes = audio_file.read()
     current_audio_hash = hashlib.sha256(audio_bytes).hexdigest()
     
-    # Only run if this specific voice recording has never been processed before
     if st.session_state.last_processed_audio_hash != current_audio_hash:
         st.session_state.last_processed_audio_hash = current_audio_hash
         
         if client:
-            with st.spinner("Listening to your voice..."):
+            with st.spinner("Processing voice..."):
                 buffer = io.BytesIO(audio_bytes)
                 buffer.name = "audio.wav"
                 translation = client.audio.transcriptions.create(file=buffer, model="whisper-large-v3", response_format="text")
@@ -196,15 +244,11 @@ if audio_file:
                     st.session_state.active_audio_bytes = get_audio_bytes(bot_reply)
                     st.rerun()
 
-# 2. Keyboard Typing Processing -> WILL RESPOND WITH TEXT ONLY (SILENT)
+# --- KEYBOARD TYPING PROCESSING ---
 if prompt := st.chat_input("Type your message here..."):
     st.session_state.active_audio_bytes = None  
     
     if "messages" not in active_chat: active_chat["messages"] = []
     active_chat["messages"].append({"role": "user", "content": prompt})
     
-    bot_reply = get_ai_response(active_chat["messages"])
-    active_chat["messages"].append({"role": "assistant", "content": bot_reply})
-    save_data(st.session_state.chats)
-    
-    st.rerun()
+    bot_reply = get_ai
