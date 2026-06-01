@@ -2,13 +2,14 @@ import streamlit as st
 import json
 import os
 from groq import Groq
-from gtts import gTTS
+from gTTS import gTTS
 import io
 from streamlit_mic_recorder import mic_recorder
 
-# 1. Page Config & CSS
-st.set_page_config(page_title="Fluency Coach", layout="wide")
+# --- Page Configuration ---
+st.set_page_config(page_title="Versatile AI", layout="wide")
 
+# --- CSS Styling ---
 st.markdown("""
     <style>
     .stApp {
@@ -19,7 +20,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Data Persistence
+# --- Data Persistence ---
 DATA_FILE = "chats.json"
 if "chats" not in st.session_state:
     if os.path.exists(DATA_FILE):
@@ -28,7 +29,7 @@ if "chats" not in st.session_state:
 
 if "active_chat" not in st.session_state: st.session_state.active_chat = "Chat 1"
 
-# 3. Sidebar UI
+# --- Sidebar ---
 with st.sidebar:
     st.title("Workspace")
     if st.button("➕ New Chat"):
@@ -43,27 +44,29 @@ with st.sidebar:
             st.session_state.active_chat = chat_id
             st.rerun()
 
-# 4. Main Interface
-st.title(f"Fluency Coach: {st.session_state.active_chat}")
+# --- Main Chat ---
+st.title(f"Assistant: {st.session_state.active_chat}")
 
 for msg in st.session_state.chats[st.session_state.active_chat]:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-if prompt := st.chat_input("Practice your English..."):
+if prompt := st.chat_input("Ask me anything..."):
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     st.session_state.chats[st.session_state.active_chat].append({"role": "user", "content": prompt})
     
+    # Corrected message structure to avoid syntax errors
+    system_msg = {"role": "system", "content": "You are a helpful and versatile AI assistant."}
+    messages_to_send = [system_msg] + st.session_state.chats[st.session_state.active_chat][-5:]
+    
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
-messages=[{"role": "system", "content": "You are a helpful and versatile AI assistant."}] + ...
-                 st.session_state.chats[st.session_state.active_chat][-5:]
+        messages=messages_to_send
     ).choices[0].message.content
     
     st.session_state.chats[st.session_state.active_chat].append({"role": "assistant", "content": response})
     with open(DATA_FILE, "w") as f: json.dump(st.session_state.chats, f)
     
-    # Text-to-Speech
     tts = gTTS(text=response, lang='en')
     fp = io.BytesIO()
     tts.write_to_fp(fp)
