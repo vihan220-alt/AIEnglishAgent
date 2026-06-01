@@ -2,14 +2,14 @@ import streamlit as st
 import json
 import os
 from groq import Groq
-from gTTS import gTTS
+from gtts import gTTS
 import io
 from streamlit_mic_recorder import mic_recorder
 
-# --- Page Config ---
+# 1. Page Configuration
 st.set_page_config(page_title="Fluency Coach", layout="wide")
 
-# --- Custom CSS ---
+# 2. Styling (Fixed syntax errors by properly closing quotes)
 st.markdown("""
     <style>
     .stApp {
@@ -20,7 +20,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- Data Persistence ---
+# 3. Data Handling
 DATA_FILE = "chats.json"
 if "chats" not in st.session_state:
     if os.path.exists(DATA_FILE):
@@ -29,7 +29,7 @@ if "chats" not in st.session_state:
 
 if "active_chat" not in st.session_state: st.session_state.active_chat = "Chat 1"
 
-# --- Sidebar ---
+# 4. Sidebar Buttons
 with st.sidebar:
     st.title("Workspace")
     if st.button("➕ New Chat"):
@@ -44,10 +44,10 @@ with st.sidebar:
             st.session_state.active_chat = chat_id
             st.rerun()
 
-# --- Main Interface ---
+# 5. Main Chat Interface
 st.title(f"Fluency Coach: {st.session_state.active_chat}")
 
-# Display chat messages
+# Display messages
 for msg in st.session_state.chats[st.session_state.active_chat]:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
@@ -57,6 +57,7 @@ if prompt := st.chat_input("Practice your English..."):
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     st.session_state.chats[st.session_state.active_chat].append({"role": "user", "content": prompt})
     
+    # Generate AI Response
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "system", "content": "You are a concise English coach."}] + 
