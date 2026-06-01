@@ -2,14 +2,14 @@ import streamlit as st
 import json
 import os
 from groq import Groq
-from gtts import gTTS
+from gTTS import gTTS
 import io
 from streamlit_mic_recorder import mic_recorder
 
-# --- 1. Page Configuration ---
+# --- Page Config ---
 st.set_page_config(page_title="Fluency Coach", layout="wide")
 
-# --- 2. Custom Styling (Applied directly) ---
+# --- Custom CSS ---
 st.markdown("""
     <style>
     .stApp {
@@ -20,7 +20,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. Data Persistence ---
+# --- Data Persistence ---
 DATA_FILE = "chats.json"
 if "chats" not in st.session_state:
     if os.path.exists(DATA_FILE):
@@ -29,7 +29,7 @@ if "chats" not in st.session_state:
 
 if "active_chat" not in st.session_state: st.session_state.active_chat = "Chat 1"
 
-# --- 4. Sidebar ---
+# --- Sidebar ---
 with st.sidebar:
     st.title("Workspace")
     if st.button("➕ New Chat"):
@@ -44,28 +44,29 @@ with st.sidebar:
             st.session_state.active_chat = chat_id
             st.rerun()
 
-# --- 5. Main Chat Logic ---
+# --- Main Interface ---
 st.title(f"Fluency Coach: {st.session_state.active_chat}")
 
+# Display chat messages
 for msg in st.session_state.chats[st.session_state.active_chat]:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# Text input and AI Response
+# Text Input
 if prompt := st.chat_input("Practice your English..."):
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     st.session_state.chats[st.session_state.active_chat].append({"role": "user", "content": prompt})
     
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
-        messages=[{"role": "system", "content": "You are a versatile English coach."}] + 
+        messages=[{"role": "system", "content": "You are a concise English coach."}] + 
                  st.session_state.chats[st.session_state.active_chat][-5:]
     ).choices[0].message.content
     
     st.session_state.chats[st.session_state.active_chat].append({"role": "assistant", "content": response})
     with open(DATA_FILE, "w") as f: json.dump(st.session_state.chats, f)
     
-    # Audio Output
+    # Text-to-Speech
     tts = gTTS(text=response, lang='en')
     fp = io.BytesIO()
     tts.write_to_fp(fp)
