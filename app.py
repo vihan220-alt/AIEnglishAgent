@@ -6,10 +6,9 @@ from gtts import gTTS
 import io
 from streamlit_mic_recorder import mic_recorder
 
-# 1. Page Configuration
+# --- 1. Page Config & CSS ---
 st.set_page_config(page_title="Fluency Coach", layout="wide")
 
-# 2. Custom Styles
 st.markdown("""
     <style>
     .stApp {
@@ -20,7 +19,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Initialization
+# --- 2. Initialization ---
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 DATA_FILE = "chats.json"
 
@@ -31,7 +30,7 @@ if "chats" not in st.session_state:
 
 if "active_chat" not in st.session_state: st.session_state.active_chat = "Chat 1"
 
-# 4. Sidebar
+# --- 3. Sidebar ---
 st.sidebar.title("Workspace")
 if st.sidebar.button("➕ New Chat"):
     new_id = f"Chat {len(st.session_state.chats) + 1}"
@@ -45,7 +44,7 @@ for chat_id in st.session_state.chats.keys():
         st.session_state.active_chat = chat_id
         st.rerun()
 
-# 5. Main UI
+# --- 4. Main UI & Chat ---
 st.title(f"Fluency Coach: {st.session_state.active_chat}")
 
 # Display History
@@ -53,14 +52,14 @@ for msg in st.session_state.chats[st.session_state.active_chat]:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# Input Logic
+# Text Input
 if prompt := st.chat_input("Practice your English..."):
     # Save to state and run AI
     st.session_state.chats[st.session_state.active_chat].append({"role": "user", "content": prompt})
     
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
-        messages=[{"role": "system", "content": "You are a concise English coach."}] + 
+        messages=[{"role": "system", "content": "You are a versatile English coach."}] + 
                  st.session_state.chats[st.session_state.active_chat][-5:]
     ).choices[0].message.content
     
