@@ -9,6 +9,7 @@ from streamlit_mic_recorder import mic_recorder
 # --- 1. Page Config & CSS ---
 st.set_page_config(page_title="Fluency Coach", layout="wide")
 
+# Fixed: Properly closed triple-quotes to prevent SyntaxError
 st.markdown("""
     <style>
     .stApp {
@@ -54,7 +55,6 @@ for msg in st.session_state.chats[st.session_state.active_chat]:
 
 # Text Input
 if prompt := st.chat_input("Practice your English..."):
-    # Save to state and run AI
     st.session_state.chats[st.session_state.active_chat].append({"role": "user", "content": prompt})
     
     response = client.chat.completions.create(
