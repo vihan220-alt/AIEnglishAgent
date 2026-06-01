@@ -6,21 +6,18 @@ from gTTS import gTTS
 import io
 from streamlit_mic_recorder import mic_recorder
 
-# --- Page Configuration ---
+# --- 1. Page Config ---
 st.set_page_config(page_title="Versatile AI", layout="wide")
 
-# --- CSS Styling ---
+# --- 2. CSS ---
 st.markdown("""
     <style>
-    .stApp {
-        background-color: #0e1117 !important;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M10 20h10v10H10zm30 0h10v10H40zM15 42h30v4H15zM5 10h50v40H5zm2 2v36h46V12zm18-7h10v3H25z' fill='%2330363d' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E") !important;
-    }
+    .stApp { background-color: #0e1117 !important; }
     div[data-testid="stChatMessage"] { background-color: #161b22 !important; border: 2px solid #444c56 !important; border-radius: 8px !important; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Data Persistence ---
+# --- 3. Persistence ---
 DATA_FILE = "chats.json"
 if "chats" not in st.session_state:
     if os.path.exists(DATA_FILE):
@@ -29,7 +26,7 @@ if "chats" not in st.session_state:
 
 if "active_chat" not in st.session_state: st.session_state.active_chat = "Chat 1"
 
-# --- Sidebar ---
+# --- 4. Sidebar ---
 with st.sidebar:
     st.title("Workspace")
     if st.button("➕ New Chat"):
@@ -44,7 +41,7 @@ with st.sidebar:
             st.session_state.active_chat = chat_id
             st.rerun()
 
-# --- Main Chat ---
+# --- 5. Main Chat Logic ---
 st.title(f"Assistant: {st.session_state.active_chat}")
 
 for msg in st.session_state.chats[st.session_state.active_chat]:
@@ -55,8 +52,8 @@ if prompt := st.chat_input("Ask me anything..."):
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     st.session_state.chats[st.session_state.active_chat].append({"role": "user", "content": prompt})
     
-    # Corrected message structure to avoid syntax errors
-    system_msg = {"role": "system", "content": "You are a helpful and versatile AI assistant."}
+    # Generate response
+    system_msg = {"role": "system", "content": "You are a helpful AI assistant."}
     messages_to_send = [system_msg] + st.session_state.chats[st.session_state.active_chat][-5:]
     
     response = client.chat.completions.create(
@@ -67,6 +64,7 @@ if prompt := st.chat_input("Ask me anything..."):
     st.session_state.chats[st.session_state.active_chat].append({"role": "assistant", "content": response})
     with open(DATA_FILE, "w") as f: json.dump(st.session_state.chats, f)
     
+    # Audio
     tts = gTTS(text=response, lang='en')
     fp = io.BytesIO()
     tts.write_to_fp(fp)
