@@ -6,22 +6,22 @@ from gtts import gTTS
 import io
 from streamlit_mic_recorder import mic_recorder
 
-# --- Page Config ---
+# --- 1. Page Configuration ---
 st.set_page_config(page_title="Fluency Coach", layout="wide")
 
-# --- Simplified CSS ---
-# Keeping background, but removing overly aggressive overrides that might hide buttons
+# --- 2. Custom Styling (Applied directly) ---
 st.markdown("""
     <style>
-    .stApp { background-color: #0e1117 !important; }
+    .stApp {
+        background-color: #0e1117 !important;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M10 20h10v10H10zm30 0h10v10H40zM15 42h30v4H15zM5 10h50v40H5zm2 2v36h46V12zm18-7h10v3H25z' fill='%2330363d' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E") !important;
+    }
     div[data-testid="stChatMessage"] { background-color: #161b22 !important; border: 2px solid #444c56 !important; border-radius: 8px !important; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Logic ---
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+# --- 3. Data Persistence ---
 DATA_FILE = "chats.json"
-
 if "chats" not in st.session_state:
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r") as f: st.session_state.chats = json.load(f)
@@ -29,7 +29,7 @@ if "chats" not in st.session_state:
 
 if "active_chat" not in st.session_state: st.session_state.active_chat = "Chat 1"
 
-# --- Sidebar (Button Area) ---
+# --- 4. Sidebar ---
 with st.sidebar:
     st.title("Workspace")
     if st.button("➕ New Chat"):
@@ -39,36 +39,33 @@ with st.sidebar:
         with open(DATA_FILE, "w") as f: json.dump(st.session_state.chats, f)
         st.rerun()
     
-    st.markdown("---")
     for chat_id in st.session_state.chats.keys():
-        if st.button(chat_id, key=chat_id):
+        if st.button(chat_id):
             st.session_state.active_chat = chat_id
             st.rerun()
 
-# --- Main Interface ---
+# --- 5. Main Chat Logic ---
 st.title(f"Fluency Coach: {st.session_state.active_chat}")
 
-# Display history
 for msg in st.session_state.chats[st.session_state.active_chat]:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# Input
+# Text input and AI Response
 if prompt := st.chat_input("Practice your English..."):
-    # Append user message
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     st.session_state.chats[st.session_state.active_chat].append({"role": "user", "content": prompt})
     
-    # Get AI response
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
-        messages=[{"role": "system", "content": "You are a concise English coach."}] + 
+        messages=[{"role": "system", "content": "You are a versatile English coach."}] + 
                  st.session_state.chats[st.session_state.active_chat][-5:]
     ).choices[0].message.content
     
     st.session_state.chats[st.session_state.active_chat].append({"role": "assistant", "content": response})
     with open(DATA_FILE, "w") as f: json.dump(st.session_state.chats, f)
     
-    # TTS
+    # Audio Output
     tts = gTTS(text=response, lang='en')
     fp = io.BytesIO()
     tts.write_to_fp(fp)
