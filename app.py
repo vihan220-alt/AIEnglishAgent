@@ -56,7 +56,7 @@ if prompt := st.chat_input("Practice your English..."):
     
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
-        messages=[{"role": "system", "content": "You are a concise English coach."}] + 
+messages=[{"role": "system", "content": "You are a helpful and versatile AI assistant."}] + ...
                  st.session_state.chats[st.session_state.active_chat][-5:]
     ).choices[0].message.content
     
