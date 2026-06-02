@@ -132,7 +132,7 @@ if "active_id" not in st.session_state or st.session_state.active_id not in room
 
 current_history = load_room_history(st.session_state.active_id)
 
-# UPDATED: Replaced with bright, vibrant, friendly 3D colorful cartoon illustrations
+# Colorful, friendly avatars for children
 ROBOT_AVATAR = "https://img.icons8.com/fluent/512/futurama-bender.png"
 USER_AVATAR = "https://img.icons8.com/fluent/512/smiling-girl-with-glasses-accent.png"
 
@@ -295,8 +295,45 @@ with stop_col:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# Text Submission Handling 
+# Text Submission Handling (Does NOT trigger autoplay sound)
 text_input = st.chat_input("Type your message here...")
 if text_input:
     current_history.append({"role": "user", "content": text_input})
-    save_room_history(st.session_state.
+    save_room_history(st.session_state.active_id, current_history)
+    with st.spinner("Thinking..."):
+        coach_reply = get_coach_response()
+        current_history.append({"role": "coach", "content": coach_reply})
+        save_room_history(st.session_state.active_id, current_history)
+        st.session_state.autoplay_audio_data = None
+        st.rerun()
+
+# Microphone Voice Submission Handling (Triggers autoplay sound)
+if audio_source and "bytes" in audio_source and audio_source["bytes"]:
+    audio_bytes = audio_source["bytes"]
+    audio_hash = hashlib.md5(audio_bytes).hexdigest()
+    if st.session_state.last_processed_audio != audio_hash:
+        st.session_state.last_processed_audio = audio_hash
+        with st.spinner("Processing speech..."):
+            try:
+                whisper_files = {
+                    "file": ("speech.wav", audio_bytes, "audio/wav"), 
+                    "model": (None, "whisper-large-v3-turbo"), 
+                    "language": (None, "en")
+                }
+                whisper_headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}"}
+                whisper_response = requests.post("https://api.groq.com/openai/v1/audio/transcriptions", headers=whisper_headers, files=whisper_files)
+                user_text = whisper_response.json().get("text", "")
+                
+                if user_text.strip():
+                    current_history.append({"role": "user", "content": user_text})
+                    save_room_history(st.session_state.active_id, current_history)
+                    coach_reply = get_coach_response()
+                    current_history.append({"role": "coach", "content": coach_reply})
+                    save_room_history(st.session_state.active_id, current_history)
+                    
+                    audio_data = text_to_speech_bytes(coach_reply)
+                    if audio_data:
+                        st.session_state.autoplay_audio_data = audio_data
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Audio Processing Error: {str(e)}")
