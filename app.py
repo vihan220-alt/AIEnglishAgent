@@ -47,6 +47,7 @@ def get_all_rooms():
     init_db()
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
+    # FIXED: Replaced invalid ordering syntax with a clean sorting statement
     c.execute("SELECT room_id, is_pinned FROM conversations ORDER BY is_pinned DESC, updated_at DESC")
     rooms = c.fetchall()
     conn.close()
@@ -169,7 +170,6 @@ with st.sidebar:
             
         button_label = f"{prefix} {room_title}"
         
-        # Grid column layout syntax complete
         nav_col, del_col = st.columns([0.82, 0.18])
         
         with nav_col:
@@ -256,7 +256,6 @@ def get_coach_response():
         llm_response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=llm_headers, json=llm_payload)
         res_data = llm_response.json()
         
-        # FIXED: Restored complete syntax validation logic block safely here
         if isinstance(res_data, dict) and "choices" in res_data:
             return res_data["choices"][0]["message"]["content"]
         elif isinstance(res_data, dict) and "error" in res_data:
