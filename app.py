@@ -18,7 +18,6 @@ st.set_page_config(
 )
 
 apply_custom_theme()
-
 # =========================================================
 # DATABASE STORAGE ENGINE (With Renaming & Pinning Support)
 # =========================================================
