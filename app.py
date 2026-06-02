@@ -61,8 +61,9 @@ def load_room_history(room_id):
     conn.close()
     if row:
         return json.loads(row[0])
+    # FIXED: Set role to "assistant" so it instantly connects to your ROBOT_AVATAR style mapping
     return [
-        {"role": "coach", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}
+        {"role": "assistant", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}
     ]
 
 def save_room_history(room_id, history):
@@ -122,7 +123,7 @@ if "last_processed_audio" not in st.session_state:
 existing_rooms_data = get_all_rooms()
 
 if not existing_rooms_data:
-    save_room_history("Conversation 1", [{"role": "coach", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}])
+    save_room_history("Conversation 1", [{"role": "assistant", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}])
     existing_rooms_data = [("Conversation 1", 0)]
 
 room_ids_list = [row[0] for row in existing_rooms_data]
@@ -152,7 +153,7 @@ with st.sidebar:
         from datetime import datetime
         time_stamp = datetime.now().strftime('%b %d, %H:%M')
         new_uid = "Chat " + str(time_stamp)
-        save_room_history(new_uid, [{"role": "coach", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}])
+        save_room_history(new_uid, [{"role": "assistant", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}])
         st.session_state.active_id = new_uid
         st.session_state.autoplay_audio_data = None
         st.rerun()
@@ -186,7 +187,7 @@ with st.sidebar:
                     st.session_state.active_id = remaining_rooms[0][0]
                 else:
                     default_title = "Conversation 1"
-                    save_room_history(default_title, [{"role": "coach", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}])
+                    save_room_history(default_title, [{"role": "assistant", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}])
                     st.session_state.active_id = default_title
                 
                 st.session_state.autoplay_audio_data = None
@@ -222,8 +223,10 @@ for message in current_history:
         with st.chat_message("assistant", avatar=ROBOT_AVATAR):
             st.markdown(message["content"])
 
+# FIXED: Wrapped in an isolated empty placeholder layout space for smooth cleanup
+audio_placeholder = st.empty()
 if st.session_state.autoplay_audio_data:
-    st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
+    audio_placeholder.st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
 
 # =========================================================
 # SECURED BACKEND API CONNECTIONS
@@ -291,49 +294,11 @@ with voice_col:
 
 with stop_col:
     st.write("**🛑 Controls:**")
+    # FIXED: Explicitly wipe layout frame and empty out states on press
     if st.button("Stop Audio 🔇", use_container_width=True):
         st.session_state.autoplay_audio_data = None
+        audio_placeholder.empty()
         st.rerun()
 
 # Text Submission Handling
-text_input = st.chat_input("Type your message here...")
-if text_input:
-    current_history.append({"role": "user", "content": text_input})
-    save_room_history(st.session_state.active_id, current_history)
-    with st.spinner("Thinking..."):
-        coach_reply = get_coach_response()
-        current_history.append({"role": "coach", "content": coach_reply})
-        save_room_history(st.session_state.active_id, current_history)
-        st.session_state.autoplay_audio_data = None
-        st.rerun()
-
-# Microphone Voice Submission Handling
-if audio_source and "bytes" in audio_source and audio_source["bytes"]:
-    audio_bytes = audio_source["bytes"]
-    audio_hash = hashlib.md5(audio_bytes).hexdigest()
-    if st.session_state.last_processed_audio != audio_hash:
-        st.session_state.last_processed_audio = audio_hash
-        with st.spinner("Processing speech..."):
-            try:
-                whisper_files = {
-                    "file": ("speech.wav", audio_bytes, "audio/wav"), 
-                    "model": (None, "whisper-large-v3-turbo"), 
-                    "language": (None, "en")
-                }
-                whisper_headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}"}
-                whisper_response = requests.post("https://api.groq.com/openai/v1/audio/transcriptions", headers=whisper_headers, files=whisper_files)
-                user_text = whisper_response.json().get("text", "")
-                
-                if user_text.strip():
-                    current_history.append({"role": "user", "content": user_text})
-                    save_room_history(st.session_state.active_id, current_history)
-                    coach_reply = get_coach_response()
-                    current_history.append({"role": "coach", "content": coach_reply})
-                    save_room_history(st.session_state.active_id, current_history)
-                    
-                    audio_data = text_to_speech_bytes(coach_reply)
-                    if audio_data:
-                        st.session_state.autoplay_audio_data = audio_data
-                    st.rerun()
-            except Exception as e:
-                st.error(f"Audio Processing Error: {str(e)}")
+text_input = st.chat_input
