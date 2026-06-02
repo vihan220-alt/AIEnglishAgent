@@ -169,7 +169,7 @@ with st.sidebar:
             
         button_label = f"{prefix} {room_title}"
         
-        # FIXED: Removed the unsupported 'vertical_alignment' argument to fix cloud layout engine crash
+        # Cleaned layout grid column configuration
         nav_col, del_col = st.columns([0.82, 0.18])
         
         with nav_col:
@@ -204,4 +204,58 @@ with st.sidebar:
     new_name_input = st.text_input("Rename Current Chat:", value=st.session_state.active_id)
     if st.button("💾 Save Title Name", use_container_width=True):
         if new_name_input.strip() and new_name_input != st.session_state.active_id:
-            rename_room(st.session_state.active_id, new_name_input.
+            rename_room(st.session_state.active_id, new_name_input.strip())
+            st.session_state.active_id = new_name_input.strip()
+            st.rerun()
+
+# =========================================================
+# CHAT ROOM SURFACE DISPLAY
+# =========================================================
+st.title("Fluency Coach")
+st.write(f"Active Session: **{st.session_state.active_id}**")
+
+for message in current_history:
+    if message["role"] == "user":
+        with st.chat_message("user", avatar=USER_AVATAR):
+            st.markdown(message["content"])
+    else:
+        with st.chat_message("assistant", avatar=ROBOT_AVATAR):
+            st.markdown(message["content"])
+
+if st.session_state.autoplay_audio_data:
+    st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
+
+# =========================================================
+# SECURED BACKEND API CONNECTIONS
+# =========================================================
+def get_coach_response():
+    if "GROQ_API_KEY" not in st.secrets:
+        return "System Config Error: Please add GROQ_API_KEY to your Streamlit secrets settings panel."
+
+    messages_payload = [
+        {
+            "role": "system",
+            "content": """You are an engaging, supportive English language coach for kids.
+            CRITICAL INSTRUCTION FOR SHORT GREETINGS: 
+            If the user simply says 'hello', 'hi', or a basic greeting, respond dynamically with a short, welcoming one-sentence greeting.
+            INSTRUCTION FOR PRACTICE QUESTIONS:
+            Provide a balanced, medium-length paragraph response explaining concepts clearly with examples, and always close with one simple follow-up question."""
+        }
+    ]
+    for msg in current_history:
+        role_map = "user" if msg["role"] == "user" else "assistant"
+        messages_payload.append({"role": role_map, "content": msg["content"]})
+        
+    llm_payload = {"model": "llama-3.3-70b-versatile", "messages": messages_payload}
+    llm_headers = {
+        "Content-Type": "application/json", 
+        "Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}"
+    }
+    
+    try:
+        llm_response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=llm_headers, json=llm_payload)
+        res_data = llm_response.json()
+        
+        if isinstance(res_data, dict) and "choices" in res_data:
+            return res_data["choices"][0]["message"]["content"]
+        elif isinstance(res
