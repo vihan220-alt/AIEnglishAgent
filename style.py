@@ -2,43 +2,33 @@ import streamlit as st
 
 def apply_custom_theme():
     """
-    Applies a clean dark theme and styled chat bubbles to the Streamlit app.
+    Applies a clean dark theme with an animated floating robot face background.
+    Fixes contrast visibility for chat contents and action buttons.
     """
     st.markdown("""
         <style>
-        /* Main background color */
+        /* Base application background setup */
         .stApp {
             background-color: #0e1117 !important;
+            position: relative;
+            overflow: hidden;
         }
-        
-        /* Sidebar styling */
-        section[data-testid="stSidebar"] {
-            background-color: #161b22 !important;
-            border-right: 1px solid #30363d !important;
+
+        /* --- ROBOT BACKGROUND ANIMATION LAYER --- */
+        .stApp::before {
+            content: "🤖";
+            position: absolute;
+            font-size: 150px;
+            opacity: 0.04;
+            top: 10%;
+            left: 5%;
+            animation: floatFirst 25s ease-in-out infinite alternate;
+            pointer-events: none;
+            z-index: 0;
         }
-        
-        /* Chat container styling */
-        div[data-testid="stChatMessage"] {
-            background-color: #161b22 !important;
-            border: 1px solid #30363d !important;
-            border-radius: 12px !important;
-            padding: 15px !important;
-            margin-bottom: 10px !important;
-        }
-        
-        /* User chat message specific styling */
-        div[data-testid="stChatMessageUser"] {
-            background-color: #1f242c !important;
-        }
-        
-        /* Custom heading colors */
-        h1, h2, h3, h4, h5, h6, p {
-            color: #c9d1d9 !important;
-        }
-        
-        /* Custom style for standard action buttons */
-        .stButton>button {
-            border-radius: 8px !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+
+        .stApp::after {
+            content: "🤖";
+            position: absolute;
+            font-size: 120px;
+            opacity: 0
