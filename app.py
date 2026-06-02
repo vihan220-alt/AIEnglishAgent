@@ -6,7 +6,7 @@ from gTTS import gTTS
 import io
 from streamlit_mic_recorder import mic_recorder
 
-# --- Page Configuration ---
+# --- Page Setup ---
 st.set_page_config(page_title="Versatile AI", layout="wide")
 
 # --- UI Styling ---
@@ -17,7 +17,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- Data Persistence ---
+# --- Chat Persistence ---
 DATA_FILE = "chats.json"
 if "chats" not in st.session_state:
     if os.path.exists(DATA_FILE):
@@ -41,7 +41,7 @@ with st.sidebar:
             st.session_state.active_chat = chat_id
             st.rerun()
 
-# --- Main Chat ---
+# --- Chat Interface ---
 st.title(f"Assistant: {st.session_state.active_chat}")
 
 for msg in st.session_state.chats[st.session_state.active_chat]:
@@ -52,7 +52,7 @@ if prompt := st.chat_input("Ask me anything..."):
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     st.session_state.chats[st.session_state.active_chat].append({"role": "user", "content": prompt})
     
-    # Corrected message structure to avoid syntax errors
+    # AI Response
     system_msg = {"role": "system", "content": "You are a helpful and versatile AI assistant."}
     messages_to_send = [system_msg] + st.session_state.chats[st.session_state.active_chat][-5:]
     
@@ -64,7 +64,7 @@ if prompt := st.chat_input("Ask me anything..."):
     st.session_state.chats[st.session_state.active_chat].append({"role": "assistant", "content": response})
     with open(DATA_FILE, "w") as f: json.dump(st.session_state.chats, f)
     
-    # Text-to-Speech
+    # Audio Output
     tts = gTTS(text=response, lang='en')
     fp = io.BytesIO()
     tts.write_to_fp(fp)
