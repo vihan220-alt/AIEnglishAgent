@@ -170,6 +170,7 @@ with st.sidebar:
             
         button_label = f"{prefix} {room_title}"
         
+        # FIXED: Removed the unsupported 'vertical_alignment' parameter completely
         nav_col, del_col = st.columns([0.82, 0.18])
         
         with nav_col:
@@ -295,7 +296,7 @@ with stop_col:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# Text Submission Handling (Does NOT trigger autoplay sound)
+# Text Submission Handling
 text_input = st.chat_input("Type your message here...")
 if text_input:
     current_history.append({"role": "user", "content": text_input})
@@ -307,7 +308,7 @@ if text_input:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# Microphone Voice Submission Handling (Triggers autoplay sound)
+# Microphone Voice Submission Handling
 if audio_source and "bytes" in audio_source and audio_source["bytes"]:
     audio_bytes = audio_source["bytes"]
     audio_hash = hashlib.md5(audio_bytes).hexdigest()
