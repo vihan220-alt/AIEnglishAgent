@@ -169,7 +169,7 @@ with st.sidebar:
             
         button_label = f"{prefix} {room_title}"
         
-        # Cleaned layout grid column configuration
+        # Grid column layout syntax complete
         nav_col, del_col = st.columns([0.82, 0.18])
         
         with nav_col:
@@ -256,6 +256,85 @@ def get_coach_response():
         llm_response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=llm_headers, json=llm_payload)
         res_data = llm_response.json()
         
+        # FIXED: Restored complete syntax validation logic block safely here
         if isinstance(res_data, dict) and "choices" in res_data:
             return res_data["choices"][0]["message"]["content"]
-        elif isinstance(res
+        elif isinstance(res_data, dict) and "error" in res_data:
+            return f"Groq Error Notification: {res_data['error'].get('message', 'Validation Error')}"
+        else:
+            return "API Connection anomaly. Server failed to return conversational chat selections."
+    except Exception as e:
+        return f"Failed to retrieve dynamic reply content. Exception trace: {str(e)}"
+
+def text_to_speech_bytes(text_payload):
+    try:
+        sentences = re.split(r'(?<=[.!?])\s+|\n+', text_payload)
+        chunks = [st_item.strip() for st_item in sentences if st_item.strip()]
+        
+        combined_fp = BytesIO()
+        for chunk in chunks:
+            tts_chunk = gTTS(text=chunk, lang='en', slow=False)
+            chunk_fp = BytesIO()
+            tts_chunk.write_to_fp(chunk_fp)
+            chunk_fp.seek(0)
+            combined_fp.write(chunk_fp.read())
+            
+        combined_fp.seek(0)
+        return combined_fp.read()
+    except Exception as e:
+        return None
+
+# User Interaction Inputs
+voice_col, stop_col = st.columns([1, 1])
+with voice_col:
+    st.write("**🎙️ Voice Input:**")
+    audio_source = mic_recorder(start_prompt="Speak 🎤", stop_prompt="Submit 🔇", key="recorder")
+
+with stop_col:
+    st.write("**🛑 Controls:**")
+    if st.button("Stop Audio 🔇", use_container_width=True):
+        st.session_state.autoplay_audio_data = None
+        st.rerun()
+
+# Text Submission Handling 
+text_input = st.chat_input("Type your message here...")
+if text_input:
+    current_history.append({"role": "user", "content": text_input})
+    save_room_history(st.session_state.active_id, current_history)
+    with st.spinner("Thinking..."):
+        coach_reply = get_coach_response()
+        current_history.append({"role": "coach", "content": coach_reply})
+        save_room_history(st.session_state.active_id, current_history)
+        st.session_state.autoplay_audio_data = None
+        st.rerun()
+
+# Microphone Voice Submission Handling
+if audio_source and "bytes" in audio_source and audio_source["bytes"]:
+    audio_bytes = audio_source["bytes"]
+    audio_hash = hashlib.md5(audio_bytes).hexdigest()
+    if st.session_state.last_processed_audio != audio_hash:
+        st.session_state.last_processed_audio = audio_hash
+        with st.spinner("Processing speech..."):
+            try:
+                whisper_files = {
+                    "file": ("speech.wav", audio_bytes, "audio/wav"), 
+                    "model": (None, "whisper-large-v3-turbo"), 
+                    "language": (None, "en")
+                }
+                whisper_headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}"}
+                whisper_response = requests.post("https://api.groq.com/openai/v1/audio/transcriptions", headers=whisper_headers, files=whisper_files)
+                user_text = whisper_response.json().get("text", "")
+                
+                if user_text.strip():
+                    current_history.append({"role": "user", "content": user_text})
+                    save_room_history(st.session_state.active_id, current_history)
+                    coach_reply = get_coach_response()
+                    current_history.append({"role": "coach", "content": coach_reply})
+                    save_room_history(st.session_state.active_id, current_history)
+                    
+                    audio_data = text_to_speech_bytes(coach_reply)
+                    if audio_data:
+                        st.session_state.autoplay_audio_data = audio_data
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Audio Processing Error: {str(e)}")
