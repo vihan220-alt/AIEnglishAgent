@@ -4,23 +4,23 @@ def apply_custom_theme():
     st.markdown(
         """
         <style>
-        /* Target all primary Streamlit container view depths for background consistency */
-        .stApp, [data-testid="stAppViewContainer"], [data-testid="stAppViewMain"] {
-            background-color: #f7f9fc !important;
+        /* Force the entire main background to be pure white */
+        .stApp, [data-testid="stAppViewContainer"], [data-testid="stAppViewMain"], [data-testid="stMain"] {
+            background-color: #ffffff !important;
         }
         
-        /* Sidebar container layout styling */
+        /* Sidebar layout styling - kept slightly off-white for nice contrast */
         [data-testid="stSidebar"], [data-testid="stSidebarUserContent"] {
-            background-color: #ebf0f6 !important;
+            background-color: #f0f2f6 !important;
         }
         
-        /* Make chat bubbles rounded, clean, and spacious */
+        /* Make chat bubbles light gray with rounded corners so they stand out on the white background */
         [data-testid="stChatMessage"] {
             border-radius: 15px !important;
             padding: 12px 18px !important;
             margin-bottom: 12px !important;
-            box-shadow: 0px 2px 5px rgba(0,0,0,0.05) !important;
-            background-color: #ffffff !important;
+            box-shadow: 0px 1px 3px rgba(0,0,0,0.05) !important;
+            background-color: #f8f9fa !important;
         }
 
         /* Ensure avatars look circular, crisp, and properly sized */
