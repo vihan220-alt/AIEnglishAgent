@@ -21,7 +21,7 @@ st.set_page_config(
 apply_custom_theme()
 
 # =========================================================
-# DATABASE STORAGE ENGINE (With Renaming & Pinning Support)
+# DATABASE STORAGE ENGINE (With Deletion Support)
 # =========================================================
 DB_FILE = "coach_data.db"
 
@@ -105,6 +105,14 @@ def toggle_pin_room(room_id, current_pin_status):
     conn.commit()
     conn.close()
 
+def delete_room(room_id):
+    init_db()
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("DELETE FROM conversations WHERE room_id = ?", (room_id,))
+    conn.commit()
+    conn.close()
+
 # =========================================================
 # SYSTEM CONTROL RUNTIME STATES
 # =========================================================
@@ -156,7 +164,7 @@ with st.sidebar:
     st.markdown("---")
     st.write("##### Recents")
     
-    # 2. SELECT RECENT CHAT ROOMS (Displays Pinned Chats First)
+    # 2. SELECT RECENT CHAT ROOMS & MANAGE DELETIONS
     for room_title, pin_status in existing_rooms_data:
         is_current = (room_title == st.session_state.active_id)
         
@@ -168,10 +176,32 @@ with st.sidebar:
             
         button_label = f"{prefix} {room_title}"
         
-        if st.button(button_label, key=f"nav_{room_title}", use_container_width=True):
-            st.session_state.active_id = room_title
-            st.session_state.autoplay_audio_data = None
-            st.rerun()
+        # Split layout to position deletion button nicely on the right margin
+        nav_col, del_col = st.columns([0.82, 0.18])
+        
+        with nav_col:
+            if st.button(button_label, key=f"nav_{room_title}", use_container_width=True):
+                st.session_state.active_id = room_title
+                st.session_state.autoplay_audio_data = None
+                st.rerun()
+                
+        with del_col:
+            if st.button("🗑️", key=f"del_{room_title}", help=f"Delete '{room_title}' permanent history"):
+                delete_room(room_title)
+                
+                # Fetch fresh room balance list following deletion operation
+                remaining_rooms = get_all_rooms()
+                if remaining_rooms:
+                    # Switch target session focus to top item available
+                    st.session_state.active_id = remaining_rooms[0][0]
+                else:
+                    # If entirely clear, re-initialize base baseline workspace
+                    default_title = "Conversation 1"
+                    save_room_history(default_title, [{"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below or type a message to start!"}])
+                    st.session_state.active_id = default_title
+                
+                st.session_state.autoplay_audio_data = None
+                st.rerun()
 
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("---")
