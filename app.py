@@ -17,7 +17,9 @@ st.set_page_config(
     layout="centered"
 )
 
+# Apply fixed CSS typography overrides
 apply_custom_theme()
+
 # =========================================================
 # DATABASE STORAGE ENGINE (With Renaming & Pinning Support)
 # =========================================================
@@ -208,11 +210,13 @@ if st.session_state.autoplay_audio_data:
     st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
 
 # =========================================================
-# BACKEND API CONNECTIONS
+# SECURED BACKEND API CONNECTIONS
 # =========================================================
-GROQ_API_KEY = "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"
-
 def get_coach_response():
+    # Make sure token setup exists in Streamlit Secrets dashboard
+    if "GROQ_API_KEY" not in st.secrets:
+        return "System Config Error: Please add GROQ_API_KEY to your Streamlit secrets settings panel."
+
     messages_payload = [
         {
             "role": "system",
@@ -230,10 +234,22 @@ def get_coach_response():
         messages_payload.append({"role": role_map, "content": msg["content"]})
         
     llm_payload = {"model": "llama-3.3-70b-versatile", "messages": messages_payload}
-    llm_headers = {"Content-Type": "application/json", "Authorization": f"Bearer {GROQ_API_KEY}"}
+    llm_headers = {
+        "Content-Type": "application/json", 
+        "Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}"
+    }
     
-    llm_response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=llm_headers, json=llm_payload)
-    return llm_response.json()["choices"][0]["message"]["content"]
+    try:
+        llm_response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=llm_headers, json=llm_payload)
+        res_data = llm_response.json()
+        if "choices" in res_data:
+            return res_data["choices"][0]["message"]["content"]
+        elif "error" in res_data:
+            return f"Groq Error Notification: {res_data['error'].get('message', 'Validation Error')}"
+        else:
+            return "Connection anomaly. The remote backend failed to provide structural text feedback."
+    except Exception as e:
+        return f"Failed to retrieve dynamic reply content. Exception trace: {str(e)}"
 
 def text_to_speech_bytes(text_payload):
     try:
@@ -285,8 +301,12 @@ if audio_source and "bytes" in audio_source and audio_source["bytes"]:
         st.session_state.last_processed_audio = audio_hash
         with st.spinner("Processing speech..."):
             try:
-                whisper_files = {"file": ("speech.wav", audio_bytes, "audio/wav"), "model": (None, "whisper-large-v3-turbo"), "language": (None, "en")}
-                whisper_headers = {"Authorization": f"Bearer {GROQ_API_KEY}"}
+                whisper_files = {
+                    "file": ("speech.wav", audio_bytes, "audio/wav"), 
+                    "model": (None, "whisper-large-v3-turbo"), 
+                    "language": (None, "en")
+                }
+                whisper_headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}"}
                 whisper_response = requests.post("https://api.groq.com/openai/v1/audio/transcriptions", headers=whisper_headers, files=whisper_files)
                 user_text = whisper_response.json().get("text", "")
                 
@@ -302,4 +322,4 @@ if audio_source and "bytes" in audio_source and audio_source["bytes"]:
                         st.session_state.autoplay_audio_data = audio_data
                     st.rerun()
             except Exception as e:
-                st.error("Audio Processing Error.")
+                st.error(f"Audio Processing Error: {str(e)}")
