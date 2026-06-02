@@ -17,7 +17,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Apply fixed CSS typography overrides
+# Run our colorful UI engine configurations
 apply_custom_theme()
 
 # =========================================================
@@ -28,7 +28,6 @@ DB_FILE = "coach_data.db"
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    # Ensure tables and columns exist
     c.execute('''
         CREATE TABLE IF NOT EXISTS conversations (
             room_id TEXT PRIMARY KEY,
@@ -37,11 +36,10 @@ def init_db():
             is_pinned INTEGER DEFAULT 0
         )
     ''')
-    # Guard case if column is_pinned doesn't exist yet in an older database file
     try:
         c.execute("ALTER TABLE conversations ADD COLUMN is_pinned INTEGER DEFAULT 0")
     except sqlite3.OperationalError:
-        pass # Column already exists
+        pass 
     conn.commit()
     conn.close()
 
@@ -49,7 +47,6 @@ def get_all_rooms():
     init_db()
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    # Order first by pinned chats, then by latest updated time
     c.execute("SELECT room_id, is_pinned FROM conversations ORDER BY is_pinned DESC, updated_at DESC")
     rooms = c.fetchall()
     conn.close()
@@ -138,7 +135,6 @@ current_history = load_room_history(st.session_state.active_id)
 ROBOT_AVATAR = "https://cdn-icons-png.flaticon.com/512/4712/4712035.png"
 USER_AVATAR = "https://cdn-icons-png.flaticon.com/512/3048/3048122.png"
 
-# Find if the current active room is pinned
 is_currently_pinned = 0
 for r_id, p_val in existing_rooms_data:
     if r_id == st.session_state.active_id:
@@ -151,7 +147,6 @@ for r_id, p_val in existing_rooms_data:
 with st.sidebar:
     st.markdown("### 🤖 Coach Workspace")
     
-    # 1. NEW CHAT CREATOR
     if st.button("➕ New chat", use_container_width=True, type="primary"):
         from datetime import datetime
         time_stamp = datetime.now().strftime('%b %d, %H:%M')
@@ -164,11 +159,9 @@ with st.sidebar:
     st.markdown("---")
     st.write("##### Recents")
     
-    # 2. SELECT RECENT CHAT ROOMS & MANAGE DELETIONS
     for room_title, pin_status in existing_rooms_data:
         is_current = (room_title == st.session_state.active_id)
         
-        # Determine prefix icon based on pinned vs standard status
         if is_current:
             prefix = "📌 👉" if pin_status == 1 else "👉"
         else:
@@ -176,8 +169,7 @@ with st.sidebar:
             
         button_label = f"{prefix} {room_title}"
         
-        # Split layout to position deletion button nicely on the right margin
-        nav_col, del_col = st.columns([0.82, 0.18])
+        nav_col, del_col = st.columns([0.82, 0.18], vertical_alignment="center")
         
         with nav_col:
             if st.button(button_label, key=f"nav_{room_title}", use_container_width=True):
@@ -186,16 +178,12 @@ with st.sidebar:
                 st.rerun()
                 
         with del_col:
-            if st.button("🗑️", key=f"del_{room_title}", help=f"Delete '{room_title}' permanent history"):
+            if st.button("🗑️", key=f"del_{room_title}", help=f"Delete '{room_title}'"):
                 delete_room(room_title)
-                
-                # Fetch fresh room balance list following deletion operation
                 remaining_rooms = get_all_rooms()
                 if remaining_rooms:
-                    # Switch target session focus to top item available
                     st.session_state.active_id = remaining_rooms[0][0]
                 else:
-                    # If entirely clear, re-initialize base baseline workspace
                     default_title = "Conversation 1"
                     save_room_history(default_title, [{"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below or type a message to start!"}])
                     st.session_state.active_id = default_title
@@ -207,13 +195,11 @@ with st.sidebar:
     st.markdown("---")
     st.write("##### 🛠️ Current Chat Actions")
     
-    # 3. PIN / UNPIN ACTIVE SESSION TOOL
     pin_btn_label = "📌 Unpin from Top" if is_currently_pinned == 1 else "📌 Pin to Top"
     if st.button(pin_btn_label, use_container_width=True):
         toggle_pin_room(st.session_state.active_id, is_currently_pinned)
         st.rerun()
         
-    # 4. RENAME ACTIVE SESSION TOOL
     new_name_input = st.text_input("Rename Current Chat:", value=st.session_state.active_id)
     if st.button("💾 Save Title Name", use_container_width=True):
         if new_name_input.strip() and new_name_input != st.session_state.active_id:
@@ -243,7 +229,6 @@ if st.session_state.autoplay_audio_data:
 # SECURED BACKEND API CONNECTIONS
 # =========================================================
 def get_coach_response():
-    # Make sure token setup exists in Streamlit Secrets dashboard
     if "GROQ_API_KEY" not in st.secrets:
         return "System Config Error: Please add GROQ_API_KEY to your Streamlit secrets settings panel."
 
@@ -251,12 +236,10 @@ def get_coach_response():
         {
             "role": "system",
             "content": """You are an engaging, supportive English language coach for kids.
-            
             CRITICAL INSTRUCTION FOR SHORT GREETINGS: 
-            If the user simply says 'hello', 'hi', 'hey', 'good morning', or a basic greeting, DO NOT write a long paragraph. Respond dynamically with a short, welcoming one-sentence greeting and ask them what they would like to talk about today.
-            
+            If the user simply says 'hello', 'hi', or a basic greeting, respond dynamically with a short, welcoming one-sentence greeting.
             INSTRUCTION FOR PRACTICE QUESTIONS:
-            If the user asks a language question or shares a story, provide a balanced, medium-length paragraph response explaining concepts clearly with examples, and always close with one simple follow-up question."""
+            Provide a balanced, medium-length paragraph response explaining concepts clearly with examples, and always close with one simple follow-up question."""
         }
     ]
     for msg in current_history:
@@ -272,12 +255,13 @@ def get_coach_response():
     try:
         llm_response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=llm_headers, json=llm_payload)
         res_data = llm_response.json()
-        if "choices" in res_data:
+        
+        if isinstance(res_data, dict) and "choices" in res_data:
             return res_data["choices"][0]["message"]["content"]
-        elif "error" in res_data:
+        elif isinstance(res_data, dict) and "error" in res_data:
             return f"Groq Error Notification: {res_data['error'].get('message', 'Validation Error')}"
         else:
-            return "Connection anomaly. The remote backend failed to provide structural text feedback."
+            return "API Connection anomaly. Server failed to return conversational chat selections."
     except Exception as e:
         return f"Failed to retrieve dynamic reply content. Exception trace: {str(e)}"
 
@@ -311,7 +295,7 @@ with stop_col:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# Text Submission Handling (Perfectly Quiet)
+# Text Submission Handling 
 text_input = st.chat_input("Type your message here...")
 if text_input:
     current_history.append({"role": "user", "content": text_input})
@@ -323,7 +307,7 @@ if text_input:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# Microphone Voice Submission Handling (Speaks out loud)
+# Microphone Voice Submission Handling
 if audio_source and "bytes" in audio_source and audio_source["bytes"]:
     audio_bytes = audio_source["bytes"]
     audio_hash = hashlib.md5(audio_bytes).hexdigest()
