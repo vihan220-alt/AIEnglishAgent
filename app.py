@@ -42,7 +42,7 @@ if prompt := st.chat_input("Practice your English..."):
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     st.session_state.chats[st.session_state.active_chat].append({"role": "user", "content": prompt})
     
-    # Message Logic
+    # AI Logic
     system_msg = {"role": "system", "content": "You are a helpful and versatile AI assistant."}
     messages_to_send = [system_msg] + st.session_state.chats[st.session_state.active_chat][-5:]
     
