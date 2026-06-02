@@ -8,7 +8,7 @@ import sqlite3
 from io import BytesIO
 from gtts import gTTS
 
-# Connection Link
+# This links app.py directly to your style.py file
 from style import apply_custom_theme
 
 st.set_page_config(
@@ -170,7 +170,6 @@ with st.sidebar:
             
         button_label = f"{prefix} {room_title}"
         
-        # FIXED: Removed the unsupported 'vertical_alignment' parameter completely
         nav_col, del_col = st.columns([0.82, 0.18])
         
         with nav_col:
