@@ -24,7 +24,8 @@ def apply_custom_theme():
         }
 
         /* Ensure avatars look circular, crisp, and properly sized */
-        [data-testid="stChatMessageAvatar"] img {
+        [data-testid="stChatMessageAvatar"] img, 
+        div[data-testid="stChatMessageAvatar"] {
             border-radius: 50% !important;
             width: 42px !important;
             height: 42px !important;
