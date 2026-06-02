@@ -61,8 +61,9 @@ def load_room_history(room_id):
     conn.close()
     if row:
         return json.loads(row[0])
+    # FORMATTED FOR ROBOT: Ensure initial message uses the "coach" role to render the face
     return [
-        {"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below or type a message to start!"}
+        {"role": "coach", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}
     ]
 
 def save_room_history(room_id, history):
@@ -122,7 +123,7 @@ if "last_processed_audio" not in st.session_state:
 existing_rooms_data = get_all_rooms()
 
 if not existing_rooms_data:
-    save_room_history("Conversation 1", [{"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below or type a message to start!"}])
+    save_room_history("Conversation 1", [{"role": "coach", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}])
     existing_rooms_data = [("Conversation 1", 0)]
 
 room_ids_list = [row[0] for row in existing_rooms_data]
@@ -132,9 +133,9 @@ if "active_id" not in st.session_state or st.session_state.active_id not in room
 
 current_history = load_room_history(st.session_state.active_id)
 
-# Colorful, friendly avatars for children
-ROBOT_AVATAR = "https://img.icons8.com/fluent/512/futurama-bender.png"
-USER_AVATAR = "https://img.icons8.com/fluent/512/smiling-girl-with-glasses-accent.png"
+# High-quality colorful cartoon avatars
+ROBOT_AVATAR = "https://img.icons8.com/isometric/512/bot.png"
+USER_AVATAR = "https://img.icons8.com/isometric/512/female-profile.png"
 
 is_currently_pinned = 0
 for r_id, p_val in existing_rooms_data:
@@ -186,7 +187,7 @@ with st.sidebar:
                     st.session_state.active_id = remaining_rooms[0][0]
                 else:
                     default_title = "Conversation 1"
-                    save_room_history(default_title, [{"role": "coach", "content": "Hello! I am your conversational language partner. Let's practice speaking English together. Tap the microphone below or type a message to start!"}])
+                    save_room_history(default_title, [{"role": "coach", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}])
                     st.session_state.active_id = default_title
                 
                 st.session_state.autoplay_audio_data = None
@@ -295,7 +296,7 @@ with stop_col:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# Text Submission Handling (Does NOT trigger autoplay sound)
+# Text Submission Handling
 text_input = st.chat_input("Type your message here...")
 if text_input:
     current_history.append({"role": "user", "content": text_input})
@@ -307,7 +308,7 @@ if text_input:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# Microphone Voice Submission Handling (Triggers autoplay sound)
+# Microphone Voice Submission Handling
 if audio_source and "bytes" in audio_source and audio_source["bytes"]:
     audio_bytes = audio_source["bytes"]
     audio_hash = hashlib.md5(audio_bytes).hexdigest()
