@@ -61,7 +61,6 @@ def load_room_history(room_id):
     conn.close()
     if row:
         return json.loads(row[0])
-    # FORMATTED FOR ROBOT: Ensure initial message uses the "coach" role to render the face
     return [
         {"role": "coach", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}
     ]
@@ -296,7 +295,7 @@ with stop_col:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# Text Submission Handling
+# Text Submission Handling (Does NOT trigger autoplay sound)
 text_input = st.chat_input("Type your message here...")
 if text_input:
     current_history.append({"role": "user", "content": text_input})
@@ -308,7 +307,7 @@ if text_input:
         st.session_state.autoplay_audio_data = None
         st.rerun()
 
-# Microphone Voice Submission Handling
+# Microphone Voice Submission Handling (Triggers autoplay sound)
 if audio_source and "bytes" in audio_source and audio_source["bytes"]:
     audio_bytes = audio_source["bytes"]
     audio_hash = hashlib.md5(audio_bytes).hexdigest()
