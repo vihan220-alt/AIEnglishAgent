@@ -2,52 +2,105 @@ import streamlit as st
 
 def apply_custom_theme():
     """
-    Applies a clean, modern, and vibrant design theme to the learning application.
+    Applies a clean, modern, enterprise design theme to the skills assessment application.
     """
     st.markdown(
         """
         <style>
+        /* Base page canvas and layout alignments */
         html, body, [data-testid="stAppViewContainer"] {
             background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
             font-family: 'Inter', sans-serif;
         }
+        
+        /* Modernized Sidebar profile mapping container */
         [data-testid="stSidebar"] {
             background-color: #ffffff !important;
             border-right: 1px solid #e2e8f0;
         }
+        
+        /* Enterprise Level Skill Cards Metric Grid Grid layout placement */
+        .skill-card-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
         .skill-card {
             background-color: #ffffff;
-            padding: 22px;
-            border-radius: 14px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            margin-bottom: 16px;
-            border: 1px solid #edf2f7;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border-top: 5px solid #3b82f6; /* Custom indicator strip accents */
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
+        
+        /* Border accents mapping different skill categories dynamically */
+        .skill-blue { border-top-color: #3b82f6; }
+        .skill-green { border-top-color: #10b981; }
+        .skill-amber { border-top-color: #f59e0b; }
+        .skill-purple { border-top-color: #8b5cf6; }
+        
         .skill-title {
             color: #0f172a;
             font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 6px;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
+        
         .skill-desc {
             color: #475569;
             font-size: 14px;
-            line-height: 1.5;
+            line-height: 1.6;
+            margin: 0;
         }
+        
+        /* Status Tracking and Onboarding Evaluation Metadata Badges */
         .hub-badge {
-            display: inline-block;
-            padding: 5px 12px;
-            background-color: #dbeafe;
-            color: #1e40af;
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 14px;
+            background-color: #e0f2fe;
+            color: #0369a1;
             border-radius: 9999px;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 600;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
+            border: 1px solid #bae6fd;
         }
+        
+        /* Interactive Input Component Overrides */
         .stButton>button {
             border-radius: 10px !important;
+            font-weight: 600 !important;
+            transition: all 0.15s ease !important;
+        }
+        
+        .stButton>button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
         }
         </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+def render_metric_card(title, description, color_theme="blue"):
+    """
+    Helper component to safely inject HTML custom dashboard grids 
+    without cluttering main system view tracks.
+    """
+    theme_class = f"skill-{color_theme}"
+    st.markdown(
+        f"""
+        <div class="skill-card {theme_class}">
+            <div class="skill-title">{title}</div>
+            <div class="skill-desc">{description}</div>
+        </div>
         """,
         unsafe_allow_html=True
     )
