@@ -39,7 +39,7 @@ def init_db():
     try:
         c.execute("ALTER TABLE conversations ADD COLUMN is_pinned INTEGER DEFAULT 0")
     except sqlite3.OperationalError:
-        pass 
+        pass
     conn.commit()
     conn.close()
 
@@ -90,7 +90,7 @@ def rename_room(old_id, new_id):
         c.execute("UPDATE conversations SET room_id = ? WHERE room_id = ?", (new_id, old_id))
         conn.commit()
     except sqlite3.IntegrityError:
-        pass 
+        pass
     conn.close()
 
 def toggle_pin_room(room_id, current_pin_status):
@@ -222,7 +222,6 @@ for message in current_history:
         with st.chat_message("assistant", avatar=ROBOT_AVATAR):
             st.markdown(message["content"])
 
-# FIXED: Corrected syntax chain implementation
 audio_placeholder = st.empty()
 if st.session_state.autoplay_audio_data:
     audio_placeholder.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
@@ -302,41 +301,4 @@ with stop_col:
 text_input = st.chat_input("Type your message here...")
 if text_input:
     current_history.append({"role": "user", "content": text_input})
-    save_room_history(st.session_state.active_id, current_history)
-    with st.spinner("Thinking..."):
-        coach_reply = get_coach_response()
-        current_history.append({"role": "assistant", "content": coach_reply})
-        save_room_history(st.session_state.active_id, current_history)
-        st.session_state.autoplay_audio_data = None
-        st.rerun()
-
-# Microphone Voice Submission Handling
-if audio_source and "bytes" in audio_source and audio_source["bytes"]:
-    audio_bytes = audio_source["bytes"]
-    audio_hash = hashlib.md5(audio_bytes).hexdigest()
-    if st.session_state.last_processed_audio != audio_hash:
-        st.session_state.last_processed_audio = audio_hash
-        with st.spinner("Processing speech..."):
-            try:
-                whisper_files = {
-                    "file": ("speech.wav", audio_bytes, "audio/wav"), 
-                    "model": (None, "whisper-large-v3-turbo"), 
-                    "language": (None, "en")
-                }
-                whisper_headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}"}
-                whisper_response = requests.post("https://api.groq.com/openai/v1/audio/transcriptions", headers=whisper_headers, files=whisper_files)
-                user_text = whisper_response.json().get("text", "")
-                
-                if user_text.strip():
-                    current_history.append({"role": "user", "content": user_text})
-                    save_room_history(st.session_state.active_id, current_history)
-                    coach_reply = get_coach_response()
-                    current_history.append({"role": "assistant", "content": coach_reply})
-                    save_room_history(st.session_state.active_id, current_history)
-                    
-                    audio_data = text_to_speech_bytes(coach_reply)
-                    if audio_data:
-                        st.session_state.autoplay_audio_data = audio_data
-                    st.rerun()
-            except Exception as e:
-                st.error(f"Audio Processing Error: {str(e)}")
+    save_room_history(st.session_state.active_id, current_
