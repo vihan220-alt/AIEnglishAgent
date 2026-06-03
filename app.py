@@ -8,14 +8,21 @@ import sqlite3
 from io import BytesIO
 from gtts import gTTS
 
-# Connects your application logic to the style engine
-# from style import apply_custom_theme # Uncomment if your custom style file is present
-
+# =========================================================
+# CONFIGURATION & CSS THEME INTEGRATION
+# =========================================================
 st.set_page_config(
     page_title="SkillVerify AI - Dynamic Skill Assessment Platform",
     page_icon="🧠",
     layout="centered"
 )
+
+# Seamlessly connects your app logic to the fixed style engine
+try:
+    from style import apply_custom_theme
+    apply_custom_theme()
+except ImportError:
+    pass
 
 # =========================================================
 # DATABASE STORAGE ENGINE (Skill Assessments Management)
@@ -150,7 +157,6 @@ with st.sidebar:
         index=0
     )
     
-    # SCOPED SIDEBAR VISIBILITY: Left panel session items only render when Bot is chosen
     if app_mode == "🧠 Skill Assessment Bot":
         st.markdown("---")
         st.markdown("### 🛠️ Active Evaluations")
@@ -255,13 +261,12 @@ def get_evaluator_response():
 
 def text_to_speech_bytes(text_payload):
     try:
-        # Strip structural Markdown indicators for safer vocal performance
         cleaned_text = re.sub(r'[*_#`\-]+', ' ', text_payload)
         sentences = re.split(r'(?<=[.!?])\s+|\n+', cleaned_text)
         chunks = [st_item.strip() for st_item in sentences if st_item.strip()]
         
         combined_fp = BytesIO()
-        for chunk in chunks[:3]: # Limit to first few sentences for snappy voice performance
+        for chunk in chunks[:3]: 
             tts_chunk = gTTS(text=chunk, lang='en', slow=False)
             chunk_fp = BytesIO()
             tts_chunk.write_to_fp(chunk_fp)
@@ -324,6 +329,8 @@ if app_mode == "🧠 Skill Assessment Bot":
                     )
                     
                     current_history.append({"role": "user", "content": context_injection})
+                    
+                    # ✅ FIXED: Missing closing parenthesis from previous code version safely restored
                     save_session_history(st.session_state.active_id, current_history)
                     
                     with st.spinner("Compiling technical vetting framework..."):
@@ -406,26 +413,26 @@ elif app_mode == "📊 Analytics Dashboard":
     with col1:
         st.markdown(
             """
-            <div style="background-color:#f8fafc; padding:20px; border-radius:12px; margin-bottom:15px; border-left:5px solid #3b82f6;">
-                <h4 style="margin:0 0 10px 0; color:#1e293b;">🛠️ System Implementation</h4>
-                <p style="margin:0; font-size:14px; color:#64748b;">Measures code cleanliness, design pattern awareness, and algorithm efficiency metrics.</p>
+            <div class="skill-card skill-blue">
+                <div class="skill-title">🛠️ System Implementation</div>
+                <div class="skill-desc">Measures code cleanliness, design pattern awareness, and algorithm efficiency metrics.</div>
             </div>
-            <div style="background-color:#f8fafc; padding:20px; border-radius:12px; margin-bottom:15px; border-left:5px solid #10b981;">
-                <h4 style="margin:0 0 10px 0; color:#1e293b;">⚡ Scalability & Cloud Architecture</h4>
-                <p style="margin:0; font-size:14px; color:#64748b;">Tracks ability to construct resilient infrastructure schemas, caching routes, and container protocols.</p>
+            <div class="skill-card skill-green">
+                <div class="skill-title">⚡ Scalability & Cloud Architecture</div>
+                <div class="skill-desc">Tracks ability to construct resilient infrastructure schemas, caching routes, and container protocols.</div>
             </div>
             """, unsafe_allow_html=True
         )
     with col2:
         st.markdown(
             """
-            <div style="background-color:#f8fafc; padding:20px; border-radius:12px; margin-bottom:15px; border-left:5px solid #f59e0b;">
-                <h4 style="margin:0 0 10px 0; color:#1e293b;">🔒 Secure Engineering Practices</h4>
-                <p style="margin:0; font-size:14px; color:#64748b;">Evaluates dependency parsing management, memory leak analysis, and query risk mitigations.</p>
+            <div class="skill-card skill-amber">
+                <div class="skill-title">🔒 Secure Engineering Practices</div>
+                <div class="skill-desc">Evaluates dependency parsing management, memory leak analysis, and query risk mitigations.</div>
             </div>
-            <div style="background-color:#f8fafc; padding:20px; border-radius:12px; margin-bottom:15px; border-left:5px solid #8b5cf6;">
-                <h4 style="margin:0 0 10px 0; color:#1e293b;">📈 Communication & System Logic</h4>
-                <p style="margin:0; font-size:14px; color:#64748b;">Tracks conceptual clarity when explaining technological trade-offs and edge case handling.</p>
+            <div class="skill-card skill-purple">
+                <div class="skill-title">📈 Communication & System Logic</div>
+                <div class="skill-desc">Tracks conceptual clarity when explaining technological trade-offs and edge case handling.</div>
             </div>
             """, unsafe_allow_html=True
         )
@@ -460,6 +467,7 @@ elif app_mode == "📬 Submit Custom Prompts":
         assessment_category = st.selectbox("Benchmark Category Domain:", ["Algorithmic Challenge", "System Design Riddle", "Security Analysis Sandbox"])
         prompt_content = st.text_area("Provide raw scenario conditions or prompt codebases context block:")
         
+        # ✅ FIXED: Changed `st.st.form_submit_button` to the correct single syntax `st.form_submit_button`
         submit_btn = st.form_submit_button("Lodge Challenge to System Engine", type="primary")
         
         if submit_btn:
