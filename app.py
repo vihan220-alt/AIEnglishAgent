@@ -1,4 +1,15 @@
 import streamlit as st
+
+# =========================================================
+# CONFIGURATION & SYSTEM THEME INTEGRATION (MUST BE FIRST)
+# =========================================================
+st.set_page_config(
+    page_title="SkillVerify AI - English Assessment Platform",
+    page_icon="🗣️",
+    layout="centered"
+)
+
+# Core imports follow page configuration
 from streamlit_mic_recorder import mic_recorder
 import requests
 import hashlib
@@ -8,15 +19,7 @@ import sqlite3
 from io import BytesIO
 from gtts import gTTS
 
-# =========================================================
-# CONFIGURATION & SYSTEM THEME INTEGRATION
-# =========================================================
-st.set_page_config(
-    page_title="SkillVerify AI - English Assessment Platform",
-    page_icon="🗣️",
-    layout="centered"
-)
-
+# Initialize Custom Theme Layer
 try:
     from style import apply_custom_theme
     apply_custom_theme()
@@ -135,8 +138,9 @@ if "active_id" not in st.session_state or st.session_state.active_id not in sess
 
 current_history = load_session_history(st.session_state.active_id)
 
-ROBOT_AVATAR = "https://img.icons8.com/isometric/512/communication.png"
-USER_AVATAR = "https://img.icons8.com/isometric/512/checked-user-male.png"
+# Premium Vectors High-Definition Chat Avatars
+ROBOT_AVATAR = "https://img.icons8.com/fluent/96/artificial-intelligence.png"
+USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
 
 is_currently_pinned = 0
 for s_id, p_val in existing_sessions_data:
@@ -443,9 +447,19 @@ elif app_mode == "🌐 Explore Learning Platform":
     if target_url:
         if not re.match(r'^https?://', target_url):
             target_url = "https://" + target_url
+            
+        # Secure Link fallback layout elements
+        l_col1, l_col2 = st.columns([0.4, 0.6])
+        with l_col1:
+            st.link_button("🌐 Launch Resource in New Tab", target_url, use_container_width=True, type="primary")
+        with l_col2:
+            st.caption("💡 *Note: If the container pane below remains blank, your selected link blocks cross-origin framing. Use the Launch button to view it cleanly outside the sandbox.*")
+            
+        st.markdown("<br>", unsafe_allow_html=True)
+        
         try:
             st.markdown(
-                f'<iframe src="{target_url}" width="100%" height="600" style="border:1px solid #e2e8f0; border-radius:12px;"></iframe>', 
+                f'<iframe src="{target_url}" width="100%" height="600" style="background-color: white; border:1px solid #e2e8f0; border-radius:12px;"></iframe>', 
                 unsafe_allow_html=True
             )
         except Exception as e:
