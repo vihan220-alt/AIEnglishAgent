@@ -153,63 +153,65 @@ with st.sidebar:
         index=0
     )
     
-    st.markdown("---")
-    st.markdown("### 🤖 Coach Workspace")
-    
-    if st.button("➕ New chat", use_container_width=True, type="primary"):
-        from datetime import datetime
-        time_stamp = datetime.now().strftime('%b %d, %H:%M')
-        new_uid = "Chat " + str(time_stamp)
-        save_room_history(new_uid, [{"role": "assistant", "content": "👋 Welcome to your language learning room! Let's personalize your coaching track. Please fill out the configuration card below to begin your custom session!"}])
-        st.session_state.active_id = new_uid
-        st.session_state.autoplay_audio_data = None
-        st.rerun()
+    # 🌟 SCOPED SIDEBAR VISIBILITY: Chat rooms and layout panels ONLY render if Coach Bot is chosen
+    if app_mode == "💬 Fluency Coach Bot":
+        st.markdown("---")
+        st.markdown("### 🤖 Coach Workspace")
         
-    st.markdown("---")
-    st.write("##### Recents")
-    
-    for room_title, pin_status in existing_rooms_data:
-        is_current = (room_title == st.session_state.active_id)
-        prefix = "📌 👉" if pin_status == 1 else "👉" if is_current else "📌 💬" if pin_status == 1 else "💬"
-        button_label = f"{prefix} {room_title}"
-        
-        nav_col, del_col = st.columns([0.82, 0.18])
-        
-        with nav_col:
-            if st.button(button_label, key=f"nav_{room_title}", use_container_width=True):
-                st.session_state.active_id = room_title
-                st.session_state.autoplay_audio_data = None
-                st.rerun()
-                
-        with del_col:
-            if st.button("🗑️", key=f"del_{room_title}", help=f"Delete '{room_title}'"):
-                delete_room(room_title)
-                remaining_rooms = get_all_rooms()
-                if remaining_rooms:
-                    st.session_state.active_id = remaining_rooms[0][0]
-                else:
-                    default_title = "Conversation 1"
-                    save_room_history(default_title, [{"role": "assistant", "content": "👋 Welcome to your language learning room! Let's personalize your coaching track. Please fill out the configuration card below to begin your custom session!"}])
-                    st.session_state.active_id = default_title
-                
-                st.session_state.autoplay_audio_data = None
-                st.rerun()
-
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown("---")
-    st.write("##### 🛠️ Current Chat Actions")
-    
-    pin_btn_label = "📌 Unpin from Top" if is_currently_pinned == 1 else "📌 Pin to Top"
-    if st.button(pin_btn_label, use_container_width=True):
-        toggle_pin_room(st.session_state.active_id, is_currently_pinned)
-        st.rerun()
-        
-    new_name_input = st.text_input("Rename Current Chat:", value=st.session_state.active_id)
-    if st.button("💾 Save Title Name", use_container_width=True):
-        if new_name_input.strip() and new_name_input != st.session_state.active_id:
-            rename_room(st.session_state.active_id, new_name_input.strip())
-            st.session_state.active_id = new_name_input.strip()
+        if st.button("➕ New chat", use_container_width=True, type="primary"):
+            from datetime import datetime
+            time_stamp = datetime.now().strftime('%b %d, %H:%M')
+            new_uid = "Chat " + str(time_stamp)
+            save_room_history(new_uid, [{"role": "assistant", "content": "👋 Welcome to your language learning room! Let's personalize your coaching track. Please fill out the configuration card below to begin your custom session!"}])
+            st.session_state.active_id = new_uid
+            st.session_state.autoplay_audio_data = None
             st.rerun()
+            
+        st.markdown("---")
+        st.write("##### Recents")
+        
+        for room_title, pin_status in existing_rooms_data:
+            is_current = (room_title == st.session_state.active_id)
+            prefix = "📌 👉" if pin_status == 1 else "👉" if is_current else "📌 💬" if pin_status == 1 else "💬"
+            button_label = f"{prefix} {room_title}"
+            
+            nav_col, del_col = st.columns([0.82, 0.18])
+            
+            with nav_col:
+                if st.button(button_label, key=f"nav_{room_title}", use_container_width=True):
+                    st.session_state.active_id = room_title
+                    st.session_state.autoplay_audio_data = None
+                    st.rerun()
+                    
+            with del_col:
+                if st.button("🗑️", key=f"del_{room_title}", help=f"Delete '{room_title}'"):
+                    delete_room(room_title)
+                    remaining_rooms = get_all_rooms()
+                    if remaining_rooms:
+                        st.session_state.active_id = remaining_rooms[0][0]
+                    else:
+                        default_title = "Conversation 1"
+                        save_room_history(default_title, [{"role": "assistant", "content": "👋 Welcome to your language learning room! Let's personalize your coaching track. Please fill out the configuration card below to begin your custom session!"}])
+                        st.session_state.active_id = default_title
+                    
+                    st.session_state.autoplay_audio_data = None
+                    st.rerun()
+
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("---")
+        st.write("##### 🛠️ Current Chat Actions")
+        
+        pin_btn_label = "📌 Unpin from Top" if is_currently_pinned == 1 else "📌 Pin to Top"
+        if st.button(pin_btn_label, use_container_width=True):
+            toggle_pin_room(st.session_state.active_id, is_currently_pinned)
+            st.rerun()
+            
+        new_name_input = st.text_input("Rename Current Chat:", value=st.session_state.active_id)
+        if st.button("💾 Save Title Name", use_container_width=True):
+            if new_name_input.strip() and new_name_input != st.session_state.active_id:
+                rename_room(st.session_state.active_id, new_name_input.strip())
+                st.session_state.active_id = new_name_input.strip()
+                st.rerun()
 
 # =========================================================
 # SECURED BACKEND API CONNECTIONS
@@ -316,6 +318,7 @@ if app_mode == "💬 Fluency Coach Bot":
                     placeholder="e.g., public speaking, structural grammar rules, clear conversational sentence pacing, etc."
                 )
                 
+                # 🛠️ FIXED: Typo closed syntax parenthesis signature layout rule correctly
                 submit_onboarding = st.form_submit_button("🔥 Initialize Personalized Session Track", type="primary")
                 
                 if submit_onboarding:
@@ -466,6 +469,7 @@ elif app_mode == "📬 Query Submissions":
         user_topic = st.selectbox("Focus Learning Domain:", ["Communication Skills", "Vocabulary", "Tenses Mastery", "Soft Skills / Interview Prep"])
         user_msg = st.text_area("What specific questions can our team clarify for you?")
         
+        # 🛠️ FIXED: Replaced "st.st.form_submit_button" runtime syntax leak
         submit_btn = st.form_submit_button("Send Query Securely", type="primary")
         
         if submit_btn:
