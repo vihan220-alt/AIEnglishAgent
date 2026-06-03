@@ -146,10 +146,10 @@ for r_id, p_val in existing_rooms_data:
 # THE SIDEBAR MANAGEMENT & WEBSITE APPLICATION ROUTING
 # =========================================================
 with st.sidebar:
-    st.markdown("### 🏢 Core Application Modes")
+    st.markdown("### 🏢 Core Learning Hub")
     app_mode = st.radio(
         "Select Portal Workspace:",
-        ["💬 Fluency Coach Bot", "🏠 Business Dashboard", "🌐 Live Website Frame", "📬 Connect & Support"],
+        ["💬 Fluency Coach Bot", "📚 Skills Dashboard", "🌐 Explore Learning Platform", "📬 Query Submissions"],
         index=0
     )
     
@@ -226,11 +226,12 @@ def get_coach_response():
     messages_payload = [
         {
             "role": "system",
-            "content": """You are an engaging, supportive English language coach for kids.
+            "content": """You are an engaging, supportive English language and communication coach.
+            Your role is to help users improve their Communication Skills, Vocabulary, Grammar Tenses, and Soft Skills.
             CRITICAL INSTRUCTION FOR SHORT GREETINGS: 
             If the user simply says 'hello', 'hi', or a basic greeting, respond dynamically with a short, welcoming one-sentence greeting.
             INSTRUCTION FOR PRACTICE QUESTIONS:
-            Provide a balanced, medium-length paragraph response explaining concepts clearly with examples, and always close with one simple follow-up question."""
+            Provide a balanced, medium-length paragraph response explaining concepts clearly with practical conversational examples, and always close with one simple interactive practice question."""
         }
     ]
     for msg in current_history:
@@ -280,7 +281,7 @@ def text_to_speech_bytes(text_payload):
 
 # MODE 1: ORIGINAL FLUENCY COACH CHATBOT FRAME
 if app_mode == "💬 Fluency Coach Bot":
-    st.title("Fluency Coach")
+    st.title("Fluency Coach AI")
     st.write(f"Active Session: **{st.session_state.active_id}**")
 
     for message in current_history:
@@ -298,7 +299,7 @@ if app_mode == "💬 Fluency Coach Bot":
     # User Interaction Inputs
     voice_col, stop_col = st.columns([1, 1])
     with voice_col:
-        st.write("**🎙️ Voice Input:**")
+        st.write("**🎙️ Voice Practice:**")
         audio_source = mic_recorder(start_prompt="Speak 🎤", stop_prompt="Submit 🔇", key="recorder")
 
     with stop_col:
@@ -309,7 +310,7 @@ if app_mode == "💬 Fluency Coach Bot":
             st.rerun()
 
     # Text Submission Handling
-    text_input = st.chat_input("Type your message here...")
+    text_input = st.chat_input("Ask about vocabulary, tenses, or soft skills...")
     if text_input:
         current_history.append({"role": "user", "content": text_input})
         save_room_history(st.session_state.active_id, current_history)
@@ -351,38 +352,46 @@ if app_mode == "💬 Fluency Coach Bot":
                 except Exception as e:
                     st.error(f"Audio Processing Error: {str(e)}")
 
-# MODE 2: COMPANION APP BUSINESS DASHBOARD PORTAL
-elif app_mode == "🏠 Business Dashboard":
-    st.markdown('<div style="display: inline-block; padding: 6px 12px; background-color: #e0f2fe; color: #0369a1; border-radius: 9999px; font-size: 12px; font-weight: 600; margin-bottom: 16px;">🟢 App Engine Status: Active</div>', unsafe_allow_html=True)
-    st.title("Business Management Portal")
-    st.write("A clean, centralized app wrapper engineered to expand your core website functionality.")
+# MODE 2: SKILLS DASHBOARD
+elif app_mode == "📚 Skills Dashboard":
+    st.markdown('<div style="display: inline-block; padding: 6px 12px; background-color: #e0f2fe; color: #0369a1; border-radius: 9999px; font-size: 12px; font-weight: 600; margin-bottom: 16px;">🟢 Learning Center Active</div>', unsafe_allow_html=True)
+    st.title("Communication & Core Skills Matrix")
+    st.write("Track and improve your professional presentation and foundational English pillars.")
     st.markdown("---")
     
-    # Interactive App Metrics 
-    col1, col2, col3 = st.columns(3)
+    # 4 Pillars Columns
+    col1, col2 = st.columns(2)
     with col1:
-        st.metric(label="Active Sessions", value="1,248", delta="+12%")
+        st.markdown(
+            """
+            <div style="background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #eef2f6; margin-bottom: 15px;">
+                <h4 style="margin-top:0; color:#1e293b;">💬 Communication Skills</h4>
+                <p style="color:#64748b; font-size:14px;">Master public speaking, reduce hesitation, and establish clear, conversational delivery pacing.</p>
+            </div>
+            <div style="background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #eef2f6; margin-bottom: 15px;">
+                <h4 style="margin-top:0; color:#1e293b;">⏳ Grammar & Tenses</h4>
+                <p style="color:#64748b; font-size:14px;">Build structural perfection across past, present, and future perfect sentence constructions.</p>
+            </div>
+            """, unsafe_allow_html=True
+        )
     with col2:
-        st.metric(label="API Status", value="99.8%", delta="Stable")
-    with col3:
-        st.metric(label="Database Load", value="14%", delta="-2%")
-        
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    st.markdown(
-        """
-        <div style="background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #eef2f6; margin-bottom: 15px;">
-            <h4 style="margin-top:0; color:#1e293b;">🚀 Website App Framework</h4>
-            <p style="color:#64748b; font-size:14px;">Your script layout is now highly optimized, lightweight, and structured to manage independent memory allocations across multi-tab configurations effortlessly.</p>
-        </div>
-        """, 
-        unsafe_allow_html=True
-    )
+        st.markdown(
+            """
+            <div style="background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #eef2f6; margin-bottom: 15px;">
+                <h4 style="margin-top:0; color:#1e293b;">📖 Vocabulary Building</h4>
+                <p style="color:#64748b; font-size:14px;">Replace generic filler words with expressive vocabulary words and idioms.</p>
+            </div>
+            <div style="background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #eef2f6; margin-bottom: 15px;">
+                <h4 style="margin-top:0; color:#1e293b;">🤝 Soft Skills Development</h4>
+                <p style="color:#64748b; font-size:14px;">Polishing emotional intelligence, active body listening cues, leadership presence, and corporate manners.</p>
+            </div>
+            """, unsafe_allow_html=True
+        )
 
-# MODE 3: IFRAME WEBSITE ACCESS HOOK
-elif app_mode == "🌐 Live Website Frame":
-    st.title("Live Portal Access")
-    st.write("Browse and interact with your digital workspace right inside your application dashboard canvas.")
+# MODE 3: WEBSITE IFRAME ACCESS
+elif app_mode == "🌐 Explore Learning Platform":
+    st.title("Portal Integration View")
+    st.write("Access your main educational resources directly through your live workspace framework.")
     st.markdown("---")
     
     target_url = st.text_input("Enter Target Website URL:", value="https://example.com")
@@ -397,20 +406,23 @@ elif app_mode == "🌐 Live Website Frame":
         except Exception as e:
             st.error(f"Unable to safely anchor frame viewport: {str(e)}")
 
-# MODE 4: CLIENT DIRECT INTAKE SUPPORT SHEET
-elif app_mode == "📬 Connect & Support":
-    st.title("Get In Touch")
-    st.write("Have questions regarding features? Drop a message straight to our pipeline terminal.")
+# MODE 4: CLIENT DIRECT INTAKE SUPPORT SHEET (FIXED TYPO)
+elif app_mode == "📬 Query Submissions":
+    st.title("Student & User Support")
+    st.write("Stuck on a rule or need specialized soft-skills materials? Drop a note to our admin panel.")
     st.markdown("---")
     
     with st.form("support_form", clear_on_submit=True):
         user_name = st.text_input("Full Name:")
         user_email = st.text_input("Email Address:")
-        user_msg = st.text_area("Detail your product requirements:")
-        submit_btn = st.st.form_submit_button("Send Query Securely", type="primary")
+        user_topic = st.selectbox("Focus Learning Domain:", ["Communication Skills", "Vocabulary", "Tenses Mastery", "Soft Skills / Interview Prep"])
+        user_msg = st.text_area("What specific questions can our team clarify for you?")
+        
+        # FIXED: Removed the duplicate 'st.st' prefix error
+        submit_btn = st.form_submit_button("Send Query Securely", type="primary")
         
         if submit_btn:
             if user_name.strip() and user_email.strip() and user_msg.strip():
-                st.success(f"Thank you, {user_name}! Your system tracking token has been registered successfully.")
+                st.success(f"Thank you, {user_name}! Your request regarding {user_topic} has been logged.")
             else:
-                st.warning("Please fill out all mandatory fields before processing data submissions.")
+                st.warning("Please fill out all mandatory fields before processing details.")
