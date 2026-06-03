@@ -27,7 +27,7 @@ def apply_custom_theme():
         }
 
         /* =========================================================
-           2. GLOBAL CANVAS & SIDEBAR CORE LAYOUT
+           2. GLOBAL CANVAS & SIDEBAR BASE CORES
            ========================================================= */
         html, body, [data-testid="stAppViewContainer"] {
             font-family: 'Plus Jakarta Sans', sans-serif !important;
@@ -44,7 +44,7 @@ def apply_custom_theme():
             border-right: 1px solid #1e293b !important;
         }
         
-        /* Headers and basic text layout definitions inside the sidebar */
+        /* Clear White Text for Headers & Markdown Labels in Sidebar */
         [data-testid="stSidebar"] h1, 
         [data-testid="stSidebar"] h2, 
         [data-testid="stSidebar"] h3, 
@@ -58,36 +58,46 @@ def apply_custom_theme():
         }
 
         /* =========================================================
-           3. SIDEBAR ELEMENT TEXT CONTRAST FIXES (CRITICAL)
+           3. SIDEBAR INTERACTIVE COMPONENT CONTRAST FIXES
            ========================================================= */
         
-        /* Fix text color inside standard buttons inside the sidebar */
-        [data-testid="stSidebar"] .stButton > button {
-            background-color: #ffffff !important;
-            color: #0f172a !important; /* Sharp dark text on white button canvas */
-            border: 1px solid #cbd5e1 !important;
+        /* FORCE DARK TEXT INSIDE EVERY BUTTON PLACED IN THE SIDEBAR */
+        [data-testid="stSidebar"] button[data-baseweb="button"],
+        [data-testid="stSidebar"] .stButton > button,
+        [data-testid="stSidebar"] .stButton > button p,
+        [data-testid="stSidebar"] button div p {
+            color: #0f172a !important;
             font-weight: 600 !important;
         }
         
-        [data-testid="stSidebar"] .stButton > button:hover {
-            background-color: #f8fafc !important;
-            border-color: #3b82f6 !important;
-            color: #2563eb !important;
-        }
-
-        /* Fix text color inside interactive text input boxes inside the sidebar */
-        [data-testid="stSidebar"] .stTextInput input {
+        /* Default solid white background for buttons inside sidebar */
+        [data-testid="stSidebar"] .stButton > button {
             background-color: #ffffff !important;
-            color: #0f172a !important; /* Visible dark typed text */
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 10px !important;
+        }
+        
+        [data-testid="stSidebar"] .stButton > button:hover {
+            background-color: #f1f5f9 !important;
+            border-color: #3b82f6 !important;
+        }
+
+        /* FORCE DARK TEXT INSIDE ALL SIDEBAR TEXT INPUT FIELD BOXES */
+        [data-testid="stSidebar"] .stTextInput input,
+        [data-testid="stSidebar"] input[type="text"] {
+            background-color: #ffffff !important;
+            color: #0f172a !important; /* Visible dark typed characters */
             border: 1px solid #334155 !important;
+            border-radius: 10px !important;
         }
 
-        /* Fix text color for placeholder hints inside text fields */
-        [data-testid="stSidebar"] .stTextInput input::placeholder {
-            color: #94a3b8 !important; 
+        /* Clear Dark Slate visibility fallback for placeholder/value hints */
+        [data-testid="stSidebar"] .stTextInput input::placeholder,
+        [data-testid="stSidebar"] input[type="text"]::placeholder {
+            color: #64748b !important; 
         }
 
-        /* Fix Radio Workspace Selectors text/labels alignment */
+        /* Radio Workspace Navigation Items Panel Alignment */
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
             background: #1e293b !important;
             border: 1px solid #334155 !important;
@@ -95,11 +105,10 @@ def apply_custom_theme():
             border-radius: 10px !important;
             margin-bottom: 10px !important;
             transition: all 0.2s ease !important;
-            cursor: pointer;
         }
         
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label p {
-            color: #f1f5f9 !important; /* Clear white text inside dark options rows */
+            color: #f1f5f9 !important; /* Keep radio menu text bright white */
         }
         
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover {
@@ -108,7 +117,7 @@ def apply_custom_theme():
         }
 
         /* =========================================================
-           4. MAIN CONTENT PANEL LAYOUT STYLING
+           4. MAIN SPACE STYLING LAYOUT
            ========================================================= */
         h1, h2, h3 {
             color: #0f172a !important;
