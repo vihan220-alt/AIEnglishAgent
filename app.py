@@ -12,7 +12,7 @@ from gtts import gTTS
 # CONFIGURATION & CSS THEME INTEGRATION
 # =========================================================
 st.set_page_config(
-    page_title="SkillVerify AI - English Language Assessment Platform",
+    page_title="Fluency Coach - AI Speaking Portal",
     page_icon="🗣️",
     layout="centered"
 )
@@ -126,8 +126,8 @@ if "last_processed_audio" not in st.session_state:
 existing_sessions_data = get_all_sessions()
 
 if not existing_sessions_data:
-    save_session_history("English Communication Core", [{"role": "assistant", "content": "🎯 **Welcome to your English Language Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the configuration card below to launch your tailored language interview session."}])
-    existing_sessions_data = [("English Communication Core", 0)]
+    save_session_history("Conversation 1", [{"role": "assistant", "content": "🎯 **Welcome to your English Language Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the configuration card below to launch your tailored language interview session."}])
+    existing_sessions_data = [("Conversation 1", 0)]
 
 session_ids_list = [row[0] for row in existing_sessions_data]
 
@@ -136,7 +136,7 @@ if "active_id" not in st.session_state or st.session_state.active_id not in sess
 
 current_history = load_session_history(st.session_state.active_id)
 
-# Avatars for UI
+# Premium UI Assets
 ROBOT_AVATAR = "https://img.icons8.com/isometric/512/brain.png"
 USER_AVATAR = "https://img.icons8.com/isometric/512/checked-user-male.png"
 
@@ -147,31 +147,31 @@ for s_id, p_val in existing_sessions_data:
         break
 
 # =========================================================
-# THE SIDEBAR MANAGEMENT & ROUTING PANEL
+# SIDEBAR NAVIGATION CONTROL PANEL
 # =========================================================
 with st.sidebar:
-    st.markdown("### 🏢 Core Enterprise Platform")
+    st.markdown("### 🏢 Core Application Modes")
     app_mode = st.radio(
         "Select Portal Workspace:",
-        ["🗣️ Skill Assessment Portal", "📊 Analytics Dashboard", "🌐 Explore Learning Platform", "📬 Submit Custom Prompts"],
+        ["💬 Fluency Coach Bot", "📊 Business Dashboard", "🌐 Live Website Frame", "📬 Connect & Support"],
         index=0
     )
     
-    if app_mode == "🗣️ Skill Assessment Portal":
+    if app_mode == "💬 Fluency Coach Bot":
         st.markdown("---")
-        st.markdown("### 🛠️ Active Evaluations")
+        st.markdown("### 🤖 Coach Workspace")
         
-        if st.button("➕ Start New Assessment", use_container_width=True, type="primary"):
+        if st.button("➕ New chat", use_container_width=True, type="primary"):
             from datetime import datetime
             time_stamp = datetime.now().strftime('%b %d, %H:%M')
-            new_uid = "Language Bench " + str(time_stamp)
+            new_uid = "Conversation " + str(time_stamp)
             save_session_history(new_uid, [{"role": "assistant", "content": "🎯 **Welcome to your English Language Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the configuration card below to launch your tailored language interview session."}])
             st.session_state.active_id = new_uid
             st.session_state.autoplay_audio_data = None
             st.rerun()
             
         st.markdown("---")
-        st.write("##### Recent Logs")
+        st.write("##### Recents")
         
         for session_title, pin_status in existing_sessions_data:
             is_current = (session_title == st.session_state.active_id)
@@ -187,13 +187,13 @@ with st.sidebar:
                     st.rerun()
                     
             with del_col:
-                if st.button("🗑️", key=f"del_{session_title}", help=f"Delete assessment tracking data '{session_title}'"):
+                if st.button("🗑️", key=f"del_{session_title}"):
                     delete_session(session_title)
                     remaining_sessions = get_all_sessions()
                     if remaining_sessions:
                         st.session_state.active_id = remaining_sessions[0][0]
                     else:
-                        default_title = "General English Audit"
+                        default_title = "Conversation 1"
                         save_session_history(default_title, [{"role": "assistant", "content": "🎯 **Welcome to your English Language Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the configuration card below to launch your tailored language interview session."}])
                         st.session_state.active_id = default_title
                     
@@ -202,15 +202,15 @@ with st.sidebar:
 
         st.markdown("<br><br>", unsafe_allow_html=True)
         st.markdown("---")
-        st.write("##### ⚙️ Session Options")
+        st.write("##### ⚙️ Quick Actions")
         
-        pin_btn_label = "📌 Unpin Session" if is_currently_pinned == 1 else "📌 Pin Session to Top"
+        pin_btn_label = "📌 Unpin Thread" if is_currently_pinned == 1 else "📌 Pin Thread to Top"
         if st.button(pin_btn_label, use_container_width=True):
             toggle_pin_session(st.session_state.active_id, is_currently_pinned)
             st.rerun()
             
-        new_name_input = st.text_input("Modify Track Label Name:", value=st.session_state.active_id)
-        if st.button("💾 Save Session Title", use_container_width=True):
+        new_name_input = st.text_input("Rename Thread:", value=st.session_state.active_id)
+        if st.button("💾 Rename", use_container_width=True):
             if new_name_input.strip() and new_name_input != st.session_state.active_id:
                 rename_session(st.session_state.active_id, new_name_input.strip())
                 st.session_state.active_id = new_name_input.strip()
@@ -221,7 +221,7 @@ with st.sidebar:
 # =========================================================
 def get_evaluator_response():
     if "GROQ_API_KEY" not in st.secrets:
-        return "Configuration Key Error: Please register GROQ_API_KEY in your deployment environment secrets panel."
+        return "Configuration Key Error: Please register GROQ_API_KEY in your Streamit secrets panel."
 
     messages_payload = [
         {
@@ -230,7 +230,7 @@ def get_evaluator_response():
             Your job is to rigorously evaluate the user's English language proficiency based on the parameters provided in the profile configuration card.
             
             RULES OF ENGAGEMENT:
-            1. If the user presents a brief greeting or single comment, immediately reply with an encouraging but direct language evaluation question or situational scenario mapped to their targeted proficiency domain.
+            1. If the user presents a brief greeting or single comment, immediately reply with an encouraging but direct language evaluation question or situational scenario.
             2. For standard interactions, provide concise, constructive feedback regarding their grammar, vocabulary usage, sentence structure, and coherence. 
             3. Point out subtle mistakes gently, and praise excellent phrasing or precise vocabulary choices.
             4. Always conclude your feedback message explicitly with **exactly one practical conversational question, prompt, or situational riddle** for them to address next to continue the evaluation."""
@@ -283,9 +283,9 @@ def text_to_speech_bytes(text_payload):
 # =========================================================
 
 # MODULE 1: INTERACTIVE SKILL ASSESSMENT PORTAL VIEW
-if app_mode == "🗣️ Skill Assessment Portal":
-    st.title("SkillVerify Language Assessment Portal")
-    st.write(f"Active Assessment Space: **{st.session_state.active_id}**")
+if app_mode == "💬 Fluency Coach Bot":
+    st.title("Fluency Coach - AI Speaking Portal")
+    st.write(f"Active Session Panel: **{st.session_state.active_id}**")
 
     # Render Historical Logs
     for message in current_history:
@@ -299,47 +299,46 @@ if app_mode == "🗣️ Skill Assessment Portal":
     # Show Multi-Stage Setup Questionnaire Card if it's a completely fresh session
     if len(current_history) == 1 and "Welcome" in current_history[0]["content"]:
         st.markdown("---")
-        with st.expander("🛠️ Initialize Language Profile Target", expanded=True):
-            st.markdown("##### Calibrate system parameters below to generate your specific evaluation matrix:")
+        st.markdown("##### Calibrate system parameters below to generate your specific evaluation matrix:")
+        
+        with st.form("assessment_setup_form"):
+            target_skill = st.selectbox(
+                "Core Domain Under Review:",
+                ["Spoken English & Fluency", "Business & Corporate Communication", "Grammar, Structure & Vocabulary", "Professional Writing Proficiency"]
+            )
             
-            with st.form("assessment_setup_form"):
-                target_skill = st.selectbox(
-                    "Core Domain Under Review:",
-                    ["Spoken English & Fluency", "Business & Corporate Communication", "Grammar, Structure & Vocabulary", "Professional Writing Proficiency"]
+            experience_tier = st.selectbox(
+                "Target Proficiency Level:",
+                ["Beginner / Elementary (CEFR A1 - A2)", "Intermediate / Independent (CEFR B1 - B2)", "Advanced / Proficient (CEFR C1 - C2)"]
+            )
+            
+            specialized_focus = st.text_input(
+                "Provide specific focus metrics or targets:", 
+                placeholder="e.g., Pronunciation, Public Speaking, Academic Writing, IELTS/TOEFL Prep, Interview Readiness"
+            )
+            
+            submit_onboarding = st.form_submit_button("🔥 Launch Evaluation Environment", type="primary")
+            
+            if submit_onboarding:
+                context_injection = (
+                    f"🎯 **Language Assessment Profile Registered** 🎯\n\n"
+                    f"* **Target Domain:** {target_skill}\n"
+                    f"* **Target Proficiency Level:** {experience_tier}\n"
+                    f"* **Focus Metrics:** {specialized_focus if specialized_focus.strip() else 'General Fluency Standards'}"
                 )
                 
-                experience_tier = st.selectbox(
-                    "Target Proficiency Level:",
-                    ["Beginner / Elementary (CEFR A1 - A2)", "Intermediate / Independent (CEFR B1 - B2)", "Advanced / Proficient (CEFR C1 - C2)"]
-                )
+                current_history.append({"role": "user", "content": context_injection})
+                save_session_history(st.session_state.active_id, current_history)
                 
-                specialized_focus = st.text_input(
-                    "Provide specific focus metrics or targets:", 
-                    placeholder="e.g., Pronunciation, Public Speaking, Academic Writing, IELTS/TOEFL Prep, Interview Readiness"
-                )
-                
-                submit_onboarding = st.form_submit_button("🔥 Launch Language Evaluation Environment", type="primary")
-                
-                if submit_onboarding:
-                    context_injection = (
-                        f"🎯 **Language Assessment Profile Registered** 🎯\n\n"
-                        f"* **Target Domain:** {target_skill}\n"
-                        f"* **Target Proficiency Level:** {experience_tier}\n"
-                        f"* **Focus Metrics:** {specialized_focus if specialized_focus.strip() else 'General Fluency Standards'}"
-                    )
-                    
-                    current_history.append({"role": "user", "content": context_injection})
+                with st.spinner("Compiling language framework parameters..."):
+                    eval_reply = get_evaluator_response()
+                    current_history.append({"role": "assistant", "content": eval_reply})
                     save_session_history(st.session_state.active_id, current_history)
                     
-                    with st.spinner("Compiling language assessment framework..."):
-                        eval_reply = get_evaluator_response()
-                        current_history.append({"role": "assistant", "content": eval_reply})
-                        save_session_history(st.session_state.active_id, current_history)
-                        
-                        audio_data = text_to_speech_bytes(eval_reply)
-                        if audio_data:
-                            st.session_state.autoplay_audio_data = audio_data
-                        st.rerun()
+                    audio_data = text_to_speech_bytes(eval_reply)
+                    if audio_data:
+                        st.session_state.autoplay_audio_data = audio_data
+                    st.rerun()
 
     audio_placeholder = st.empty()
     if st.session_state.autoplay_audio_data:
@@ -348,7 +347,7 @@ if app_mode == "🗣️ Skill Assessment Portal":
     # Audio Recording UI Inputs
     voice_col, stop_col = st.columns([1, 1])
     with voice_col:
-        st.write("**🎙️ Speak Your Answer:**")
+        st.write("**🎙️ Audio Response:**")
         audio_source = mic_recorder(start_prompt="Record Answer 🎤", stop_prompt="Submit Audio 🔇", key="recorder")
 
     with stop_col:
@@ -359,19 +358,19 @@ if app_mode == "🗣️ Skill Assessment Portal":
             st.rerun()
 
     # Chat Input submission handling
-    text_input = st.chat_input("Type your response explanation or text sample here...")
+    text_input = st.chat_input("Type your response explanation here...")
     if text_input:
         current_history.append({"role": "user", "content": text_input})
         save_session_history(st.session_state.active_id, current_history)
-        with st.spinner("Analyzing parameters and computing coherence scores..."):
+        with st.spinner("Analyzing text markers and computing clarity score..."):
             eval_reply = get_evaluator_response()
             current_history.append({"role": "assistant", "content": eval_reply})
             save_session_history(st.session_state.active_id, current_history)
             st.session_state.autoplay_audio_data = None
             st.rerun()
 
-    # Voice to Text Audio parsing submission
-    if audio_source and "bytes" in audio_source hoarding and audio_source["bytes"]:
+    # Voice to Text Audio parsing submission (Completely Fixed Structure)
+    if audio_source and "bytes" in audio_source and audio_source["bytes"]:
         audio_bytes = audio_source["bytes"]
         audio_hash = hashlib.md5(audio_bytes).hexdigest()
         if st.session_state.last_processed_audio != audio_hash:
@@ -402,9 +401,9 @@ if app_mode == "🗣️ Skill Assessment Portal":
                     st.error(f"Whisper Speech Decoding Failure: {str(e)}")
 
 # MODULE 2: ANALYTICS DASHBOARD
-elif app_mode == "📊 Analytics Dashboard":
-    st.title("Performance Analytics Tracker")
-    st.write("Visualize core English language competencies and progress benchmarks.")
+elif app_mode == "📊 Business Dashboard":
+    st.title("Communication Skills Matrix")
+    st.write("Track candidate progress across core language pillars and soft skills metrics.")
     st.markdown("---")
     
     col1, col2 = st.columns(2)
@@ -412,12 +411,12 @@ elif app_mode == "📊 Analytics Dashboard":
         st.markdown(
             """
             <div class="skill-card skill-blue">
-                <div class="skill-title">🗣️ Fluency & Pronunciation</div>
-                <div class="skill-desc">Measures rhythm, speed accuracy, speech pauses, and phonetic clarity metrics.</div>
+                <div class="skill-title">🗣️ Communication Skills</div>
+                <div class="skill-desc">Practice sentence pacing, speech clarity, public presentation habits, and live verbal speech triggers.</div>
             </div>
             <div class="skill-card skill-green">
-                <div class="skill-title">📖 Grammar & Sentence Structure</div>
-                <div class="skill-desc">Tracks syntactic accuracy, correct use of tenses, active/passive voice, and structural variations.</div>
+                <div class="skill-title">⏳ Grammar & Tenses</div>
+                <div class="skill-desc">Understand past, present, and future timelines cleanly to build structurally accurate sentences without structural errors.</div>
             </div>
             """, unsafe_allow_html=True
         )
@@ -425,24 +424,23 @@ elif app_mode == "📊 Analytics Dashboard":
         st.markdown(
             """
             <div class="skill-card skill-amber">
-                <div class="skill-title">📚 Vocabulary & Lexical Resource</div>
-                <div class="skill-desc">Evaluates contextual appropriateness, use of idioms, collocations, and dynamic word choices.</div>
+                <div class="skill-title">📖 Vocabulary Building</div>
+                <div class="skill-desc">Learn native idioms, structural professional verbs, active terms, and situational alternatives.</div>
             </div>
             <div class="skill-card skill-purple">
-                <div class="skill-title">📈 Coherence & Task Completion</div>
-                <div class="skill-desc">Tracks logical content flow, connectivity of ideas, and clarity when answering structural prompts.</div>
+                <div class="skill-title">🤝 Interpersonal Soft Skills</div>
+                <div class="skill-desc">Polish candidate interview confidence metrics, response structures, active listening comprehension habits, and overall leadership speech footprint.</div>
             </div>
             """, unsafe_allow_html=True
         )
 
-# MODULE 3: IFRAME PORTAL INTEGRATION (FIXED FOR LANGUAGE PORTALS)
-elif app_mode == "🌐 Explore Learning Platform":
-    st.title("External Knowledge Ecosystem")
-    st.write("Access interactive reading prompts, dictionaries, and practice materials straight inside your active view canvas framework.")
+# MODULE 3: IFRAME PORTAL INTEGRATION
+elif app_mode == "🌐 Live Website Frame":
+    st.title("External Learning Platform Hub")
+    st.write("Access global standard language frameworks or targeted news reading spaces directly within your active application layout.")
     st.markdown("---")
     
-    # Updated default to a real language hub (BBC Learning English)
-    target_url = st.text_input("Enter Target English Learning Hub/Reading Article URL:", value="https://www.bbc.co.uk/learningenglish")
+    target_url = st.text_input("Enter Target Reference Resource Hub URL:", value="https://www.bbc.co.uk/learningenglish")
     if target_url:
         if not re.match(r'^https?://', target_url):
             target_url = "https://" + target_url
@@ -454,22 +452,23 @@ elif app_mode == "🌐 Explore Learning Platform":
         except Exception as e:
             st.error(f"Failed to securely mount canvas frame layout: {str(e)}")
 
-# MODULE 4: QUERY SUBMISSIONS INTAKE FORM
-elif app_mode == "📬 Submit Custom Prompts":
-    st.title("Custom Evaluation Prompts Engine")
-    st.write("Want to submit a custom language challenge statement to our evaluation pool? Lodge it here.")
+# MODULE 4: QUERY SUBMISSIONS INTAKE FORM (FIXED ATTRIBUTE ERROR FOR FORM BUTTON)
+elif app_mode == "📬 Connect & Support":
+    st.title("Feedback & Scenario Intake Center")
+    st.write("Submit specific case parameters, operational support requests, or specific evaluation challenges directly into the tracking module database.")
     st.markdown("---")
     
     with st.form("custom_prompt_submission_form", clear_on_submit=True):
-        candidate_name = st.text_input("Author Name:")
-        candidate_email = st.text_input("Contact Email:")
-        assessment_category = st.selectbox("Benchmark Category Domain:", ["Conversational Scenario", "Grammar Diagnostics", "Writing Essay Prompt"])
-        prompt_content = st.text_area("Provide raw scenario conditions or prompt conversation context block:")
+        candidate_name = st.text_input("Name:")
+        candidate_email = st.text_input("Contact Email Details:")
+        assessment_category = st.selectbox("Topic Focus Domain Area:", ["General Inquiries", "Custom Scenario Suggestions", "System Bugs & Access Support"])
+        prompt_content = st.text_area("Describe the operational issue, technical bug details, or customized testing scenario setup:")
         
-        submit_btn = st.form_submit_button("Lodge Challenge to System Engine", type="primary")
+        # Fixed: Changed st.st.form_submit_button to st.form_submit_button
+        submit_btn = st.form_submit_button("Send Query Securely", type="primary")
         
         if submit_btn:
             if candidate_name.strip() and candidate_email.strip() and prompt_content.strip():
-                st.success(f"Thank you, {candidate_name}! Your custom challenge for {assessment_category} has been logged safely.")
+                st.success(f"Thank you, {candidate_name}! Your request file parameters for '{assessment_category}' have been successfully logged to our queue.")
             else:
-                st.warning("All mandatory fields must be completed prior to submitting challenge details to the database.")
+                st.warning("All necessary input parameters must be completely populated prior to pushing form tracking arrays to the engine.")
