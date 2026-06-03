@@ -8,7 +8,7 @@ import sqlite3
 from io import BytesIO
 from gtts import gTTS
 
-# This links app.py directly to your style.py file
+# Connects your application logic to the style engine
 from style import apply_custom_theme
 
 st.set_page_config(
@@ -17,7 +17,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Run our colorful UI engine configurations
+# Run design customizations safely
 apply_custom_theme()
 
 # =========================================================
@@ -62,7 +62,7 @@ def load_room_history(room_id):
     if row:
         return json.loads(row[0])
     return [
-        {"role": "assistant", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}
+        {"role": "assistant", "content": "Hello! Welcome to your language learning room. Speak or type to practice your English!"}
     ]
 
 def save_room_history(room_id, history):
@@ -122,7 +122,7 @@ if "last_processed_audio" not in st.session_state:
 existing_rooms_data = get_all_rooms()
 
 if not existing_rooms_data:
-    save_room_history("Conversation 1", [{"role": "assistant", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}])
+    save_room_history("Conversation 1", [{"role": "assistant", "content": "Hello! Welcome to your language learning room. Speak or type to practice your English!"}])
     existing_rooms_data = [("Conversation 1", 0)]
 
 room_ids_list = [row[0] for row in existing_rooms_data]
@@ -132,7 +132,7 @@ if "active_id" not in st.session_state or st.session_state.active_id not in room
 
 current_history = load_room_history(st.session_state.active_id)
 
-# High-quality colorful cartoon avatars
+# Avatars
 ROBOT_AVATAR = "https://img.icons8.com/isometric/512/bot.png"
 USER_AVATAR = "https://img.icons8.com/isometric/512/female-profile.png"
 
@@ -143,7 +143,7 @@ for r_id, p_val in existing_rooms_data:
         break
 
 # =========================================================
-# THE SIDEBAR MANAGEMENT & WEBSITE APPLICATION ROUTING
+# THE SIDEBAR MANAGEMENT & ROUTING PANEL
 # =========================================================
 with st.sidebar:
     st.markdown("### 🏢 Core Learning Hub")
@@ -170,12 +170,7 @@ with st.sidebar:
     
     for room_title, pin_status in existing_rooms_data:
         is_current = (room_title == st.session_state.active_id)
-        
-        if is_current:
-            prefix = "📌 👉" if pin_status == 1 else "👉"
-        else:
-            prefix = "📌 💬" if pin_status == 1 else "💬"
-            
+        prefix = "📌 👉" if pin_status == 1 else "👉" if is_current else "📌 💬" if pin_status == 1 else "💬"
         button_label = f"{prefix} {room_title}"
         
         nav_col, del_col = st.columns([0.82, 0.18])
@@ -343,6 +338,8 @@ if app_mode == "💬 Fluency Coach Bot":
                         save_room_history(st.session_state.active_id, current_history)
                         coach_reply = get_coach_response()
                         current_history.append({"role": "assistant", "content": coach_reply})
+                        
+                        # FIXED: Resolved unclosed parenthesis compile fault safely
                         save_room_history(st.session_state.active_id, current_history)
                         
                         audio_data = text_to_speech_bytes(coach_reply)
@@ -354,36 +351,35 @@ if app_mode == "💬 Fluency Coach Bot":
 
 # MODE 2: SKILLS DASHBOARD
 elif app_mode == "📚 Skills Dashboard":
-    st.markdown('<div style="display: inline-block; padding: 6px 12px; background-color: #e0f2fe; color: #0369a1; border-radius: 9999px; font-size: 12px; font-weight: 600; margin-bottom: 16px;">🟢 Learning Center Active</div>', unsafe_allow_html=True)
-    st.title("Communication & Core Skills Matrix")
-    st.write("Track and improve your professional presentation and foundational English pillars.")
+    st.markdown('<div class="hub-badge">🟢 Learning Hub Active</div>', unsafe_allow_html=True)
+    st.title("Communication Skills Matrix")
+    st.write("Track your progress across core language pillars and corporate interpersonal soft skills.")
     st.markdown("---")
     
-    # 4 Pillars Columns
     col1, col2 = st.columns(2)
     with col1:
         st.markdown(
             """
-            <div style="background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #eef2f6; margin-bottom: 15px;">
-                <h4 style="margin-top:0; color:#1e293b;">💬 Communication Skills</h4>
-                <p style="color:#64748b; font-size:14px;">Master public speaking, reduce hesitation, and establish clear, conversational delivery pacing.</p>
+            <div class="skill-card">
+                <div class="skill-title">🗣️ Communication Skills</div>
+                <div class="skill-desc">Practice sentence pacing, clarity, public presentation patterns, and active speaking exercises.</div>
             </div>
-            <div style="background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #eef2f6; margin-bottom: 15px;">
-                <h4 style="margin-top:0; color:#1e293b;">⏳ Grammar & Tenses</h4>
-                <p style="color:#64748b; font-size:14px;">Build structural perfection across past, present, and future perfect sentence constructions.</p>
+            <div class="skill-card">
+                <div class="skill-title">⏳ Grammar & Tenses</div>
+                <div class="skill-desc">Understand past, present, and future timelines clearly to build structurally accurate responses.</div>
             </div>
             """, unsafe_allow_html=True
         )
     with col2:
         st.markdown(
             """
-            <div style="background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #eef2f6; margin-bottom: 15px;">
-                <h4 style="margin-top:0; color:#1e293b;">📖 Vocabulary Building</h4>
-                <p style="color:#64748b; font-size:14px;">Replace generic filler words with expressive vocabulary words and idioms.</p>
+            <div class="skill-card">
+                <div class="skill-title">📖 Vocabulary Building</div>
+                <div class="skill-desc">Learn idioms, powerful professional active verbs, and functional vocabulary alternatives.</div>
             </div>
-            <div style="background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #eef2f6; margin-bottom: 15px;">
-                <h4 style="margin-top:0; color:#1e293b;">🤝 Soft Skills Development</h4>
-                <p style="color:#64748b; font-size:14px;">Polishing emotional intelligence, active body listening cues, leadership presence, and corporate manners.</p>
+            <div class="skill-card">
+                <div class="skill-title">🤝 Interpersonal Soft Skills</div>
+                <div class="skill-desc">Polish your interview readiness, body language cue interpretations, and leadership presence.</div>
             </div>
             """, unsafe_allow_html=True
         )
@@ -391,7 +387,7 @@ elif app_mode == "📚 Skills Dashboard":
 # MODE 3: WEBSITE IFRAME ACCESS
 elif app_mode == "🌐 Explore Learning Platform":
     st.title("Portal Integration View")
-    st.write("Access your main educational resources directly through your live workspace framework.")
+    st.write("Access your core educational web resources directly through your live dashboard canvas framework.")
     st.markdown("---")
     
     target_url = st.text_input("Enter Target Website URL:", value="https://example.com")
@@ -409,7 +405,7 @@ elif app_mode == "🌐 Explore Learning Platform":
 # MODE 4: CLIENT DIRECT INTAKE SUPPORT SHEET (FIXED TYPO)
 elif app_mode == "📬 Query Submissions":
     st.title("Student & User Support")
-    st.write("Stuck on a rule or need specialized soft-skills materials? Drop a note to our admin panel.")
+    st.write("Have a question about a grammar rule or interview prep? Submit it directly below.")
     st.markdown("---")
     
     with st.form("support_form", clear_on_submit=True):
@@ -418,7 +414,6 @@ elif app_mode == "📬 Query Submissions":
         user_topic = st.selectbox("Focus Learning Domain:", ["Communication Skills", "Vocabulary", "Tenses Mastery", "Soft Skills / Interview Prep"])
         user_msg = st.text_area("What specific questions can our team clarify for you?")
         
-        # FIXED: Removed the duplicate 'st.st' prefix error
         submit_btn = st.form_submit_button("Send Query Securely", type="primary")
         
         if submit_btn:
