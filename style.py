@@ -6,6 +6,33 @@ def apply_custom_theme():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
         
+        /* =========================================================
+           WHITE SCROLLER (SCROLLBAR) CUSTOMIZATION
+           ========================================================= */
+        /* Target the main window, sidebar, and text area scrollers */
+        ::-webkit-scrollbar {
+            width: 10px !important;
+            height: 10px !important;
+        }
+        
+        /* Scrollbar Track (The background lane of the scroller) */
+        ::-webkit-scrollbar-track {
+            background: #0f172a !important; /* Matches dark sidebar, clean contrast on light pages */
+            border-radius: 10px !important;
+        }
+        
+        /* Scrollbar Thumb (The moving bar - set to pure white) */
+        ::-webkit-scrollbar-thumb {
+            background: #ffffff !important;
+            border: 2px solid #0f172a !important; /* Creates a beautiful breathing gap around the white bar */
+            border-radius: 10px !important;
+        }
+        
+        /* Scrollbar Thumb on Hover (Slightly silver/glowing white) */
+        ::-webkit-scrollbar-thumb:hover {
+            background: #e2e8f0 !important;
+        }
+
         /* 1. Global Page Reset */
         html, body, [data-testid="stAppViewContainer"] {
             font-family: 'Plus Jakarta Sans', sans-serif !important;
@@ -41,7 +68,7 @@ def apply_custom_theme():
         
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover {
             border-color: #3b82f6 !important;
-            background: #1e293b !important;
+            background: #273549 !important;
         }
 
         /* Title text styling */
