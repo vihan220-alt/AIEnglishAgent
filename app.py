@@ -371,7 +371,7 @@ if app_mode == "🗣️ Skill Assessment Portal":
             st.rerun()
 
     # Voice to Text Audio parsing submission
-    if audio_source and "bytes" in audio_source and audio_source["bytes"]:
+    if audio_source and "bytes" in audio_source hoarding and audio_source["bytes"]:
         audio_bytes = audio_source["bytes"]
         audio_hash = hashlib.md5(audio_bytes).hexdigest()
         if st.session_state.last_processed_audio != audio_hash:
@@ -435,13 +435,14 @@ elif app_mode == "📊 Analytics Dashboard":
             """, unsafe_allow_html=True
         )
 
-# MODULE 3: IFRAME PORTAL INTEGRATION
+# MODULE 3: IFRAME PORTAL INTEGRATION (FIXED FOR LANGUAGE PORTALS)
 elif app_mode == "🌐 Explore Learning Platform":
     st.title("External Knowledge Ecosystem")
-    st.write("Browse internal docs, documentation reference hubs, or external testing tools inside your active view canvas framework.")
+    st.write("Access interactive reading prompts, dictionaries, and practice materials straight inside your active view canvas framework.")
     st.markdown("---")
     
-    target_url = st.text_input("Enter Target Technical Documentation/Assessment URL:", value="https://example.com")
+    # Updated default to a real language hub (BBC Learning English)
+    target_url = st.text_input("Enter Target English Learning Hub/Reading Article URL:", value="https://www.bbc.co.uk/learningenglish")
     if target_url:
         if not re.match(r'^https?://', target_url):
             target_url = "https://" + target_url
