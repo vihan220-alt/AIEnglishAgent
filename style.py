@@ -7,19 +7,16 @@ def apply_custom_theme():
     st.markdown(
         """
         <style>
-        /* Base page canvas and layout alignments */
         html, body, [data-testid="stAppViewContainer"] {
             background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
             font-family: 'Inter', sans-serif;
         }
         
-        /* Modernized Sidebar profile mapping container */
         [data-testid="stSidebar"] {
             background-color: #ffffff !important;
             border-right: 1px solid #e2e8f0;
         }
         
-        /* Enterprise Level Skill Cards Metric Grid Grid layout placement */
         .skill-card-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -31,12 +28,11 @@ def apply_custom_theme():
             background-color: #ffffff;
             padding: 24px;
             border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-            border-top: 5px solid #3b82f6; /* Custom indicator strip accents */
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border-top: 5px solid #3b82f6;
+            margin-bottom: 16px;
         }
         
-        /* Border accents mapping different skill categories dynamically */
         .skill-blue { border-top-color: #3b82f6; }
         .skill-green { border-top-color: #10b981; }
         .skill-amber { border-top-color: #f59e0b; }
@@ -47,9 +43,6 @@ def apply_custom_theme():
             font-size: 18px;
             font-weight: 700;
             margin: 0 0 8px 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
         
         .skill-desc {
@@ -59,7 +52,6 @@ def apply_custom_theme():
             margin: 0;
         }
         
-        /* Status Tracking and Onboarding Evaluation Metadata Badges */
         .hub-badge {
             display: inline-flex;
             align-items: center;
@@ -73,34 +65,11 @@ def apply_custom_theme():
             border: 1px solid #bae6fd;
         }
         
-        /* Interactive Input Component Overrides */
         .stButton>button {
             border-radius: 10px !important;
             font-weight: 600 !important;
-            transition: all 0.15s ease !important;
-        }
-        
-        .stButton>button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
         }
         </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-def render_metric_card(title, description, color_theme="blue"):
-    """
-    Helper component to safely inject HTML custom dashboard grids 
-    without cluttering main system view tracks.
-    """
-    theme_class = f"skill-{color_theme}"
-    st.markdown(
-        f"""
-        <div class="skill-card {theme_class}">
-            <div class="skill-title">{title}</div>
-            <div class="skill-desc">{description}</div>
-        </div>
         """,
         unsafe_allow_html=True
     )
