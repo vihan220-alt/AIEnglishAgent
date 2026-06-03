@@ -62,7 +62,7 @@ def load_room_history(room_id):
     if row:
         return json.loads(row[0])
     return [
-        {"role": "assistant", "content": "Hello! Welcome to your language learning room. Speak or type to practice your English!"}
+        {"role": "assistant", "content": "👋 Welcome to your language learning room! Let's personalize your coaching track. Please fill out the configuration card below to begin your custom session!"}
     ]
 
 def save_room_history(room_id, history):
@@ -122,7 +122,7 @@ if "last_processed_audio" not in st.session_state:
 existing_rooms_data = get_all_rooms()
 
 if not existing_rooms_data:
-    save_room_history("Conversation 1", [{"role": "assistant", "content": "Hello! Welcome to your language learning room. Speak or type to practice your English!"}])
+    save_room_history("Conversation 1", [{"role": "assistant", "content": "👋 Welcome to your language learning room! Let's personalize your coaching track. Please fill out the configuration card below to begin your custom session!"}])
     existing_rooms_data = [("Conversation 1", 0)]
 
 room_ids_list = [row[0] for row in existing_rooms_data]
@@ -160,7 +160,7 @@ with st.sidebar:
         from datetime import datetime
         time_stamp = datetime.now().strftime('%b %d, %H:%M')
         new_uid = "Chat " + str(time_stamp)
-        save_room_history(new_uid, [{"role": "assistant", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}])
+        save_room_history(new_uid, [{"role": "assistant", "content": "👋 Welcome to your language learning room! Let's personalize your coaching track. Please fill out the configuration card below to begin your custom session!"}])
         st.session_state.active_id = new_uid
         st.session_state.autoplay_audio_data = None
         st.rerun()
@@ -189,7 +189,7 @@ with st.sidebar:
                     st.session_state.active_id = remaining_rooms[0][0]
                 else:
                     default_title = "Conversation 1"
-                    save_room_history(default_title, [{"role": "assistant", "content": "Hello! Let's start a brand new conversation room. Speak or type to begin!"}])
+                    save_room_history(default_title, [{"role": "assistant", "content": "👋 Welcome to your language learning room! Let's personalize your coaching track. Please fill out the configuration card below to begin your custom session!"}])
                     st.session_state.active_id = default_title
                 
                 st.session_state.autoplay_audio_data = None
@@ -221,12 +221,13 @@ def get_coach_response():
     messages_payload = [
         {
             "role": "system",
-            "content": """You are an engaging, supportive English language and communication coach.
-            Your role is to help users improve their Communication Skills, Vocabulary, Grammar Tenses, and Soft Skills.
+            "content": """You are an engaging, highly personalized, and supportive English language and communication coach.
+            Your role is to target user development across English Communication, Vocabulary Building, Grammar Tenses, and Professional Soft Skills.
+            Adapt your vocabulary complexity, feedback tone, and context scenarios to precisely match the target target group, education level, and focal learning topic provided by the user in the context configuration history.
             CRITICAL INSTRUCTION FOR SHORT GREETINGS: 
-            If the user simply says 'hello', 'hi', or a basic greeting, respond dynamically with a short, welcoming one-sentence greeting.
+            If the user simply says 'hello', 'hi', or a basic greeting, respond dynamically with a short, welcoming one-sentence greeting tailored to their focus.
             INSTRUCTION FOR PRACTICE QUESTIONS:
-            Provide a balanced, medium-length paragraph response explaining concepts clearly with practical conversational examples, and always close with one simple interactive practice question."""
+            Provide a balanced, medium-length paragraph response explaining concepts clearly with practical conversational examples tailored to their track, and always close with one simple interactive practice question."""
         }
     ]
     for msg in current_history:
@@ -274,11 +275,12 @@ def text_to_speech_bytes(text_payload):
 # ROUTED CONTENT FRAMES VIEW SWITCHER
 # =========================================================
 
-# MODE 1: ORIGINAL FLUENCY COACH CHATBOT FRAME
+# MODE 1: ORIGINAL FLUENCY COACH CHATBOT FRAME WITH INTERACTIVE ONBOARDING
 if app_mode == "💬 Fluency Coach Bot":
     st.title("Fluency Coach AI")
     st.write(f"Active Session: **{st.session_state.active_id}**")
 
+    # Display Chat History
     for message in current_history:
         if message["role"] == "user":
             with st.chat_message("user", avatar=USER_AVATAR):
@@ -286,6 +288,58 @@ if app_mode == "💬 Fluency Coach Bot":
         else:
             with st.chat_message("assistant", avatar=ROBOT_AVATAR):
                 st.markdown(message["content"])
+
+    # Show Multi-Stage Setup Questionnaire Card if it's a completely fresh session
+    if len(current_history) == 1 and current_history[0]["content"].startswith("👋 Welcome"):
+        st.markdown("---")
+        with st.expander("🛠️ Personalize Your Learning Track Setup", expanded=True):
+            st.markdown("##### Tell your coach who you are to build an optimal customized curriculum:")
+            
+            with st.form("onboarding_setup_form"):
+                focus_domain = st.selectbox(
+                    "Target Track Domain:",
+                    ["English Communication Skills", "Vocabulary Expansion", "Grammar & Tenses Mastery", "Corporate Interpersonal Soft Skills"]
+                )
+                
+                cohort_group = st.selectbox(
+                    "Learning Level / Category Profile:",
+                    [
+                        "Elementary School (Grades 1-5 / CBSE Curriculum Level)",
+                        "Middle & High School (Grades 6-12)",
+                        "Undergraduate College / University Track",
+                        "Working Corporate Professional & Executive"
+                    ]
+                )
+                
+                specific_focus = st.text_input(
+                    "What is your immediate focus goal?", 
+                    placeholder="e.g., public speaking, structural grammar rules, clear conversational sentence pacing, etc."
+                )
+                
+                submit_onboarding = st.form_submit_button("🔥 Initialize Personalized Session Track", type="primary")
+                
+                if submit_onboarding:
+                    # Construct structural context payload for the system history injection
+                    context_injection = (
+                        f"🎯 **Session Profile Loaded** 🎯\n\n"
+                        f"* **Target Domain:** {focus_domain}\n"
+                        f"* **Target Level Profile:** {cohort_group}\n"
+                        f"* **Specific Objective Goal:** {specific_focus if specific_focus.strip() else 'General Mastery'}"
+                    )
+                    
+                    # Update conversation stream cleanly
+                    current_history.append({"role": "user", "content": context_injection})
+                    save_room_history(st.session_state.active_id, current_history)
+                    
+                    with st.spinner("Calibrating your customized curriculum workspace..."):
+                        coach_reply = get_coach_response()
+                        current_history.append({"role": "assistant", "content": coach_reply})
+                        save_room_history(st.session_state.active_id, current_history)
+                        
+                        audio_data = text_to_speech_bytes(coach_reply)
+                        if audio_data:
+                            st.session_state.autoplay_audio_data = audio_data
+                        st.rerun()
 
     audio_placeholder = st.empty()
     if st.session_state.autoplay_audio_data:
@@ -338,8 +392,6 @@ if app_mode == "💬 Fluency Coach Bot":
                         save_room_history(st.session_state.active_id, current_history)
                         coach_reply = get_coach_response()
                         current_history.append({"role": "assistant", "content": coach_reply})
-                        
-                        # FIXED: Resolved unclosed parenthesis compile fault safely
                         save_room_history(st.session_state.active_id, current_history)
                         
                         audio_data = text_to_speech_bytes(coach_reply)
