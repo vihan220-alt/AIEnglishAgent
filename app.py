@@ -12,8 +12,8 @@ from gtts import gTTS
 # CONFIGURATION & CSS THEME INTEGRATION
 # =========================================================
 st.set_page_config(
-    page_title="SkillVerify AI - Dynamic Skill Assessment Platform",
-    page_icon="🧠",
+    page_title="SkillVerify AI - English Language Assessment Platform",
+    page_icon="🗣️",
     layout="centered"
 )
 
@@ -66,7 +66,7 @@ def load_session_history(session_id):
     if row:
         return json.loads(row[0])
     return [
-        {"role": "assistant", "content": "🎯 **Welcome to your Skill Assessment Portal!**\n\nLet's map out your evaluating benchmarks. Please fill out the skill configuration card below to launch your tailored technical interview session."}
+        {"role": "assistant", "content": "🎯 **Welcome to your English Language Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the configuration card below to launch your tailored language interview session."}
     ]
 
 def save_session_history(session_id, history):
@@ -126,8 +126,8 @@ if "last_processed_audio" not in st.session_state:
 existing_sessions_data = get_all_sessions()
 
 if not existing_sessions_data:
-    save_session_history("Python Core Assessment", [{"role": "assistant", "content": "🎯 **Welcome to your Skill Assessment Portal!**\n\nLet's map out your evaluating benchmarks. Please fill out the skill configuration card below to launch your tailored technical interview session."}])
-    existing_sessions_data = [("Python Core Assessment", 0)]
+    save_session_history("English Communication Core", [{"role": "assistant", "content": "🎯 **Welcome to your English Language Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the configuration card below to launch your tailored language interview session."}])
+    existing_sessions_data = [("English Communication Core", 0)]
 
 session_ids_list = [row[0] for row in existing_sessions_data]
 
@@ -153,19 +153,19 @@ with st.sidebar:
     st.markdown("### 🏢 Core Enterprise Platform")
     app_mode = st.radio(
         "Select Portal Workspace:",
-        ["🧠 Skill Assessment Bot", "📊 Analytics Dashboard", "🌐 Explore Learning Platform", "📬 Submit Custom Prompts"],
+        ["🗣️ Skill Assessment Portal", "📊 Analytics Dashboard", "🌐 Explore Learning Platform", "📬 Submit Custom Prompts"],
         index=0
     )
     
-    if app_mode == "🧠 Skill Assessment Bot":
+    if app_mode == "🗣️ Skill Assessment Portal":
         st.markdown("---")
         st.markdown("### 🛠️ Active Evaluations")
         
         if st.button("➕ Start New Assessment", use_container_width=True, type="primary"):
             from datetime import datetime
             time_stamp = datetime.now().strftime('%b %d, %H:%M')
-            new_uid = "Skill Bench " + str(time_stamp)
-            save_session_history(new_uid, [{"role": "assistant", "content": "🎯 **Welcome to your Skill Assessment Portal!**\n\nLet's map out your evaluating benchmarks. Please fill out the skill configuration card below to launch your tailored technical interview session."}])
+            new_uid = "Language Bench " + str(time_stamp)
+            save_session_history(new_uid, [{"role": "assistant", "content": "🎯 **Welcome to your English Language Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the configuration card below to launch your tailored language interview session."}])
             st.session_state.active_id = new_uid
             st.session_state.autoplay_audio_data = None
             st.rerun()
@@ -193,8 +193,8 @@ with st.sidebar:
                     if remaining_sessions:
                         st.session_state.active_id = remaining_sessions[0][0]
                     else:
-                        default_title = "General Skills Audit"
-                        save_session_history(default_title, [{"role": "assistant", "content": "🎯 **Welcome to your Skill Assessment Portal!**\n\nLet's map out your evaluating benchmarks. Please fill out the skill configuration card below to launch your tailored technical interview session."}])
+                        default_title = "General English Audit"
+                        save_session_history(default_title, [{"role": "assistant", "content": "🎯 **Welcome to your English Language Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the configuration card below to launch your tailored language interview session."}])
                         st.session_state.active_id = default_title
                     
                     st.session_state.autoplay_audio_data = None
@@ -226,14 +226,14 @@ def get_evaluator_response():
     messages_payload = [
         {
             "role": "system",
-            "content": """You are an elite, highly critical Technical Interviewer and Skill Assessment Expert.
-            Your job is to rigorously evaluate the user's skill competency based on the parameters provided in the profile configuration card.
+            "content": """You are an elite, highly professional English Language Assessor and CEFR Communication Expert.
+            Your job is to rigorously evaluate the user's English language proficiency based on the parameters provided in the profile configuration card.
             
             RULES OF ENGAGEMENT:
-            1. If the user presents a brief greeting or single comment, immediately reply with an encouraging but direct technical situational question mapped to their targeted domain.
-            2. For standard interactions, provide concise professional critique regarding any code/architectural logic they offer. 
-            3. Highlight conceptual flaws or praise strong optimization choices.
-            4. Always conclude your feedback message explicitly with **exactly one practical, multi-layered question** or programming riddle for them to address next to continue the evaluation."""
+            1. If the user presents a brief greeting or single comment, immediately reply with an encouraging but direct language evaluation question or situational scenario mapped to their targeted proficiency domain.
+            2. For standard interactions, provide concise, constructive feedback regarding their grammar, vocabulary usage, sentence structure, and coherence. 
+            3. Point out subtle mistakes gently, and praise excellent phrasing or precise vocabulary choices.
+            4. Always conclude your feedback message explicitly with **exactly one practical conversational question, prompt, or situational riddle** for them to address next to continue the evaluation."""
         }
     ]
     for msg in current_history:
@@ -282,9 +282,9 @@ def text_to_speech_bytes(text_payload):
 # ROUTED CONTENT FRAMES VIEW SWITCHER
 # =========================================================
 
-# MODULE 1: INTERACTIVE SKILL ASSESSMENT CHATBOT VIEW
-if app_mode == "🧠 Skill Assessment Bot":
-    st.title("SkillVerify Assessment Bot")
+# MODULE 1: INTERACTIVE SKILL ASSESSMENT PORTAL VIEW
+if app_mode == "🗣️ Skill Assessment Portal":
+    st.title("SkillVerify Language Assessment Portal")
     st.write(f"Active Assessment Space: **{st.session_state.active_id}**")
 
     # Render Historical Logs
@@ -299,41 +299,39 @@ if app_mode == "🧠 Skill Assessment Bot":
     # Show Multi-Stage Setup Questionnaire Card if it's a completely fresh session
     if len(current_history) == 1 and "Welcome" in current_history[0]["content"]:
         st.markdown("---")
-        with st.expander("🛠️ Initialize Assessment Profile Target", expanded=True):
+        with st.expander("🛠️ Initialize Language Profile Target", expanded=True):
             st.markdown("##### Calibrate system parameters below to generate your specific evaluation matrix:")
             
             with st.form("assessment_setup_form"):
                 target_skill = st.selectbox(
                     "Core Domain Under Review:",
-                    ["Python Backend Development", "Frontend React Architecture", "Data Science & Pipeline Engineering", "Cloud Infrastructure & DevOps"]
+                    ["Spoken English & Fluency", "Business & Corporate Communication", "Grammar, Structure & Vocabulary", "Professional Writing Proficiency"]
                 )
                 
                 experience_tier = st.selectbox(
-                    "Candidate Target Tier Level:",
-                    ["Entry Level / Associate Professional", "Mid-Level Engineer", "Senior / Principal System Architect"]
+                    "Target Proficiency Level:",
+                    ["Beginner / Elementary (CEFR A1 - A2)", "Intermediate / Independent (CEFR B1 - B2)", "Advanced / Proficient (CEFR C1 - C2)"]
                 )
                 
                 specialized_focus = st.text_input(
-                    "Provide secondary target languages or tools:", 
-                    placeholder="e.g., PostgreSQL, Docker, AWS Lambda, FastAPI, Pandas, etc."
+                    "Provide specific focus metrics or targets:", 
+                    placeholder="e.g., Pronunciation, Public Speaking, Academic Writing, IELTS/TOEFL Prep, Interview Readiness"
                 )
                 
-                submit_onboarding = st.form_submit_button("🔥 Launch Technical Evaluation Environment", type="primary")
+                submit_onboarding = st.form_submit_button("🔥 Launch Language Evaluation Environment", type="primary")
                 
                 if submit_onboarding:
                     context_injection = (
-                        f"🎯 **Assessment Profile Registered** 🎯\n\n"
+                        f"🎯 **Language Assessment Profile Registered** 🎯\n\n"
                         f"* **Target Domain:** {target_skill}\n"
-                        f"* **Candidate Tier Level:** {experience_tier}\n"
-                        f"* **Tech Stack Details:** {specialized_focus if specialized_focus.strip() else 'Core Standards'}"
+                        f"* **Target Proficiency Level:** {experience_tier}\n"
+                        f"* **Focus Metrics:** {specialized_focus if specialized_focus.strip() else 'General Fluency Standards'}"
                     )
                     
                     current_history.append({"role": "user", "content": context_injection})
-                    
-                    # ✅ FIXED: Missing closing parenthesis from previous code version safely restored
                     save_session_history(st.session_state.active_id, current_history)
                     
-                    with st.spinner("Compiling technical vetting framework..."):
+                    with st.spinner("Compiling language assessment framework..."):
                         eval_reply = get_evaluator_response()
                         current_history.append({"role": "assistant", "content": eval_reply})
                         save_session_history(st.session_state.active_id, current_history)
@@ -350,7 +348,7 @@ if app_mode == "🧠 Skill Assessment Bot":
     # Audio Recording UI Inputs
     voice_col, stop_col = st.columns([1, 1])
     with voice_col:
-        st.write("**🎙️ Audio Response:**")
+        st.write("**🎙️ Speak Your Answer:**")
         audio_source = mic_recorder(start_prompt="Record Answer 🎤", stop_prompt="Submit Audio 🔇", key="recorder")
 
     with stop_col:
@@ -361,11 +359,11 @@ if app_mode == "🧠 Skill Assessment Bot":
             st.rerun()
 
     # Chat Input submission handling
-    text_input = st.chat_input("Type your response explanation or codebase snippet here...")
+    text_input = st.chat_input("Type your response explanation or text sample here...")
     if text_input:
         current_history.append({"role": "user", "content": text_input})
         save_session_history(st.session_state.active_id, current_history)
-        with st.spinner("Analyzing parameters and computing feedback scores..."):
+        with st.spinner("Analyzing parameters and computing coherence scores..."):
             eval_reply = get_evaluator_response()
             current_history.append({"role": "assistant", "content": eval_reply})
             save_session_history(st.session_state.active_id, current_history)
@@ -378,7 +376,7 @@ if app_mode == "🧠 Skill Assessment Bot":
         audio_hash = hashlib.md5(audio_bytes).hexdigest()
         if st.session_state.last_processed_audio != audio_hash:
             st.session_state.last_processed_audio = audio_hash
-            with st.spinner("Decoding audio answer streams..."):
+            with st.spinner("Decoding spoken response streams..."):
                 try:
                     whisper_files = {
                         "file": ("speech.wav", audio_bytes, "audio/wav"), 
@@ -406,7 +404,7 @@ if app_mode == "🧠 Skill Assessment Bot":
 # MODULE 2: ANALYTICS DASHBOARD
 elif app_mode == "📊 Analytics Dashboard":
     st.title("Performance Analytics Tracker")
-    st.write("Visualize core technical matrix proficiencies and development progress.")
+    st.write("Visualize core English language competencies and progress benchmarks.")
     st.markdown("---")
     
     col1, col2 = st.columns(2)
@@ -414,12 +412,12 @@ elif app_mode == "📊 Analytics Dashboard":
         st.markdown(
             """
             <div class="skill-card skill-blue">
-                <div class="skill-title">🛠️ System Implementation</div>
-                <div class="skill-desc">Measures code cleanliness, design pattern awareness, and algorithm efficiency metrics.</div>
+                <div class="skill-title">🗣️ Fluency & Pronunciation</div>
+                <div class="skill-desc">Measures rhythm, speed accuracy, speech pauses, and phonetic clarity metrics.</div>
             </div>
             <div class="skill-card skill-green">
-                <div class="skill-title">⚡ Scalability & Cloud Architecture</div>
-                <div class="skill-desc">Tracks ability to construct resilient infrastructure schemas, caching routes, and container protocols.</div>
+                <div class="skill-title">📖 Grammar & Sentence Structure</div>
+                <div class="skill-desc">Tracks syntactic accuracy, correct use of tenses, active/passive voice, and structural variations.</div>
             </div>
             """, unsafe_allow_html=True
         )
@@ -427,12 +425,12 @@ elif app_mode == "📊 Analytics Dashboard":
         st.markdown(
             """
             <div class="skill-card skill-amber">
-                <div class="skill-title">🔒 Secure Engineering Practices</div>
-                <div class="skill-desc">Evaluates dependency parsing management, memory leak analysis, and query risk mitigations.</div>
+                <div class="skill-title">📚 Vocabulary & Lexical Resource</div>
+                <div class="skill-desc">Evaluates contextual appropriateness, use of idioms, collocations, and dynamic word choices.</div>
             </div>
             <div class="skill-card skill-purple">
-                <div class="skill-title">📈 Communication & System Logic</div>
-                <div class="skill-desc">Tracks conceptual clarity when explaining technological trade-offs and edge case handling.</div>
+                <div class="skill-title">📈 Coherence & Task Completion</div>
+                <div class="skill-desc">Tracks logical content flow, connectivity of ideas, and clarity when answering structural prompts.</div>
             </div>
             """, unsafe_allow_html=True
         )
@@ -458,16 +456,15 @@ elif app_mode == "🌐 Explore Learning Platform":
 # MODULE 4: QUERY SUBMISSIONS INTAKE FORM
 elif app_mode == "📬 Submit Custom Prompts":
     st.title("Custom Evaluation Prompts Engine")
-    st.write("Want to submit a custom challenge statement to our evaluation pool? Lodge it here.")
+    st.write("Want to submit a custom language challenge statement to our evaluation pool? Lodge it here.")
     st.markdown("---")
     
     with st.form("custom_prompt_submission_form", clear_on_submit=True):
         candidate_name = st.text_input("Author Name:")
         candidate_email = st.text_input("Contact Email:")
-        assessment_category = st.selectbox("Benchmark Category Domain:", ["Algorithmic Challenge", "System Design Riddle", "Security Analysis Sandbox"])
-        prompt_content = st.text_area("Provide raw scenario conditions or prompt codebases context block:")
+        assessment_category = st.selectbox("Benchmark Category Domain:", ["Conversational Scenario", "Grammar Diagnostics", "Writing Essay Prompt"])
+        prompt_content = st.text_area("Provide raw scenario conditions or prompt conversation context block:")
         
-        # ✅ FIXED: Changed `st.st.form_submit_button` to the correct single syntax `st.form_submit_button`
         submit_btn = st.form_submit_button("Lodge Challenge to System Engine", type="primary")
         
         if submit_btn:
