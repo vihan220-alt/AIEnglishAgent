@@ -448,14 +448,12 @@ elif app_mode == "🌐 Explore Learning Platform":
         if not re.match(r'^https?://', target_url):
             target_url = "https://" + target_url
             
-        # Secure Link fallback layout elements
-        l_col1, l_col2 = st.columns([0.4, 0.6])
-        with l_col1:
-            st.link_button("🌐 Launch Resource in New Tab", target_url, use_container_width=True, type="primary")
-        with l_col2:
-            st.caption("💡 *Note: If the container pane below remains blank, your selected link blocks cross-origin framing. Use the Launch button to view it cleanly outside the sandbox.*")
-            
+        # Native Streamlit Link Button layout setup
+        st.link_button("🌐 Open Learning Platform in New Tab", target_url, use_container_width=True, type="primary")
+        
         st.markdown("<br>", unsafe_allow_html=True)
+        st.info("💡 Pro-Tip: Modern websites protect internal links from loading inside frame boxes. If navigation freezes, use the layout button above to safely open the source link!")
+        st.markdown("---")
         
         try:
             st.markdown(
