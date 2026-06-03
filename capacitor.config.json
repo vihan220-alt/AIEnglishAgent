@@ -1,0 +1,9 @@
+{
+  "appId": "com.vihan220.aienglishagent",
+  "appName": "SkillVerify AI",
+  "webDir": "www",
+  "server": {
+    "url": "https://aienglishagent-zbztw5oxzphcseoeyrfsh5.streamlit.app/#a54d9479",
+    "cleartext": true
+  }
+}
