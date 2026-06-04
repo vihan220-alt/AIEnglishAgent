@@ -32,7 +32,7 @@ except ImportError:
 # =========================================================
 # Connection properties matching your configuration profile
 SUPABASE_URL = "https://xudmbkuruxfdpprwplee.supabase.co"
-SUPABASE_KEY = "sb_publishable_vDbjNJKayF1clZot8-6zuA_E_Tha..." # Ensure your full key is here
+SUPABASE_KEY = "sb_publishable_vDbjNJKay..."
 
 @st.cache_resource
 def get_supabase_client():
