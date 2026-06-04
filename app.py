@@ -15,9 +15,10 @@ import requests
 import hashlib
 import re
 import json
-import sqlite3
 from io import BytesIO
 from gtts import gTTS
+from datetime import datetime, date
+from supabase import create_client, Client
 
 # Initialize Custom Theme Layer
 try:
@@ -27,218 +28,137 @@ except ImportError:
     pass
 
 # =========================================================
-# DATABASE STORAGE ENGINE (Language Evaluation Tracking)
+# SUPABASE DATABASE STORAGE ENGINE (User Accounts & Chat)
 # =========================================================
-DB_FILE = "english_assessment_data.db"
+# Connection properties matching your configuration profile
+SUPABASE_URL = "https://xudmbkuruxfdpprwplee.supabase.co"
+SUPABASE_KEY = "sb_publishable_vDbjNJKayF1clZot8-6zuA_E_Tha..." # Ensure your full key is here
 
-def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS assessments (
-            session_id TEXT PRIMARY KEY,
-            history_json TEXT,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            is_pinned INTEGER DEFAULT 0
-        )
-    ''')
+@st.cache_resource
+def get_supabase_client():
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
+
+supabase_client = get_supabase_client()
+
+def init_user_and_get_plan(email_str):
+    """Checks or creates user identity in Supabase and returns active plan metadata."""
+    clean_email = email_str.strip().lower()
+    if not clean_email:
+        return "Trial", 15
+
     try:
-        c.execute("ALTER TABLE assessments ADD COLUMN is_pinned INTEGER DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass
-    conn.commit()
-    conn.close()
+        response = supabase_client.table("users").select("*").eq("email", clean_email).execute()
+        user_records = response.data
+        
+        # If new candidate profile instance discovered, insert record array
+        if len(user_records) == 0:
+            new_profile = {
+                "email": clean_email,
+                "user_plan": "Trial",
+                "signup_date": str(date.today())
+            }
+            supabase_client.table("users").insert(new_profile).execute()
+            return "Trial", 15
+        
+        user_data = user_records[0]
+        assigned_plan = user_data.get("user_plan", "Trial")
+        
+        # Parse timestamp array constraints safely
+        signup_dt_str = user_data.get("signup_date", str(date.today()))
+        signup_date_obj = datetime.strptime(signup_dt_str, "%Y-%m-%d").date()
+        
+        days_consumed = (date.today() - signup_date_obj).days
+        remaining_trial_days = max(0, 15 - days_consumed)
+        
+        # Process structural downgrade rules if limit criteria crossed
+        if assigned_plan == "Trial" and remaining_trial_days <= 0:
+            supabase_client.table("users").update({"user_plan": "Expired"}).eq("email", clean_email).execute()
+            return "Expired", 0
+            
+        return assigned_plan, remaining_trial_days
+    except Exception as e:
+        # Fallback tracking if framework handshake triggers a configuration error
+        st.error(f"Database sync warning: {str(e)}")
+        return "Trial", 15
 
-def get_all_sessions():
-    init_db()
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("SELECT session_id, is_pinned FROM assessments ORDER BY is_pinned DESC, updated_at DESC")
-    sessions = c.fetchall()
-    conn.close()
-    return sessions
+def update_user_plan_db(email_str, target_plan):
+    """Updates user plan instantly on successful subscription package choice."""
+    clean_email = email_str.strip().lower()
+    try:
+        supabase_client.table("users").update({"user_plan": target_plan}).eq("email", clean_email).execute()
+        st.success(f"Package unlocked successfully: {target_plan} mode configuration initialized!")
+        st.rerun()
+    except Exception as e:
+        st.error(f"Failed to record billing system changes: {str(e)}")
 
-def load_session_history(session_id):
-    init_db()
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("SELECT history_json FROM assessments WHERE session_id = ?", (session_id,))
-    row = c.fetchone()
-    conn.close()
-    if row:
-        return json.loads(row[0])
-    return [
+# Fallback session history parameters tracked locally via session state architecture
+if "local_history" not in st.session_state:
+    st.session_state.local_history = [
         {"role": "assistant", "content": "🎯 **Welcome to your English Language Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the profile calibration form below to start your tailored language interview session."}
     ]
-
-def save_session_history(session_id, history):
-    init_db()
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    history_string = json.dumps(history, ensure_ascii=False)
-    c.execute('''
-        INSERT INTO assessments (session_id, history_json, updated_at)
-        VALUES (?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(session_id) DO UPDATE SET
-            history_json = excluded.history_json,
-            updated_at = CURRENT_TIMESTAMP
-    ''', (session_id, history_string))
-    conn.commit()
-    conn.close()
-
-def rename_session(old_id, new_id):
-    if not new_id.strip() or old_id == new_id:
-        return
-    init_db()
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    try:
-        c.execute("UPDATE assessments SET session_id = ? WHERE session_id = ?", (new_id, old_id))
-        conn.commit()
-    except sqlite3.IntegrityError:
-        pass
-    conn.close()
-
-def toggle_pin_session(session_id, current_pin_status):
-    init_db()
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    new_status = 1 if current_pin_status == 0 else 0
-    c.execute("UPDATE assessments SET is_pinned = ? WHERE session_id = ?", (new_status, session_id))
-    conn.commit()
-    conn.close()
-
-def delete_session(session_id):
-    init_db()
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("DELETE FROM assessments WHERE session_id = ?", (session_id,))
-    conn.commit()
-    conn.close()
-
-# =========================================================
-# SYSTEM CONTROL RUNTIME STATES
-# =========================================================
-if "autoplay_audio_data" not in st.session_state:
-    st.session_state.autoplay_audio_data = None
-
-if "last_processed_audio" not in st.session_state:
-    st.session_state.last_processed_audio = None
-
-existing_sessions_data = get_all_sessions()
-
-if not existing_sessions_data:
-    save_session_history("General English Audit", [{"role": "assistant", "content": "🎯 **Welcome to your English Language Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the profile calibration form below to start your tailored language interview session."}])
-    existing_sessions_data = [("General English Audit", 0)]
-
-session_ids_list = [row[0] for row in existing_sessions_data]
-
-if "active_id" not in st.session_state or st.session_state.active_id not in session_ids_list:
-    st.session_state.active_id = session_ids_list[0]
-
-current_history = load_session_history(st.session_state.active_id)
 
 # Premium Vectors High-Definition Chat Avatars
 ROBOT_AVATAR = "https://img.icons8.com/fluent/96/artificial-intelligence.png"
 USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
 
-is_currently_pinned = 0
-for s_id, p_val in existing_sessions_data:
-    if s_id == st.session_state.active_id:
-        is_currently_pinned = p_val
-        break
-
 # =========================================================
-# SIDEBAR WORKSPACE NAVIGATION
+# SIDEBAR WORKSPACE NAVIGATION & AUTHENTICATION
 # =========================================================
 with st.sidebar:
     st.markdown("### 🏢 Enterprise Training Hub")
+    
+    st.markdown("---")
+    st.markdown("##### 🔑 Candidate Workspace Access")
+    auth_email = st.text_input("Enter Registered Email Account:", value="candidate@skillverify.ai")
+    
+    # Run active tracking lookups
+    user_package_tier, trial_countdown = init_user_and_get_plan(auth_email)
+    
     app_mode = st.radio(
         "Select Portal Workspace:",
         ["🗣️ Skill Assessment Portal", "📊 Analytics Dashboard", "🌐 Explore Learning Platform", "📬 Submit Custom Prompts"],
         index=0
     )
     
-    if app_mode == "🗣️ Skill Assessment Portal":
+    if app_mode == "🗣️ Skill Assessment Portal" and user_package_tier != "Expired":
         st.markdown("---")
         st.markdown("### 🛠️ Active Evaluations")
         
         if st.button("➕ Start New Assessment", use_container_width=True, type="primary"):
-            from datetime import datetime
-            time_stamp = datetime.now().strftime('%b %d, %H:%M')
-            new_uid = "English Audit " + str(time_stamp)
-            save_session_history(new_uid, [{"role": "assistant", "content": "🎯 **Welcome to your English Language Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the profile calibration form below to start your tailored language interview session."}])
-            st.session_state.active_id = new_uid
+            st.session_state.local_history = [
+                {"role": "assistant", "content": "🎯 **Welcome to your English Language Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the profile calibration form below to start your tailored language interview session."}
+            ]
             st.session_state.autoplay_audio_data = None
             st.rerun()
-            
-        st.markdown("---")
-        st.write("##### Evaluation History Logs")
-        
-        for session_title, pin_status in existing_sessions_data:
-            is_current = (session_title == st.session_state.active_id)
-            prefix = "📌 👉" if pin_status == 1 else "👉" if is_current else "📌 📄" if pin_status == 1 else "📄"
-            button_label = f"{prefix} {session_title}"
-            
-            nav_col, del_col = st.columns([0.82, 0.18])
-            
-            with nav_col:
-                if st.button(button_label, key=f"nav_{session_title}", use_container_width=True):
-                    st.session_state.active_id = session_title
-                    st.session_state.autoplay_audio_data = None
-                    st.rerun()
-                    
-            with del_col:
-                if st.button("🗑️", key=f"del_{session_title}", help=f"Delete archive space '{session_title}'"):
-                    delete_session(session_title)
-                    remaining_sessions = get_all_sessions()
-                    if remaining_sessions:
-                        st.session_state.active_id = remaining_sessions[0][0]
-                    else:
-                        default_title = "General English Audit"
-                        save_session_history(default_title, [{"role": "assistant", "content": "🎯 **Welcome to your English Language Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the profile calibration form below to start your tailored language interview session."}])
-                        st.session_state.active_id = default_title
-                    
-                    st.session_state.autoplay_audio_data = None
-                    st.rerun()
-
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown("---")
-        st.write("##### ⚙️ Quick Settings")
-        
-        pin_btn_label = "📌 Unpin Audit Track" if is_currently_pinned == 1 else "📌 Pin Track to Top"
-        if st.button(pin_btn_label, use_container_width=True):
-            toggle_pin_session(st.session_state.active_id, is_currently_pinned)
-            st.rerun()
-            
-        new_name_input = st.text_input("Modify Workspace Label:", value=st.session_state.active_id)
-        if st.button("💾 Save New Title", use_container_width=True):
-            if new_name_input.strip() and new_name_input != st.session_state.active_id:
-                rename_session(st.session_state.active_id, new_name_input.strip())
-                st.session_state.active_id = new_name_input.strip()
-                st.rerun()
 
 # =========================================================
-# BACKEND AI CONNECTIVITY ENGINE (Groq AI Evaluator)
+# BACKEND AI CONNECTIVITY ENGINE (Dynamic Groq AI Prompt Setup)
 # =========================================================
-def get_evaluator_response():
+def get_evaluator_response(plan_tier):
     if "GROQ_API_KEY" not in st.secrets:
         return "Configuration Key Error: Please register GROQ_API_KEY in your deployment environment secrets panel."
 
-    messages_payload = [
-        {
-            "role": "system",
-            "content": """You are an elite, highly critical English Language Assessor and Corporate Communication Expert.
-            Your job is to rigorously evaluate the candidate's English proficiency (CEFR framework metrics) based on the criteria in their profile configuration card.
-            
-            RULES OF ENGAGEMENT:
-            1. If the user greets you or submits initial parameters, offer a highly tailored, situational communication prompt or behavioral question to begin.
-            2. For every student response, provide a brief, professional linguistic critique (pointing out grammar slips, vocabulary enhancements, or syntax structure issues).
-            3. Maintain a positive, professional tone, highlighting areas of high coherence or strong word usage.
-            4. Always conclude your feedback response with exactly **one** new target question or interactive speaking prompt to move the dialogue forward."""
-        }
-    ]
-    for msg in current_history:
+    # --- DYNAMIC STRUCTURAL SYSTEM PROMPTS MATRIX ---
+    if plan_tier in ["Trial", "Normal"]:
+        system_rules = """You are a helpful English Language Assessor. Chat with the user in clean, accessible language.
+        If they make any prominent grammar slips, gently call them out at the very end of your response text.
+        Conclude your feedback response with exactly one target conversation question."""
+        
+    elif plan_tier == "Silver":
+        system_rules = """You are an Advanced English Communication Coach. Deeply analyze the student's text structure.
+        Provide 2 highly relevant vocabulary upgrades they could have used instead.
+        At the end of your response, assign them a strict 'Fluency Score' out of 10 based on CEFR parameters.
+        Conclude your feedback response with exactly one target conversation question."""
+        
+    else:  # Gold Tier Ultimate Engine
+        system_rules = """You are an Elite Corporate English Interviewer and Executive Evaluator. Use formal business language.
+        Rigorously break down syntax, syntax stability, and advanced stylistic structure choices. 
+        Provide idiomatic alternatives to help them sound like a polished native speaker.
+        Actively challenge them with situational communication constraints or corporate mock interview questions.
+        Conclude your feedback response with exactly one target conversation question."""
+
+    messages_payload = [{"role": "system", "content": system_rules}]
+    for msg in st.session_state.local_history:
         role_map = "user" if msg["role"] == "user" else "assistant"
         messages_payload.append({"role": role_map, "content": msg["content"]})
         
@@ -284,13 +204,41 @@ def text_to_speech_bytes(text_payload):
 # ROUTED CONTENT FRAMES VIEW SWITCHER
 # =========================================================
 
-# MODULE 1: INTERACTIVE SKILL ASSESSMENT PORTAL VIEW
-if app_mode == "🗣️ Skill Assessment Portal":
+# ROUTING GATEWAY: IF SUBSCRIPTION HAS EXPIRED
+if user_package_tier == "Expired":
+    st.title("SkillVerify English Assessment Portal 🚀")
+    st.error("⚠️ Your 15-day Free Trial package limits have been exhausted!")
+    st.subheader("Select an Enterprise Scaling Tier to resume your AI coaching:")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("### 🟢 Normal Plan\n**₹15 / month**\n* Standard Evaluation Engine\n* Basic Grammar Tracking\n* Standard Processing Pacing")
+        if st.button("Subscribe Normal (₹15)", use_container_width=True):
+            update_user_plan_db(auth_email, "Normal")
+            
+    with col2:
+        st.markdown("### 🔵 Silver Plan ⭐\n**₹30 / month**\n* Better AI Brain Core\n* Advanced Lexical Suggestions\n* Live Fluency Scoring Models")
+        if st.button("Subscribe Silver (₹30)", use_container_width=True, type="primary"):
+            update_user_plan_db(auth_email, "Silver")
+            
+    with col3:
+        st.markdown("### 🟡 Gold Plan 🔥\n**₹50 / month**\n* Best Native AI Experience\n* Executive Corporate Matrix\n* Mock Interview Simulations\n* High-Priority Response Pacing")
+        if st.button("Subscribe Gold (₹50)", use_container_width=True):
+            update_user_plan_db(auth_email, "Gold")
+
+# MODULE 1: INTERACTIVE SKILL ASSESSMENT PORTAL VIEW (IF ACTIVE SUBSCRIBER)
+elif app_mode == "🗣️ Skill Assessment Portal":
     st.title("SkillVerify English Assessment Portal")
-    st.write(f"Active Assessment Space: **{st.session_state.active_id}**")
+    
+    # Top status pill indicators
+    if user_package_tier == "Trial":
+        st.warning(f"⏳ Free Trial Active Account Profile — **{trial_countdown} days left**")
+    else:
+        st.success(f"👑 Premium Package Status Verified — **{user_package_tier} Mode Configured**")
 
     # Render History Logs
-    for message in current_history:
+    for message in st.session_state.local_history:
         if message["role"] == "user":
             with st.chat_message("user", avatar=USER_AVATAR):
                 st.markdown(message["content"])
@@ -299,7 +247,7 @@ if app_mode == "🗣️ Skill Assessment Portal":
                 st.markdown(message["content"])
 
     # Onboarding Setup Form for empty assessments
-    if len(current_history) == 1 and "Welcome" in current_history[0]["content"]:
+    if len(st.session_state.local_history) == 1 and "Welcome" in st.session_state.local_history[0]["content"]:
         st.markdown("---")
         with st.expander("🛠️ Initialize Language Profile Target", expanded=True):
             st.markdown("##### Calibrate candidate parameters to generate your targeted speech audit matrix:")
@@ -330,13 +278,11 @@ if app_mode == "🗣️ Skill Assessment Portal":
                         f"* **Tech Stack/Specialized Core Focus:** {specialized_focus if specialized_focus.strip() else 'Standard Structural Evaluation Rules'}"
                     )
                     
-                    current_history.append({"role": "user", "content": context_injection})
-                    save_session_history(st.session_state.active_id, current_history)
+                    st.session_state.local_history.append({"role": "user", "content": context_injection})
                     
                     with st.spinner("Compiling structural communication framework rules..."):
-                        eval_reply = get_evaluator_response()
-                        current_history.append({"role": "assistant", "content": eval_reply})
-                        save_session_history(st.session_state.active_id, current_history)
+                        eval_reply = get_evaluator_response(user_package_tier)
+                        st.session_state.local_history.append({"role": "assistant", "content": eval_reply})
                         
                         audio_data = text_to_speech_bytes(eval_reply)
                         if audio_data:
@@ -344,7 +290,7 @@ if app_mode == "🗣️ Skill Assessment Portal":
                         st.rerun()
 
     audio_placeholder = st.empty()
-    if st.session_state.autoplay_audio_data:
+    if "autoplay_audio_data" in st.session_state and st.session_state.autoplay_audio_data:
         audio_placeholder.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
 
     # Audio Recording IO
@@ -363,12 +309,10 @@ if app_mode == "🗣️ Skill Assessment Portal":
     # Chat Text Input Engine
     text_input = st.chat_input("Type your response essay text or conversation explanation here...")
     if text_input:
-        current_history.append({"role": "user", "content": text_input})
-        save_session_history(st.session_state.active_id, current_history)
+        st.session_state.local_history.append({"role": "user", "content": text_input})
         with st.spinner("Analyzing vocabulary choices and computing response parameters..."):
-            eval_reply = get_evaluator_response()
-            current_history.append({"role": "assistant", "content": eval_reply})
-            save_session_history(st.session_state.active_id, current_history)
+            eval_reply = get_evaluator_response(user_package_tier)
+            st.session_state.local_history.append({"role": "assistant", "content": eval_reply})
             st.session_state.autoplay_audio_data = None
             st.rerun()
 
@@ -376,7 +320,7 @@ if app_mode == "🗣️ Skill Assessment Portal":
     if audio_source and "bytes" in audio_source and audio_source["bytes"]:
         audio_bytes = audio_source["bytes"]
         audio_hash = hashlib.md5(audio_bytes).hexdigest()
-        if st.session_state.last_processed_audio != audio_hash:
+        if "last_processed_audio" not in st.session_state or st.session_state.last_processed_audio != audio_hash:
             st.session_state.last_processed_audio = audio_hash
             with st.spinner("Processing spoken response streams via speech decoder..."):
                 try:
@@ -390,11 +334,9 @@ if app_mode == "🗣️ Skill Assessment Portal":
                     user_text = whisper_response.json().get("text", "")
                     
                     if user_text.strip():
-                        current_history.append({"role": "user", "content": user_text})
-                        save_session_history(st.session_state.active_id, current_history)
-                        eval_reply = get_evaluator_response()
-                        current_history.append({"role": "assistant", "content": eval_reply})
-                        save_session_history(st.session_state.active_id, current_history)
+                        st.session_state.local_history.append({"role": "user", "content": user_text})
+                        eval_reply = get_evaluator_response(user_package_tier)
+                        st.session_state.local_history.append({"role": "assistant", "content": eval_reply})
                         
                         audio_data = text_to_speech_bytes(eval_reply)
                         if audio_data:
@@ -448,9 +390,7 @@ elif app_mode == "🌐 Explore Learning Platform":
         if not re.match(r'^https?://', target_url):
             target_url = "https://" + target_url
             
-        # Native Streamlit Link Button layout setup
         st.link_button("🌐 Open Learning Platform in New Tab", target_url, use_container_width=True, type="primary")
-        
         st.markdown("<br>", unsafe_allow_html=True)
         st.info("💡 Pro-Tip: Modern websites protect internal links from loading inside frame boxes. If navigation freezes, use the layout button above to safely open the source link!")
         st.markdown("---")
