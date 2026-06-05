@@ -9,6 +9,24 @@ st.set_page_config(
     layout="centered"
 )
 
+# Initialize Session State Parameters Safely (Prevents state synchronization errors)
+if "local_history" not in st.session_state:
+    st.session_state.local_history = [
+        {"role": "assistant", "content": "🎯 **Welcome to your English Language Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the profile calibration form below to start your tailored language interview session."}
+    ]
+
+if "autoplay_audio_data" not in st.session_state:
+    st.session_state.autoplay_audio_data = None
+
+# Track analytics snapshots derived dynamically from the session history
+if "performance_metrics" not in st.session_state:
+    st.session_state.performance_metrics = {
+        "fluency_score": 0.0,
+        "grammar_errors_logged": 0,
+        "vocabulary_upgrades_suggested": 0,
+        "total_turns_completed": 0
+    }
+
 # Core imports follow page configuration
 from streamlit_mic_recorder import mic_recorder
 import requests
@@ -30,13 +48,17 @@ except ImportError:
 # =========================================================
 # SUPABASE DATABASE STORAGE ENGINE (User Accounts & Chat)
 # =========================================================
-# Connection properties matching your configuration profile
-SUPABASE_URL = "https://xudmbkuruxfdpprwplee.supabase.co"
-SUPABASE_KEY = "sb_publishable_vDbjNJKay..."
+SUPABASE_URL = st.secrets.get("SUPABASE_URL", "https://xudmbkuruxfdpprwplee.supabase.co")
+SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
 
 @st.cache_resource
 def get_supabase_client():
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
+    if not SUPABASE_KEY:
+        return None
+    try:
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception:
+        return None
 
 supabase_client = get_supabase_client()
 
@@ -45,12 +67,13 @@ def init_user_and_get_plan(email_str):
     clean_email = email_str.strip().lower()
     if not clean_email:
         return "Trial", 15
+    if supabase_client is None:
+        return "Trial", 15
 
     try:
         response = supabase_client.table("users").select("*").eq("email", clean_email).execute()
         user_records = response.data
         
-        # If new candidate profile instance discovered, insert record array
         if len(user_records) == 0:
             new_profile = {
                 "email": clean_email,
@@ -63,39 +86,35 @@ def init_user_and_get_plan(email_str):
         user_data = user_records[0]
         assigned_plan = user_data.get("user_plan", "Trial")
         
-        # Parse timestamp array constraints safely
         signup_dt_str = user_data.get("signup_date", str(date.today()))
         signup_date_obj = datetime.strptime(signup_dt_str, "%Y-%m-%d").date()
         
         days_consumed = (date.today() - signup_date_obj).days
         remaining_trial_days = max(0, 15 - days_consumed)
         
-        # Process structural downgrade rules if limit criteria crossed
         if assigned_plan == "Trial" and remaining_trial_days <= 0:
             supabase_client.table("users").update({"user_plan": "Expired"}).eq("email", clean_email).execute()
             return "Expired", 0
             
         return assigned_plan, remaining_trial_days
     except Exception as e:
-        # Fallback tracking if framework handshake triggers a configuration error
+        if "401" in str(e) or "API key" in str(e):
+            return "Trial", 15
         st.error(f"Database sync warning: {str(e)}")
         return "Trial", 15
 
 def update_user_plan_db(email_str, target_plan):
     """Updates user plan instantly on successful subscription package choice."""
     clean_email = email_str.strip().lower()
+    if supabase_client is None:
+        st.error("Database connection unavailable. Subscription update aborted.")
+        return
     try:
         supabase_client.table("users").update({"user_plan": target_plan}).eq("email", clean_email).execute()
         st.success(f"Package unlocked successfully: {target_plan} mode configuration initialized!")
         st.rerun()
     except Exception as e:
         st.error(f"Failed to record billing system changes: {str(e)}")
-
-# Fallback session history parameters tracked locally via session state architecture
-if "local_history" not in st.session_state:
-    st.session_state.local_history = [
-        {"role": "assistant", "content": "🎯 **Welcome to your English Language Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the profile calibration form below to start your tailored language interview session."}
-    ]
 
 # Premium Vectors High-Definition Chat Avatars
 ROBOT_AVATAR = "https://img.icons8.com/fluent/96/artificial-intelligence.png"
@@ -106,12 +125,10 @@ USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
 # =========================================================
 with st.sidebar:
     st.markdown("### 🏢 Enterprise Training Hub")
-    
     st.markdown("---")
     st.markdown("##### 🔑 Candidate Workspace Access")
     auth_email = st.text_input("Enter Registered Email Account:", value="candidate@skillverify.ai")
     
-    # Run active tracking lookups
     user_package_tier, trial_countdown = init_user_and_get_plan(auth_email)
     
     app_mode = st.radio(
@@ -129,16 +146,43 @@ with st.sidebar:
                 {"role": "assistant", "content": "🎯 **Welcome to your English Language Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the profile calibration form below to start your tailored language interview session."}
             ]
             st.session_state.autoplay_audio_data = None
+            st.session_state.performance_metrics = {
+                "fluency_score": 0.0,
+                "grammar_errors_logged": 0,
+                "vocabulary_upgrades_suggested": 0,
+                "total_turns_completed": 0
+            }
             st.rerun()
 
 # =========================================================
 # BACKEND AI CONNECTIVITY ENGINE (Dynamic Groq AI Prompt Setup)
 # =========================================================
+def parse_and_update_metrics(ai_text):
+    """Heuristic logic to increment real-time session stats for analytics views."""
+    st.session_state.performance_metrics["total_turns_completed"] += 1
+    
+    # Simple semantic pattern parsing to update state machine counts
+    if "vocabulary upgrade" in ai_text.lower() or "alternative" in ai_text.lower():
+        st.session_state.performance_metrics["vocabulary_upgrades_suggested"] += 2
+        
+    if "grammar" in ai_text.lower() or "slip" in ai_text.lower() or "mistake" in ai_text.lower():
+        st.session_state.performance_metrics["grammar_errors_logged"] += 1
+        
+    score_search = re.search(r'(?:Fluency Score|Score\s*:\s*)(\d+(?:\.\d+)?)\s*/\s*10', ai_text, re.IGNORECASE)
+    if score_search:
+        st.session_state.performance_metrics["fluency_score"] = float(score_search.group(1))
+    else:
+        # Stepwise heuristic improvement if score is not explicitly declared
+        current_score = st.session_state.performance_metrics["fluency_score"]
+        if current_score == 0.0:
+            st.session_state.performance_metrics["fluency_score"] = 6.5
+        elif st.session_state.performance_metrics["grammar_errors_logged"] == 0:
+            st.session_state.performance_metrics["fluency_score"] = min(10.0, current_score + 0.5)
+
 def get_evaluator_response(plan_tier):
     if "GROQ_API_KEY" not in st.secrets:
         return "Configuration Key Error: Please register GROQ_API_KEY in your deployment environment secrets panel."
 
-    # --- DYNAMIC STRUCTURAL SYSTEM PROMPTS MATRIX ---
     if plan_tier in ["Trial", "Normal"]:
         system_rules = """You are a helpful English Language Assessor. Chat with the user in clean, accessible language.
         If they make any prominent grammar slips, gently call them out at the very end of your response text.
@@ -147,7 +191,7 @@ def get_evaluator_response(plan_tier):
     elif plan_tier == "Silver":
         system_rules = """You are an Advanced English Communication Coach. Deeply analyze the student's text structure.
         Provide 2 highly relevant vocabulary upgrades they could have used instead.
-        At the end of your response, assign them a strict 'Fluency Score' out of 10 based on CEFR parameters.
+        At the end of your response, assign them a strict 'Fluency Score' out of 10 based on CEFR parameters using the exact format 'Fluency Score: X/10'.
         Conclude your feedback response with exactly one target conversation question."""
         
     else:  # Gold Tier Ultimate Engine
@@ -155,6 +199,7 @@ def get_evaluator_response(plan_tier):
         Rigorously break down syntax, syntax stability, and advanced stylistic structure choices. 
         Provide idiomatic alternatives to help them sound like a polished native speaker.
         Actively challenge them with situational communication constraints or corporate mock interview questions.
+        At the end of your response, assign them a strict 'Fluency Score' out of 10 based on CEFR parameters using the exact format 'Fluency Score: X/10'.
         Conclude your feedback response with exactly one target conversation question."""
 
     messages_payload = [{"role": "system", "content": system_rules}]
@@ -173,7 +218,9 @@ def get_evaluator_response(plan_tier):
         res_data = llm_response.json()
         
         if isinstance(res_data, dict) and "choices" in res_data:
-            return res_data["choices"][0]["message"]["content"]
+            response_content = res_data["choices"][0]["message"]["content"]
+            parse_and_update_metrics(response_content)
+            return response_content
         elif isinstance(res_data, dict) and "error" in res_data:
             return f"Backend Service Exception: {res_data['error'].get('message', 'Validation Failed')}"
         else:
@@ -204,49 +251,38 @@ def text_to_speech_bytes(text_payload):
 # ROUTED CONTENT FRAMES VIEW SWITCHER
 # =========================================================
 
-# ROUTING GATEWAY: IF SUBSCRIPTION HAS EXPIRED
 if user_package_tier == "Expired":
     st.title("SkillVerify English Assessment Portal 🚀")
     st.error("⚠️ Your 15-day Free Trial package limits have been exhausted!")
     st.subheader("Select an Enterprise Scaling Tier to resume your AI coaching:")
     
     col1, col2, col3 = st.columns(3)
-    
     with col1:
-        st.markdown("### 🟢 Normal Plan\n**₹15 / month**\n* Standard Evaluation Engine\n* Basic Grammar Tracking\n* Standard Processing Pacing")
+        st.markdown("### 🟢 Normal Plan\n**₹15 / month**\n* Standard Evaluation Engine\n* Basic Grammar Tracking")
         if st.button("Subscribe Normal (₹15)", use_container_width=True):
             update_user_plan_db(auth_email, "Normal")
-            
     with col2:
         st.markdown("### 🔵 Silver Plan ⭐\n**₹30 / month**\n* Better AI Brain Core\n* Advanced Lexical Suggestions\n* Live Fluency Scoring Models")
         if st.button("Subscribe Silver (₹30)", use_container_width=True, type="primary"):
             update_user_plan_db(auth_email, "Silver")
-            
     with col3:
-        st.markdown("### 🟡 Gold Plan 🔥\n**₹50 / month**\n* Best Native AI Experience\n* Executive Corporate Matrix\n* Mock Interview Simulations\n* High-Priority Response Pacing")
+        st.markdown("### 🟡 Gold Plan 🔥\n**₹50 / month**\n* Best Native AI Experience\n* Executive Corporate Matrix\n* Mock Interview Simulations")
         if st.button("Subscribe Gold (₹50)", use_container_width=True):
             update_user_plan_db(auth_email, "Gold")
 
-# MODULE 1: INTERACTIVE SKILL ASSESSMENT PORTAL VIEW (IF ACTIVE SUBSCRIBER)
 elif app_mode == "🗣️ Skill Assessment Portal":
     st.title("SkillVerify English Assessment Portal")
     
-    # Top status pill indicators
     if user_package_tier == "Trial":
         st.warning(f"⏳ Free Trial Active Account Profile — **{trial_countdown} days left**")
     else:
         st.success(f"👑 Premium Package Status Verified — **{user_package_tier} Mode Configured**")
 
-    # Render History Logs
     for message in st.session_state.local_history:
-        if message["role"] == "user":
-            with st.chat_message("user", avatar=USER_AVATAR):
-                st.markdown(message["content"])
-        else:
-            with st.chat_message("assistant", avatar=ROBOT_AVATAR):
-                st.markdown(message["content"])
+        avatar_img = USER_AVATAR if message["role"] == "user" else ROBOT_AVATAR
+        with st.chat_message(message["role"], avatar=avatar_img):
+            st.markdown(message["content"])
 
-    # Onboarding Setup Form for empty assessments
     if len(st.session_state.local_history) == 1 and "Welcome" in st.session_state.local_history[0]["content"]:
         st.markdown("---")
         with st.expander("🛠️ Initialize Language Profile Target", expanded=True):
@@ -257,19 +293,16 @@ elif app_mode == "🗣️ Skill Assessment Portal":
                     "Primary Assessment Focus Track:",
                     ["Spoken English & Fluency", "Corporate/Business Communication", "Grammar & Syntactic Frameworks", "Creative & Professional Essay Writing"]
                 )
-                
                 experience_tier = st.selectbox(
                     "Target Competency Level (CEFR Benchmarks):",
                     ["Beginner / Elementary (A1 - A2 Threshold)", "Intermediate / Independent User (B1 - B2 Band)", "Advanced / Native Proficiency (C1 - C2 Mastery)"]
                 )
-                
                 specialized_focus = st.text_input(
                     "Specify secondary targets or examination constraints (Optional):", 
-                    placeholder="e.g., Pronunciation, Public Speaking, Academic Vocabulary, IELTS/TOEFL Practice, Corporate Interview Readiness"
+                    placeholder="e.g., Pronunciation, Public Speaking, Academic Vocabulary, Corporate Interview Readiness"
                 )
                 
                 submit_onboarding = st.form_submit_button("🔥 Launch Language Assessment Matrix", type="primary")
-                
                 if submit_onboarding:
                     context_injection = (
                         f"🎯 **English Evaluation Profile Initialized** 🎯\n\n"
@@ -277,7 +310,6 @@ elif app_mode == "🗣️ Skill Assessment Portal":
                         f"* **Target Competency Tier:** {experience_tier}\n"
                         f"* **Tech Stack/Specialized Core Focus:** {specialized_focus if specialized_focus.strip() else 'Standard Structural Evaluation Rules'}"
                     )
-                    
                     st.session_state.local_history.append({"role": "user", "content": context_injection})
                     
                     with st.spinner("Compiling structural communication framework rules..."):
@@ -293,7 +325,6 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     if "autoplay_audio_data" in st.session_state and st.session_state.autoplay_audio_data:
         audio_placeholder.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
 
-    # Audio Recording IO
     voice_col, stop_col = st.columns([1, 1])
     with voice_col:
         st.write("**🎙️ Audio Response Entry:**")
@@ -306,7 +337,6 @@ elif app_mode == "🗣️ Skill Assessment Portal":
             audio_placeholder.empty()
             st.rerun()
 
-    # Chat Text Input Engine
     text_input = st.chat_input("Type your response essay text or conversation explanation here...")
     if text_input:
         st.session_state.local_history.append({"role": "user", "content": text_input})
@@ -316,7 +346,6 @@ elif app_mode == "🗣️ Skill Assessment Portal":
             st.session_state.autoplay_audio_data = None
             st.rerun()
 
-    # Audio Voice-to-Text Transcription Handler
     if audio_source and "bytes" in audio_source and audio_source["bytes"]:
         audio_bytes = audio_source["bytes"]
         audio_hash = hashlib.md5(audio_bytes).hexdigest()
@@ -345,12 +374,33 @@ elif app_mode == "🗣️ Skill Assessment Portal":
                 except Exception as e:
                     st.error(f"Whisper Speech Decoding Failure: {str(e)}")
 
-# MODULE 2: ANALYTICS DASHBOARD
 elif app_mode == "📊 Analytics Dashboard":
     st.title("Linguistic Matrix Progress Tracker")
-    st.write("Visualize core technical communication proficiencies and language growth progress.")
+    st.write("Visualize core technical communication proficiencies derived from your active session.")
     st.markdown("---")
     
+    # Render operational performance state parameters using interactive layout widgets
+    m_col1, m_col2, m_col3 = st.columns(3)
+    with m_col1:
+        st.metric(
+            label="Calculated Fluency Score", 
+            value=f"{st.session_state.performance_metrics['fluency_score']} / 10.0",
+            delta="CEFR Benchmark Tracker" if st.session_state.performance_metrics['fluency_score'] > 0 else None
+        )
+    with m_col2:
+        st.metric(
+            label="Grammar Slips Flashed", 
+            value=st.session_state.performance_metrics['grammar_errors_logged'],
+            delta="Constructive Feedback Flags",
+            delta_color="inverse"
+        )
+    with m_col3:
+        st.metric(
+            label="Lexical Upgrades Captured", 
+            value=st.session_state.performance_metrics['vocabulary_upgrades_suggested']
+        )
+        
+    st.markdown("---")
     col1, col2 = st.columns(2)
     with col1:
         st.markdown(
@@ -379,7 +429,6 @@ elif app_mode == "📊 Analytics Dashboard":
             """, unsafe_allow_html=True
         )
 
-# MODULE 3: EMBEDDED PRACTICE FRAMEWORK
 elif app_mode == "🌐 Explore Learning Platform":
     st.title("External English Knowledge Portal")
     st.write("Embed live dictionaries, reference documentation boards, or external reading materials inside your active application layout area.")
@@ -403,7 +452,6 @@ elif app_mode == "🌐 Explore Learning Platform":
         except Exception as e:
             st.error(f"Failed to securely mount framework layout view: {str(e)}")
 
-# MODULE 4: QUERY SUBMISSIONS FORM
 elif app_mode == "📬 Submit Custom Prompts":
     st.title("Custom Evaluation Prompt Intake Node")
     st.write("Submit specific corporate interview rules, customized conversation cards, or target verification parameters directly into our system storage array.")
@@ -416,7 +464,6 @@ elif app_mode == "📬 Submit Custom Prompts":
         prompt_content = st.text_area("Configure the strict scenario constraints or textual parameters block below:")
         
         submit_btn = st.form_submit_button("Commit Prompt to System Repository", type="primary")
-        
         if submit_btn:
             if candidate_name.strip() and candidate_email.strip() and prompt_content.strip():
                 st.success(f"Thank you, {candidate_name}! Your operational scenario for {assessment_category} has been logged safely.")
