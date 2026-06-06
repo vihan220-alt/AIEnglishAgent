@@ -118,7 +118,7 @@ with st.sidebar:
         index=0
     )
     
-    # --- DYNAMIC CHAT HISTORY MANAGER MATRIX (THE MISSING PIECE) ---
+    # --- DYNAMIC CHAT HISTORY MANAGER MATRIX ---
     if app_mode == "🗣️ Skill Assessment Portal" and user_package_tier != "Expired":
         st.markdown("---")
         st.markdown("### 🛠️ Chat Session Management")
@@ -137,7 +137,6 @@ with st.sidebar:
 
         st.markdown("##### Active Logs Matrix:")
         
-        # Sort chats: show pinned chats on top of the list
         sorted_chat_ids = sorted(
             st.session_state.all_chats.keys(), 
             key=lambda k: st.session_state.all_chats[k]["pinned"], 
@@ -147,8 +146,6 @@ with st.sidebar:
         for c_id in list(sorted_chat_ids):
             chat_obj = st.session_state.all_chats[c_id]
             pin_indicator = "📌 " if chat_obj["pinned"] else "💬 "
-            
-            # Highlight active session workspace selection
             is_active = (c_id == st.session_state.active_chat_id)
             btn_label = f"{pin_indicator}{chat_obj['title']}"
             
@@ -157,7 +154,6 @@ with st.sidebar:
                 st.session_state.autoplay_audio_data = None
                 st.rerun()
                 
-            # Render specialized management inline menus for the active session row
             if is_active:
                 col_pin, col_ren, col_del = st.columns(3)
                 
@@ -184,7 +180,6 @@ with st.sidebar:
                         else:
                             st.error("Cannot delete your last active session trace!")
                 
-                # Inline Rename Input box generation
                 if st.session_state.get(f"show_rename_field_{c_id}", False):
                     new_title_input = st.text_input("Enter New Session Name:", value=chat_obj["title"], key=f"title_in_{c_id}")
                     if st.button("Save Name", key=f"save_{c_id}"):
@@ -194,7 +189,7 @@ with st.sidebar:
                             st.rerun()
 
 # =========================================================
-# BACKEND AI CONNECTIVITY ENGINE (Dynamic Groq AI Prompt Setup)
+# BACKEND AI CONNECTIVITY ENGINE (Groq AI Prompt Setup)
 # =========================================================
 def parse_and_update_metrics(ai_text):
     st.session_state.performance_metrics["total_turns_completed"] += 1
@@ -210,7 +205,14 @@ def get_evaluator_response(plan_tier):
     if "GROQ_API_KEY" not in st.secrets:
         return "Configuration Key Error: Please register GROQ_API_KEY in your deployment environment secrets panel."
 
-    system_rules = "You are an English Language Coach. Chat dynamically with the student, evaluate their syntax structure, and end your response text with exactly one target conversation question."
+    # --- CRISP CONCISE RULES INJECTED HERE ---
+    system_rules = (
+        "You are a friendly, conversational English Language Assessor. "
+        "Keep your responses extremely concise, short, and natural (maximum 2 sentences). "
+        "Do not write long paragraphs or list multiple questions. "
+        "Always respond with exactly ONE clear, short conversational question at the end to keep the chat simple."
+    )
+    
     messages_payload = [{"role": "system", "content": system_rules}]
     for msg in current_chat["history"]:
         role_map = "user" if msg["role"] == "user" else "assistant"
@@ -262,7 +264,6 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     else:
         st.success(f"👑 Premium Package Status Verified — **{user_package_tier} Mode Configured**")
 
-    # Render Active Logs derived exclusively from current selected workspace array map
     for message in current_chat["history"]:
         avatar_img = USER_AVATAR if message["role"] == "user" else ROBOT_AVATAR
         with st.chat_message(message["role"], avatar=avatar_img):
