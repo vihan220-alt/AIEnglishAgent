@@ -15,9 +15,10 @@ import requests
 import hashlib
 import re
 import json
+import streamlit.components.v1 as components
 from io import BytesIO
 from gtts import gTTS
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from supabase import create_client, Client
 
 # Initialize Database Session Memory Frameworks
@@ -44,9 +45,12 @@ if "performance_metrics" not in st.session_state:
         "total_turns_completed": 0
     }
 
-# Setup references to active workspace memory aliases
-current_chat = st.session_state.all_chats[st.session_state.active_chat_id]
-
+# =========================================================
+# SUPABASE DATABASE STORAGE ENGINE
+# =========================================================
+# Pulled safely from environment configuration profiles
+SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
+SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
 # =========================================================
 # SUPABASE DATABASE STORAGE ENGINE
 # =========================================================
@@ -100,6 +104,30 @@ def update_user_plan_db(email_str, target_plan):
 
 ROBOT_AVATAR = "https://img.icons8.com/fluent/96/artificial-intelligence.png"
 USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
+
+# =========================================================
+# INTEGRATED PAYMENT GATEWAY COMPONENT NODE
+# =========================================================
+def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_duration="Month"):
+    """
+    Renders an embedded, secure Razorpay button directly inside the Streamlit app view UI.
+    """
+    razorpay_html_code = f"""
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #f9f9fb; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 15px;">
+        <h4 style="color: #1e293b; font-family: system-ui, sans-serif; margin-bottom: 5px; margin-top:0;">Secure Premium Activation Node</h4>
+        <p style="color: #64748b; font-size: 14px; font-family: system-ui, sans-serif; margin-bottom: 15px;">Upgrading <b>{email_recipient}</b> to the <b>{selected_plan} Plan ({plan_duration})</b></p>
+        <form>
+            <script
+                src="https://checkout.razorpay.com/v1/payment-button.js"
+                data-payment_button_id="pl_O5jXm9vC2XzY8q" 
+                data-button_text="Pay Now (₹{cost_inr})"
+                data-button_theme="brand-color"
+                async>
+            </script>
+        </form>
+    </div>
+    """
+    components.html(razorpay_html_code, height=160)
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -205,7 +233,6 @@ def get_evaluator_response(plan_tier):
     if "GROQ_API_KEY" not in st.secrets:
         return "Configuration Key Error: Please register GROQ_API_KEY in your deployment environment secrets panel."
 
-    # --- CRISP CONCISE RULES INJECTED HERE ---
     system_rules = (
         "You are a friendly, conversational English Language Assessor. "
         "Keep your responses extremely concise, short, and natural (maximum 2 sentences). "
@@ -244,25 +271,70 @@ def text_to_speech_bytes(text_payload):
         return None
 
 # =========================================================
+# REUSABLE SUBSCRIPTION CHOOSER NODE WITH COUPON LOGIC
+# =========================================================
+def show_subscription_options():
+    st.subheader("Select a Subscription Tier to Continue:")
+    
+    # Create 3 clean columns for the plans
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown("### 🥉 Basic")
+        st.markdown("**₹15** / month")
+        if st.button("Select ₹15 Plan", use_container_width=True): 
+            st.session_state.payment_plan_selected = ("Basic Premium", 15, "1 Month")
+    with col2:
+        st.markdown("### 🥈 Standard")
+        st.markdown("**₹30** / month")
+        if st.button("Select ₹30 Plan", use_container_width=True, type="primary"): 
+            st.session_state.payment_plan_selected = ("Standard Premium", 30, "1 Month")
+    with col3:
+        st.markdown("### 🥇 Executive")
+        st.markdown("**₹50** / month")
+        if st.button("Select ₹50 Plan", use_container_width=True): 
+            st.session_state.payment_plan_selected = ("Executive Premium", 50, "1 Month")
+            
+    st.markdown("---")
+    st.markdown("##### 🏷️ Have a Coupon Code?")
+    coupon_input = st.text_input("Enter Coupon Code here:", key="coupon_field").strip().upper()
+    
+    # If they type the promo code, update pricing configuration variables
+    if coupon_input == "FREE3M" or coupon_input == "SKILL3":
+        st.success("🎉 Coupon Applied Successfully! You get **3 Months FREE** on any selection.")
+        if "payment_plan_selected" in st.session_state:
+            p_name, _, _ = st.session_state.payment_plan_selected
+            # Override to ₹0 for 3 Months duration
+            st.session_state.payment_plan_selected = (p_name, 0, "3 Months Promo")
+
+    if "payment_plan_selected" in st.session_state:
+        plan_nm, plan_amt, plan_dur = st.session_state.payment_plan_selected
+        
+        # Call Razorpay integration element wrapper
+        render_payment_gateway(auth_email, plan_nm, plan_amt, plan_dur)
+        
+        # Direct Action Simulator Button
+        if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm} ({plan_dur})"):
+            update_user_plan_db(auth_email, f"{plan_nm} ({plan_dur})")
+
+# =========================================================
 # ROUTED CONTENT INTERFACE SWITCHER VIEWS
 # =========================================================
 if user_package_tier == "Expired":
     st.title("SkillVerify English Assessment Portal 🚀")
     st.error("⚠️ Your 15-day Free Trial package limits have been exhausted!")
-    st.subheader("Select an Enterprise Scaling Tier to resume your AI coaching:")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Subscribe Normal (₹15)", use_container_width=True): update_user_plan_db(auth_email, "Normal")
-    with col2:
-        if st.button("Subscribe Silver (₹30)", use_container_width=True, type="primary"): update_user_plan_db(auth_email, "Silver")
+    show_subscription_options()
 
 elif app_mode == "🗣️ Skill Assessment Portal":
     st.title(f"Portal Workspace: {current_chat['title']}")
     
-    if user_package_tier == "Trial":
+    if "Premium" not in user_package_tier:
         st.warning(f"⏳ Free Trial Active Account Profile — **{trial_countdown} days left**")
+        
+        # Direct Payment/Upgrade Hub positioned right on the dashboard!
+        with st.expander("👑 Upgrade to Premium Instantly (₹15 / ₹30 / ₹50)", expanded=False):
+            show_subscription_options()
     else:
-        st.success(f"👑 Premium Package Status Verified — **{user_package_tier} Mode Configured**")
+        st.success(f"👑 Active License Verified — **{user_package_tier}**")
 
     for message in current_chat["history"]:
         avatar_img = USER_AVATAR if message["role"] == "user" else ROBOT_AVATAR
