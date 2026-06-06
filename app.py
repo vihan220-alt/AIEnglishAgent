@@ -45,15 +45,21 @@ if "performance_metrics" not in st.session_state:
         "total_turns_completed": 0
     }
 
+# ==============================================================================
+# CRITICAL SAFETY GUARD: Guarantee current_chat always exists dynamically
+# ==============================================================================
+if st.session_state.active_chat_id in st.session_state.all_chats:
+    current_chat = st.session_state.all_chats[st.session_state.active_chat_id]
+else:
+    # Safe fallback if an ID goes missing during dynamic state updates
+    fallback_id = list(st.session_state.all_chats.keys())[0]
+    st.session_state.active_chat_id = fallback_id
+    current_chat = st.session_state.all_chats[fallback_id]
+
 # =========================================================
 # SUPABASE DATABASE STORAGE ENGINE
 # =========================================================
 # Pulled safely from environment configuration profiles
-SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
-SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
-# =========================================================
-# SUPABASE DATABASE STORAGE ENGINE
-# =========================================================
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", "https://xudmbkuruxfdpprwplee.supabase.co")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
 
@@ -325,7 +331,11 @@ if user_package_tier == "Expired":
     show_subscription_options()
 
 elif app_mode == "🗣️ Skill Assessment Portal":
-    st.title(f"Portal Workspace: {current_chat['title']}")
+    # Robust Title Guard Implementation
+    if 'all_chats' in st.session_state and st.session_state.active_chat_id in st.session_state.all_chats:
+        st.title(f"Portal Workspace: {st.session_state.all_chats[st.session_state.active_chat_id]['title']}")
+    else:
+        st.title("Portal Workspace: English Assessment Portal")
     
     if "Premium" not in user_package_tier:
         st.warning(f"⏳ Free Trial Active Account Profile — **{trial_countdown} days left**")
@@ -401,9 +411,17 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
 elif app_mode == "📊 Analytics Dashboard":
     st.title("Linguistic Matrix Progress Tracker")
-    m_col1, m_col2 = st.columns(2)
-    with m_col1: st.metric(label="Calculated Fluency Score", value=f"{st.session_state.performance_metrics['fluency_score']} / 10.0")
-    with m_col2: st.metric(label="Grammar Slips Logged", value=st.session_state.performance_metrics['grammar_errors_logged'])
+    
+    # Defensive conditional check protecting against "SessionInfo before it was initialized" bugs
+    if "performance_metrics" in st.session_state:
+        metrics = st.session_state.performance_metrics
+        m_col1, m_col2 = st.columns(2)
+        with m_col1: 
+            st.metric(label="Calculated Fluency Score", value=f"{metrics.get('fluency_score', 0.0)} / 10.0")
+        with m_col2: 
+            st.metric(label="Grammar Slips Logged", value=int(metrics.get('grammar_errors_logged', 0)))
+    else:
+        st.info("Syncing metrics data profiles with active session caches...")
 
 elif app_mode == "🌐 Explore Learning Platform":
     st.title("External English Knowledge Portal")
