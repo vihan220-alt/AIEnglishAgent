@@ -18,10 +18,12 @@ import json
 import streamlit.components.v1 as components
 from io import BytesIO
 from gtts import gTTS
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from supabase import create_client, Client
 
-# Initialize Database Session Memory Frameworks
+# =========================================================
+# INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
+# =========================================================
 if "all_chats" not in st.session_state:
     st.session_state.all_chats = {
         "Chat_1": {
@@ -45,21 +47,26 @@ if "performance_metrics" not in st.session_state:
         "total_turns_completed": 0
     }
 
-# ==============================================================================
-# CRITICAL SAFETY GUARD: Guarantee current_chat always exists dynamically
-# ==============================================================================
-if st.session_state.active_chat_id in st.session_state.all_chats:
-    current_chat = st.session_state.all_chats[st.session_state.active_chat_id]
-else:
-    # Safe fallback if an ID goes missing during dynamic state updates
-    fallback_id = list(st.session_state.all_chats.keys())[0]
-    st.session_state.active_chat_id = fallback_id
-    current_chat = st.session_state.all_chats[fallback_id]
+# Guarantee active_chat_id points to a valid session
+if st.session_state.active_chat_id not in st.session_state.all_chats:
+    if st.session_state.all_chats:
+        st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
+    else:
+        # Emergency rebuild if all keys are missing
+        st.session_state.all_chats = {
+            "Chat_1": {
+                "title": "Default Language Assessment",
+                "pinned": False,
+                "history": [{"role": "assistant", "content": "🎯 **Session initialized successfully.**"}]
+            }
+        }
+        st.session_state.active_chat_id = "Chat_1"
+
+current_chat = st.session_state.all_chats[st.session_state.active_chat_id]
 
 # =========================================================
 # SUPABASE DATABASE STORAGE ENGINE
 # =========================================================
-# Pulled safely from environment configuration profiles
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", "https://xudmbkuruxfdpprwplee.supabase.co")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
 
@@ -178,6 +185,8 @@ with st.sidebar:
         )
         
         for c_id in list(sorted_chat_ids):
+            if c_id not in st.session_state.all_chats:
+                continue
             chat_obj = st.session_state.all_chats[c_id]
             pin_indicator = "📌 " if chat_obj["pinned"] else "💬 "
             is_active = (c_id == st.session_state.active_chat_id)
@@ -304,22 +313,18 @@ def show_subscription_options():
     st.markdown("##### 🏷️ Have a Coupon Code?")
     coupon_input = st.text_input("Enter Coupon Code here:", key="coupon_field").strip().upper()
     
-    # If they type the promo code, update pricing configuration variables
-    if coupon_input == "FREE3M" or coupon_input == "SKILL3":
+    if coupon_input in ["FREE3M", "SKILL3"]:
         st.success("🎉 Coupon Applied Successfully! You get **3 Months FREE** on any selection.")
         if "payment_plan_selected" in st.session_state:
             p_name, _, _ = st.session_state.payment_plan_selected
-            # Override to ₹0 for 3 Months duration
             st.session_state.payment_plan_selected = (p_name, 0, "3 Months Promo")
 
     if "payment_plan_selected" in st.session_state:
         plan_nm, plan_amt, plan_dur = st.session_state.payment_plan_selected
         
-        # Call Razorpay integration element wrapper
         render_payment_gateway(auth_email, plan_nm, plan_amt, plan_dur)
         
-        # Direct Action Simulator Button
-        if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm} ({plan_dur})"):
+        if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm} ({plan_dur})", use_container_width=True):
             update_user_plan_db(auth_email, f"{plan_nm} ({plan_dur})")
 
 # =========================================================
@@ -331,16 +336,15 @@ if user_package_tier == "Expired":
     show_subscription_options()
 
 elif app_mode == "🗣️ Skill Assessment Portal":
-    # Robust Title Guard Implementation
-    if 'all_chats' in st.session_state and st.session_state.active_chat_id in st.session_state.all_chats:
-        st.title(f"Portal Workspace: {st.session_state.all_chats[st.session_state.active_chat_id]['title']}")
+    # Safe Title Extraction Fallback Check
+    active_id = st.session_state.active_chat_id
+    if "all_chats" in st.session_state and active_id in st.session_state.all_chats:
+        st.title(f"Portal Workspace: {st.session_state.all_chats[active_id]['title']}")
     else:
         st.title("Portal Workspace: English Assessment Portal")
     
     if "Premium" not in user_package_tier:
         st.warning(f"⏳ Free Trial Active Account Profile — **{trial_countdown} days left**")
-        
-        # Direct Payment/Upgrade Hub positioned right on the dashboard!
         with st.expander("👑 Upgrade to Premium Instantly (₹15 / ₹30 / ₹50)", expanded=False):
             show_subscription_options()
     else:
@@ -411,17 +415,12 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
 elif app_mode == "📊 Analytics Dashboard":
     st.title("Linguistic Matrix Progress Tracker")
-    
-    # Defensive conditional check protecting against "SessionInfo before it was initialized" bugs
-    if "performance_metrics" in st.session_state:
-        metrics = st.session_state.performance_metrics
-        m_col1, m_col2 = st.columns(2)
-        with m_col1: 
-            st.metric(label="Calculated Fluency Score", value=f"{metrics.get('fluency_score', 0.0)} / 10.0")
-        with m_col2: 
-            st.metric(label="Grammar Slips Logged", value=int(metrics.get('grammar_errors_logged', 0)))
-    else:
-        st.info("Syncing metrics data profiles with active session caches...")
+    metrics = st.session_state.performance_metrics
+    m_col1, m_col2 = st.columns(2)
+    with m_col1: 
+        st.metric(label="Calculated Fluency Score", value=f"{metrics.get('fluency_score', 0.0)} / 10.0")
+    with m_col2: 
+        st.metric(label="Grammar Slips Logged", value=int(metrics.get('grammar_errors_logged', 0)))
 
 elif app_mode == "🌐 Explore Learning Platform":
     st.title("External English Knowledge Portal")
