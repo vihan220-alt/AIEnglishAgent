@@ -46,6 +46,9 @@ if "performance_metrics" not in st.session_state:
         "total_turns_completed": 0
     }
 
+if "payment_plan_selected" not in st.session_state:
+    st.session_state.payment_plan_selected = None
+
 # Guarantee active_chat_id points to a valid session
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
@@ -350,11 +353,11 @@ def show_subscription_options():
     
     if coupon_input in ["FREE3M", "SKILL3"]:
         st.success("🎉 Coupon Applied Successfully! You get **3 Months FREE** on any selection.")
-        if "payment_plan_selected" in st.session_state:
+        if st.session_state.payment_plan_selected:
             p_name, _, _ = st.session_state.payment_plan_selected
             st.session_state.payment_plan_selected = (p_name, 0, "3 Months Promo")
 
-    if "payment_plan_selected" in st.session_state:
+    if st.session_state.payment_plan_selected:
         plan_nm, plan_amt, plan_dur = st.session_state.payment_plan_selected
         render_payment_gateway(auth_email, plan_nm, plan_amt, plan_dur)
         if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm} ({plan_dur})", use_container_width=True):
@@ -371,7 +374,7 @@ if user_package_tier == "Expired":
 elif app_mode == "🗣️ Skill Assessment Portal":
     active_id = st.session_state.active_chat_id
     if "all_chats" in st.session_state and active_id in st.session_state.all_chats:
-        st.title(f"Portal Workspace: {st.session_state.all_chats[active_id]['title']}")
+        st.title(f"{st.session_state.all_chats[active_id]['title']}")
     else:
         st.title("Portal Workspace: English Assessment Portal")
     
@@ -434,18 +437,15 @@ elif app_mode == "🌐 Explore Video Learning Engine":
     st.title("🎬 Immersive Video Learning Hub")
     st.markdown("Interactive native video session modules focused on essential corporate soft skills and verbal confidence.")
     
-    # Grid layout for selecting video lessons focused on English Soft Skills
     v_col1, v_col2 = st.columns(2)
     with v_col1:
         st.markdown("### 🗣️ Module 1: Conversational Soft Skills")
-        # High quality presentation on active listening, confidence, and verbal expression
-        st.video("https://www.youtube.com/watch?v=A2fB0UInEAg")
+        st.video("https://www.youtube.com/watch?v=HAnw168huqA")
         if st.button("Start Pronunciation Drills", use_container_width=True):
             st.success("Module active! Use your webcam interface in the primary portal to submit your practice responses.")
             
     with v_col2:
         st.markdown("### 👔 Module 2: Business & Interview Communication")
-        # High quality training structure on answering core job interview questions confidently
         st.video("https://www.youtube.com/watch?v=PCWVi5pAa30")
         if st.button("Start Interview Simulator", use_container_width=True):
             st.success("Module active! Use your webcam interface in the primary portal to submit your practice responses.")
