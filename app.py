@@ -75,7 +75,8 @@ SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
 
 @st.cache_resource
 def get_supabase_client():
-    if not SUPABASE_KEY:
+    # If the key is missing or is a placeholder, do not crash the engine
+    if not SUPABASE_KEY or SUPABASE_KEY.strip() == "":
         return None
     try:
         return create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -213,6 +214,7 @@ def render_webcam_video_recorder():
         });
     </script>
     """
+    # Use st.components.v1.html to safely embed and capture returns
     return components.html(webcam_html, height=350, key="webcam_widget")
 
 # =========================================================
@@ -393,14 +395,17 @@ def show_subscription_options():
         
         # Fixed simulation logic click handler sequence
         if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True, key="execute_sim_payment"):
-            target_plan_string = f"{plan_nm} ({plan_dur})"
-            success = update_user_plan_db(auth_email, target_plan_string)
-            if success:
-                st.success(f"Successfully activated {target_plan_string}! Reloading layout...")
-                st.session_state.payment_plan_selected = None
-                st.rerun()
+            if supabase_client is None:
+                st.error("Database initialization failed. Please set up your secrets (`SUPABASE_KEY`) in your Streamlit dashboard settings first.")
             else:
-                st.error("Database storage push failed. Verify connectivity parameters.")
+                target_plan_string = f"{plan_nm} ({plan_dur})"
+                success = update_user_plan_db(auth_email, target_plan_string)
+                if success:
+                    st.success(f"Successfully activated {target_plan_string}! Reloading layout...")
+                    st.session_state.payment_plan_selected = None
+                    st.rerun()
+                else:
+                    st.error("Database storage push failed. Verify connectivity parameters or check your network logs.")
 
 # =========================================================
 # ROUTED CONTENT INTERFACE SWITCHER VIEWS
@@ -428,9 +433,15 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     
     recorded_video_base64 = render_webcam_video_recorder()
     
+    # Corrected conditional tracking logic to avoid SyntaxError / TypeError
     if recorded_video_base64 is not None:
         try:
-            video_str = str(recorded_video_base64)
+            # Safely query if data component value holds content payload
+            if hasattr(recorded_video_base64, 'value') and recorded_video_base64.value:
+                video_str = str(recorded_video_base64.value)
+            else:
+                video_str = str(recorded_video_base64)
+
             if "base64," in video_str:
                 base64_clean = video_str.split("base64,")[1]
                 video_bytes = base64.b64decode(base64_clean)
