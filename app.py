@@ -143,7 +143,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
     components.html(razorpay_html_code, height=160)
 
 # =========================================================
-# LIVE HTML5 WEBCAM VIDEO RECORDER NODE (PASSED TO PYTHON)
+# LIVE HTML5 WEBCAM VIDEO RECORDER NODE
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -213,7 +213,8 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    return components.html(webcam_html, height=330, key="webcam_component_node")
+    # Removed structural duplicate keys to prevent core type validation crash
+    return components.html(webcam_html, height=330)
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -412,14 +413,14 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
     st.markdown("### 🎥 Live Video Interview Feed")
     
-    # Render webcam and get its returned value data safely
+    # Executed cleanly within specific condition space to avoid script execution trace errors
     recorded_video_base64 = render_webcam_video_recorder()
     
-    # FIXED SYNTAX HERE: Properly check if video string exists
     if recorded_video_base64 is not None:
         try:
-            if "base64," in str(recorded_video_base64):
-                base64_clean = str(recorded_video_base64).split("base64,")[1]
+            video_str = str(recorded_video_base64)
+            if "base64," in video_str:
+                base64_clean = video_str.split("base64,")[1]
                 video_bytes = base64.b64decode(base64_clean)
                 
                 file_name = f"interview_session_{active_id}.webm"
