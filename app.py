@@ -14,6 +14,8 @@ import requests
 import hashlib
 import re
 import json
+import os
+import base64
 import streamlit.components.v1 as components
 from io import BytesIO
 from gtts import gTTS
@@ -141,7 +143,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
     components.html(razorpay_html_code, height=160)
 
 # =========================================================
-# LIVE HTML5 WEBCAM VIDEO RECORDER NODE
+# UPDATED LIVE HTML5 WEBCAM VIDEO RECORDER NODE (PASSED TO PYTHON)
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -155,17 +157,43 @@ def render_webcam_video_recorder():
     </div>
 
     <script>
+        function sendToStreamlit(base64Data) {
+            window.parent.postMessage({
+                type: "streamlit:setComponentValue",
+                value: base64Data
+            }, "*");
+        }
+
         let preview = document.getElementById('preview');
         let startBtn = document.getElementById('startBtn');
         let stopBtn = document.getElementById('stopBtn');
         let statusMsg = document.getElementById('statusMsg');
         let recorder;
+        let recordedChunks = [];
 
         navigator.mediaDevices.getUserMedia({ video: true, audio: true })
         .then(stream => {
             preview.srcObject = stream;
             startBtn.addEventListener('click', () => {
-                recorder = new MediaRecorder(stream);
+                recordedChunks = [];
+                recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                
+                recorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) {
+                        recordedChunks.push(e.data);
+                    }
+                };
+
+                recorder.onstop = () => {
+                    let blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    let reader = new FileReader();
+                    reader.readAsDataURL(blob); 
+                    reader.onloadend = function() {
+                        let base64String = reader.result;
+                        sendToStreamlit(base64String);
+                    }
+                };
+
                 recorder.start();
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
@@ -176,7 +204,7 @@ def render_webcam_video_recorder():
                 recorder.stop();
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
-                statusMsg.innerText = "✔️ Video stream processed and submitted successfully to evaluation matrix!";
+                statusMsg.innerText = "✔️ Video stream processed and submitted successfully!";
                 statusMsg.style.color = "#10b981";
             });
         }).catch(err => {
@@ -185,7 +213,8 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    components.html(webcam_html, height=330)
+    # Key makes sure data registers perfectly to Streamlit
+    return components.html(webcam_html, height=330, key="webcam_component_node")
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -384,7 +413,27 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
     # Interactive Candidate Webcam Row for Video Processing
     st.markdown("### 🎥 Live Video Interview Feed")
-    render_webcam_video_recorder()
+    
+    # Render webcam and get its returned value data
+    recorded_video_base64 = render_webcam_video_recorder()
+    
+    # PROCESS THE SUBMITTED VIDEO DATA IF IT EXISTS
+    if recorded_video_base64 interaction_check is not None:
+        try:
+            # Strip out the data url headers from base64 string
+            if "base64," in str(recorded_video_base64):
+                base64_clean = str(recorded_video_base64).split("base64,")[1]
+                video_bytes = base64.b64decode(base64_clean)
+                
+                # Automatically save the video into your project folder!
+                file_name = f"interview_session_{active_id}.webm"
+                with open(file_name, "wb") as f:
+                    f.write(video_bytes)
+                
+                st.success(f"💾 Video file received from camera and saved safely as `{file_name}`!")
+        except Exception as e:
+            st.error(f"Error compiling video storage data payload: {str(e)}")
+
     st.markdown("---")
 
     for message in current_chat["history"]:
@@ -505,13 +554,9 @@ elif app_mode == "🌐 Explore Video Learning Engine":
     st.video(module_data["vid"])
     
     if st.button(f"🚀 Injection Topic Into Active AI Agent Profile", use_container_width=True, type="primary"):
-        # Automatically insert the topic into the current chat conversation memory stream
         injection_text = f"⚙️ SYSTEM UPDATE: Candidate has initialized study topic: **{selected_session}** from module context **{selected_module}**. Restrict evaluation focus to these specific competencies."
         current_chat["history"].append({"role": "user", "content": injection_text})
-        
-        # Alter the current visual chat title automatically to provide immediate reinforcement
         current_chat["title"] = f"🎓 {selected_session.split(':')[0]}"
-        
         st.success(f"Success! Agent context set to **{selected_session}**. Head back over to the '🗣️ Skill Assessment Portal' workspace to start your live video run.")
 
 elif app_mode == "📬 Submit Custom Prompts":
