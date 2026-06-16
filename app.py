@@ -144,9 +144,6 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
 # LIVE HTML5 WEBCAM VIDEO RECORDER NODE
 # =========================================================
 def render_webcam_video_recorder():
-    """
-    Renders an HTML5 / JavaScript webcam capture interface to record candidate interview videos.
-    """
     webcam_html = """
     <div style="background-color: #0f172a; padding: 15px; border-radius: 10px; color: #ffffff; font-family: system-ui, sans-serif; text-align: center;">
         <video id="preview" width="100%" height="240" autoplay muted style="background: #000; border-radius: 6px; transform: scaleX(-1);"></video>
@@ -434,21 +431,88 @@ elif app_mode == "📊 Analytics Dashboard":
         st.metric(label="Grammar Slips Logged", value=int(metrics.get('grammar_errors_logged', 0)))
 
 elif app_mode == "🌐 Explore Video Learning Engine":
-    st.title("🎬 Immersive Video Learning Hub")
-    st.markdown("Interactive native video session modules focused on essential corporate soft skills and verbal confidence.")
+    st.title("🎬 50+ Topic Multi-Module Learning Hub")
+    st.markdown("Select an explicit module to reveal targeted micro-sessions. You can launch any topic directly into your conversational AI agent context framework.")
+
+    # Dictionary containing 50 clean, distinct training topics mapped to video streams
+    curriculum_matrix = {
+        "📚 English Grammar Foundations": {
+            "vid": "https://www.youtube.com/watch?v=3oIAICs8N9I",
+            "sessions": [
+                "Session 1: Subject-Verb Agreement Essentials", "Session 2: Mastering Modal Verbs (Can, Could, Should)",
+                "Session 3: Complex Prepositions in Business", "Session 4: Active vs. Passive Voice Calibration",
+                "Session 5: Correcting Run-On Sentences", "Session 6: Advanced Conditionals (If-Then Matrix)",
+                "Session 7: Gerunds vs. Infinitives rules", "Session 8: Structural Relative Clauses",
+                "Session 9: Adjective Ordering Sequences"
+            ]
+        },
+        "⏳ Tense Mastery (Deep Dive)": {
+            "vid": "https://www.youtube.com/watch?v=TsYMJQEtpJU",
+            "sessions": [
+                "Session 10: Simple Present vs. Present Continuous", "Session 11: Past Simple vs. Present Perfect Narratives",
+                "Session 12: Future Intention Precision (Will vs. Going to)", "Session 13: Past Perfect Event Sequencing",
+                "Session 14: Perfect Continuous Timing Layouts", "Session 15: Irregular Verbs Diagnostic Practice",
+                "Session 16: State Verbs vs. Action Verbs Rules", "Session 17: Reported Speech Time-Shifting"
+            ]
+        },
+        "🗣️ Communicable & Conversational Skills": {
+            "vid": "https://www.youtube.com/watch?v=HAnw168huqA",
+            "sessions": [
+                "Session 18: Fluid Speech Pacing Frameworks", "Session 19: Pitch & Intonation Modulation",
+                "Session 20: Eradicating Filler Words (Um, Like, Uh)", "Session 21: High-Impact Small Talk Starters",
+                "Session 22: Structuring Real-Time Opinions", "Session 23: Expressing Strong Disagreement Politely",
+                "Session 24: Interrupting with Professional Grace", "Session 25: Describing Trends and Metrics Fluently",
+                "Session 26: Idiomatic English Expressions for Daily Use"
+            ]
+        },
+        "📖 Reading & Comprehension Skills": {
+            "vid": "https://www.youtube.com/watch?v=CxiH7s0inJc",
+            "sessions": [
+                "Session 27: Skimming Complex Industry Reports", "Session 28: Scanning for Crucial Metrics Data",
+                "Session 29: Inferring Contextual Meanings of New Vocabulary", "Session 30: Paragraph Summary & Synthesis Retentions",
+                "Session 31: Identifying Bias in Written Editorial Content", "Session 32: Speed Reading Conditioning Exercises",
+                "Session 33: Structural Signpost Recognition"
+            ]
+        },
+        "🤝 Essential Corporate Soft Skills": {
+            "vid": "https://www.youtube.com/watch?v=8Oyd8d40om4",
+            "sessions": [
+                "Session 34: Active Listening Patterns in Teams", "Session 35: Delivering Constructive Criticism Elegantly",
+                "Session 36: Empathy Models in Remote Work Ecosystems", "Session 37: Cross-Functional Team Negotiation Tools",
+                "Session 38: De-escalation Paths for Workplace Disagreements", "Session 39: Assertive vs. Aggressive Vocal Styles",
+                "Session 40: Navigating Unconscious Biases in Dialog", "Session 41: Managing Time Commitments Verbally"
+            ]
+        },
+        "👔 Business Communication & Interview Prep": {
+            "vid": "https://www.youtube.com/watch?v=PCWVi5pAa30",
+            "sessions": [
+                "Session 42: Compelling Presentation Structural Frameworks", "Session 43: Handing Hostile Q&A Panels Safely",
+                "Session 44: High-Stakes Salary Negotiation Dialogue", "Session 45: Mastering the STAR Interview Formula",
+                "Session 46: Explaining Career Gaps with Absolute Confidence", "Session 47: Crafting an Impactful Elevator Pitch",
+                "Session 48: Remote Video Interface Presence Optimization", "Session 49: Telling Captivating Brand Stories",
+                "Session 50: Closing the Deal / Client Intake Closing Scripts"
+            ]
+        }
+    }
+
+    selected_module = st.selectbox("🎯 Step 1: Select Training Module Category:", list(curriculum_matrix.keys()))
+    module_data = curriculum_matrix[selected_module]
     
-    v_col1, v_col2 = st.columns(2)
-    with v_col1:
-        st.markdown("### 🗣️ Module 1: Conversational Soft Skills")
-        st.video("https://www.youtube.com/watch?v=HAnw168huqA")
-        if st.button("Start Pronunciation Drills", use_container_width=True):
-            st.success("Module active! Use your webcam interface in the primary portal to submit your practice responses.")
-            
-    with v_col2:
-        st.markdown("### 👔 Module 2: Business & Interview Communication")
-        st.video("https://www.youtube.com/watch?v=PCWVi5pAa30")
-        if st.button("Start Interview Simulator", use_container_width=True):
-            st.success("Module active! Use your webcam interface in the primary portal to submit your practice responses.")
+    selected_session = st.selectbox("📝 Step 2: Choose Specific Focus Topic Session:", module_data["sessions"])
+    
+    st.markdown("---")
+    st.markdown(f"#### 📺 Target Study Stream: `{selected_session}`")
+    st.video(module_data["vid"])
+    
+    if st.button(f"🚀 Injection Topic Into Active AI Agent Profile", use_container_width=True, type="primary"):
+        # Automatically insert the topic into the current chat conversation memory stream
+        injection_text = f"⚙️ SYSTEM UPDATE: Candidate has initialized study topic: **{selected_session}** from module context **{selected_module}**. Restrict evaluation focus to these specific competencies."
+        current_chat["history"].append({"role": "user", "content": injection_text})
+        
+        # Alter the current visual chat title automatically to provide immediate reinforcement
+        current_chat["title"] = f"🎓 {selected_session.split(':')[0]}"
+        
+        st.success(f"Success! Agent context set to **{selected_session}**. Head back over to the '🗣️ Skill Assessment Portal' workspace to start your live video run.")
 
 elif app_mode == "📬 Submit Custom Prompts":
     st.title("Custom Evaluation Prompt Intake Node")
