@@ -111,12 +111,12 @@ def init_user_and_get_plan(email_str):
 def update_user_plan_db(email_str, target_plan):
     clean_email = email_str.strip().lower()
     if supabase_client is None:
-        return
+        return False
     try:
         supabase_client.table("users").update({"user_plan": target_plan}).eq("email", clean_email).execute()
-        st.rerun()
+        return True
     except Exception:
-        pass
+        return False
 
 ROBOT_AVATAR = "https://img.icons8.com/fluent/96/artificial-intelligence.png"
 USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
@@ -213,7 +213,6 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    # Removed structural duplicate keys to prevent core type validation crash
     return components.html(webcam_html, height=330)
 
 # =========================================================
@@ -354,23 +353,24 @@ def text_to_speech_bytes(text_payload):
     except Exception:
         return None
 
+# FIXED & ISOLATED SUBSCRIPTION PANEL COMPONENT
 def show_subscription_options():
     st.subheader("Select a Subscription Tier to Continue:")
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown("### 🥉 Basic")
         st.markdown("**₹15** / month")
-        if st.button("Select ₹15 Plan", use_container_width=True): 
+        if st.button("Select ₹15 Plan", use_container_width=True, key="btn_tier_15"): 
             st.session_state.payment_plan_selected = ("Basic Premium", 15, "1 Month")
     with col2:
         st.markdown("### 🥈 Standard")
         st.markdown("**₹30** / month")
-        if st.button("Select ₹30 Plan", use_container_width=True, type="primary"): 
+        if st.button("Select ₹30 Plan", use_container_width=True, type="primary", key="btn_tier_30"): 
             st.session_state.payment_plan_selected = ("Standard Premium", 30, "1 Month")
     with col3:
         st.markdown("### 🥇 Executive")
         st.markdown("**₹50** / month")
-        if st.button("Select ₹50 Plan", use_container_width=True): 
+        if st.button("Select ₹50 Plan", use_container_width=True, key="btn_tier_50"): 
             st.session_state.payment_plan_selected = ("Executive Premium", 50, "1 Month")
             
     st.markdown("---")
@@ -386,8 +386,17 @@ def show_subscription_options():
     if st.session_state.payment_plan_selected:
         plan_nm, plan_amt, plan_dur = st.session_state.payment_plan_selected
         render_payment_gateway(auth_email, plan_nm, plan_amt, plan_dur)
-        if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm} ({plan_dur})", use_container_width=True):
-            update_user_plan_db(auth_email, f"{plan_nm} ({plan_dur})")
+        
+        # Fixed simulation logic click handler sequence
+        if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True, key="execute_sim_payment"):
+            target_plan_string = f"{plan_nm} ({plan_dur})"
+            success = update_user_plan_db(auth_email, target_plan_string)
+            if success:
+                st.success(f"Successfully activated {target_plan_string}! Reloading layout...")
+                st.session_state.payment_plan_selected = None
+                st.rerun()
+            else:
+                st.error("Database storage push failed. Verify connectivity parameters.")
 
 # =========================================================
 # ROUTED CONTENT INTERFACE SWITCHER VIEWS
@@ -413,7 +422,6 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
     st.markdown("### 🎥 Live Video Interview Feed")
     
-    # Executed cleanly within specific condition space to avoid script execution trace errors
     recorded_video_base64 = render_webcam_video_recorder()
     
     if recorded_video_base64 is not None:
