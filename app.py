@@ -213,7 +213,7 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    return components.html(webcam_html, height=330)
+    return components.html(webcam_html, height=350, key="webcam_widget")
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -280,6 +280,7 @@ with st.sidebar:
                 with col_ren:
                     if st.button("Rename", key=f"ren_{c_id}", use_container_width=True):
                         st.session_state[f"show_rename_field_{c_id}"] = True
+                        st.rerun()
                 
                 with col_del:
                     if st.button("🗑️ Delete", key=f"del_{c_id}", use_container_width=True):
@@ -362,16 +363,19 @@ def show_subscription_options():
         st.markdown("**₹15** / month")
         if st.button("Select ₹15 Plan", use_container_width=True, key="btn_tier_15"): 
             st.session_state.payment_plan_selected = ("Basic Premium", 15, "1 Month")
+            st.rerun()
     with col2:
         st.markdown("### 🥈 Standard")
         st.markdown("**₹30** / month")
         if st.button("Select ₹30 Plan", use_container_width=True, type="primary", key="btn_tier_30"): 
             st.session_state.payment_plan_selected = ("Standard Premium", 30, "1 Month")
+            st.rerun()
     with col3:
         st.markdown("### 🥇 Executive")
         st.markdown("**₹50** / month")
         if st.button("Select ₹50 Plan", use_container_width=True, key="btn_tier_50"): 
             st.session_state.payment_plan_selected = ("Executive Premium", 50, "1 Month")
+            st.rerun()
             
     st.markdown("---")
     st.markdown("##### 🏷️ Have a Coupon Code?")
@@ -527,7 +531,7 @@ elif app_mode == "🌐 Explore Video Learning Engine":
                 "Session 33: Structural Signpost Recognition"
             ]
         },
-        "🤝 Essential Corporate Soft Skills": {
+        "⏳ Essential Corporate Soft Skills": {
             "vid": "https://www.youtube.com/watch?v=8Oyd8d40om4",
             "sessions": [
                 "Session 34: Active Listening Patterns in Teams", "Session 35: Delivering Constructive Criticism Elegantly",
