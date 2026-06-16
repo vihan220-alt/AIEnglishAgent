@@ -432,19 +432,21 @@ elif app_mode == "📊 Analytics Dashboard":
 
 elif app_mode == "🌐 Explore Video Learning Engine":
     st.title("🎬 Immersive Video Learning Hub")
-    st.markdown("Interactive native video session modules built directly into your platform framework.")
+    st.markdown("Interactive native video session modules focused on essential corporate soft skills and verbal confidence.")
     
-    # Grid layout for selecting video lessons mirroring structured learning models
+    # Grid layout for selecting video lessons focused on English Soft Skills
     v_col1, v_col2 = st.columns(2)
     with v_col1:
-        st.markdown("### 🗣️ Module 1: Conversational English")
-        st.video("https://www.w3schools.com/html/mov_bbb.mp4")
+        st.markdown("### 🗣️ Module 1: Conversational Soft Skills")
+        # High quality presentation on active listening, confidence, and verbal expression
+        st.video("https://www.youtube.com/watch?v=A2fB0UInEAg")
         if st.button("Start Pronunciation Drills", use_container_width=True):
             st.success("Module active! Use your webcam interface in the primary portal to submit your practice responses.")
             
     with v_col2:
-        st.markdown("### 👔 Module 2: Business Communication")
-        st.video("https://www.w3schools.com/html/movie.mp4")
+        st.markdown("### 👔 Module 2: Business & Interview Communication")
+        # High quality training structure on answering core job interview questions confidently
+        st.video("https://www.youtube.com/watch?v=PCWVi5pAa30")
         if st.button("Start Interview Simulator", use_container_width=True):
             st.success("Module active! Use your webcam interface in the primary portal to submit your practice responses.")
 
