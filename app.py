@@ -143,7 +143,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
     components.html(razorpay_html_code, height=160)
 
 # =========================================================
-# UPDATED LIVE HTML5 WEBCAM VIDEO RECORDER NODE (PASSED TO PYTHON)
+# LIVE HTML5 WEBCAM VIDEO RECORDER NODE (PASSED TO PYTHON)
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -213,7 +213,6 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    # Key makes sure data registers perfectly to Streamlit
     return components.html(webcam_html, height=330, key="webcam_component_node")
 
 # =========================================================
@@ -411,21 +410,18 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     else:
         st.success(f"👑 Active License Verified — **{user_package_tier}**")
 
-    # Interactive Candidate Webcam Row for Video Processing
     st.markdown("### 🎥 Live Video Interview Feed")
     
-    # Render webcam and get its returned value data
+    # Render webcam and get its returned value data safely
     recorded_video_base64 = render_webcam_video_recorder()
     
-    # PROCESS THE SUBMITTED VIDEO DATA IF IT EXISTS
-    if recorded_video_base64 interaction_check is not None:
+    # FIXED SYNTAX HERE: Properly check if video string exists
+    if recorded_video_base64 is not None:
         try:
-            # Strip out the data url headers from base64 string
             if "base64," in str(recorded_video_base64):
                 base64_clean = str(recorded_video_base64).split("base64,")[1]
                 video_bytes = base64.b64decode(base64_clean)
                 
-                # Automatically save the video into your project folder!
                 file_name = f"interview_session_{active_id}.webm"
                 with open(file_name, "wb") as f:
                     f.write(video_bytes)
@@ -483,7 +479,6 @@ elif app_mode == "🌐 Explore Video Learning Engine":
     st.title("🎬 50+ Topic Multi-Module Learning Hub")
     st.markdown("Select an explicit module to reveal targeted micro-sessions. You can launch any topic directly into your conversational AI agent context framework.")
 
-    # Dictionary containing 50 clean, distinct training topics mapped to video streams
     curriculum_matrix = {
         "📚 English Grammar Foundations": {
             "vid": "https://www.youtube.com/watch?v=3oIAICs8N9I",
