@@ -30,7 +30,7 @@ if "all_chats" not in st.session_state:
         "Chat_1": {
             "title": "Default Video Language Assessment",
             "pinned": False,
-            "history": [{"role": "assistant", "content": "🎯 **Welcome to your English Video Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the profile calibration form below to start your tailored interactive interview video session."}]
+            "history": [{"role": "assistant", "content": "🎯 **Welcome to your English Video Assessment Portal!**\n\ Let's map out your evaluation benchmarks. Please fill out the profile calibration form below to start your tailored interactive interview video session."}]
         }
     }
 
@@ -51,7 +51,6 @@ if "performance_metrics" not in st.session_state:
 if "payment_plan_selected" not in st.session_state:
     st.session_state.payment_plan_selected = None
 
-# Base64 data collection target array
 if "incoming_video_payload" not in st.session_state:
     st.session_state.incoming_video_payload = None
 
@@ -146,7 +145,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
     components.html(razorpay_html_code, height=160)
 
 # =========================================================
-# LIVE HTML5 WEBCAM VIDEO RECORDER NODE (postMessage FIX)
+# LIVE HTML5 WEBCAM VIDEO RECORDER NODE
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -195,8 +194,6 @@ def render_webcam_video_recorder():
                     reader.readAsDataURL(blob); 
                     reader.onloadend = function() {
                         let base64String = reader.result;
-                        
-                        // FIX: Secure custom event data passage bypassing window restrictions
                         window.parent.postMessage({
                             type: 'STREAMLIT_VIDEO_TRANSFER_EVENT',
                             data: base64String
@@ -232,7 +229,6 @@ def render_webcam_video_recorder():
 # REVERSED BRIDGE LISTENER RECEIVER COMPONENT
 # =========================================================
 def render_cross_domain_bridge_receiver():
-    # Invisible channel that handles incoming data from the iframe safely inside the browser window context
     receiver_js = """
     <script>
         window.addEventListener('message', function(event) {
@@ -449,7 +445,7 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     with st.expander("👁️ System Bridge Channels", expanded=False):
         video_bridge_data = st.text_input("Internal Data Sync Node", key="hidden_video_bridge_input")
 
-    # Render recorder and invisible cross-domain event handler
+    # FIX FIX FIX: Called directly without variable assignment assignment 
     render_webcam_video_recorder()
     render_cross_domain_bridge_receiver()
 
