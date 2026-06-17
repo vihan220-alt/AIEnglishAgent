@@ -51,6 +51,10 @@ if "performance_metrics" not in st.session_state:
 if "payment_plan_selected" not in st.session_state:
     st.session_state.payment_plan_selected = None
 
+# Track captured base64 video string safely outside standard loop overrides
+if "last_recorded_video_raw" not in st.session_state:
+    st.session_state.last_recorded_video_raw = None
+
 # Guarantee active_chat_id points to a valid session
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
@@ -75,7 +79,6 @@ SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
 
 @st.cache_resource
 def get_supabase_client():
-    # If the key is missing or is a placeholder, do not crash the engine
     if not SUPABASE_KEY or SUPABASE_KEY.strip() == "":
         return None
     try:
@@ -214,8 +217,7 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    # Use st.components.v1.html to safely embed and capture returns
-    return components.html(webcam_html, height=350, key="webcam_widget")
+    return components.html(webcam_html, height=350, key="webcam_widget_v3")
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -393,7 +395,6 @@ def show_subscription_options():
         plan_nm, plan_amt, plan_dur = st.session_state.payment_plan_selected
         render_payment_gateway(auth_email, plan_nm, plan_amt, plan_dur)
         
-        # Fixed simulation logic click handler sequence
         if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True, key="execute_sim_payment"):
             if supabase_client is None:
                 st.error("Database initialization failed. Please set up your secrets (`SUPABASE_KEY`) in your Streamlit dashboard settings first.")
@@ -433,10 +434,8 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     
     recorded_video_base64 = render_webcam_video_recorder()
     
-    # Corrected conditional tracking logic to avoid SyntaxError / TypeError
     if recorded_video_base64 is not None:
         try:
-            # Safely query if data component value holds content payload
             if hasattr(recorded_video_base64, 'value') and recorded_video_base64.value:
                 video_str = str(recorded_video_base64.value)
             else:
