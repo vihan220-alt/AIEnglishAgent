@@ -1,12 +1,11 @@
-import streamlit as st
-
 # =========================================================
 # CONFIGURATION & SYSTEM THEME INTEGRATION (MUST BE FIRST)
 # =========================================================
 st.set_page_config(
     page_title="SkillVerify AI - Video English Assessment Platform",
-    page_icon="🎬",
+    page_icon="🤖",  # Updated to match your AI profile avatar
     layout="centered"
+)
 )
 
 # Core library imports
@@ -51,7 +50,7 @@ if "performance_metrics" not in st.session_state:
 if "payment_plan_selected" not in st.session_state:
     st.session_state.payment_plan_selected = None
 
-# Track captured base64 video string safely outside standard loop overrides
+# CRITICAL FIX: Persistent slot for the raw video data to prevent serialization lockups
 if "last_recorded_video_raw" not in st.session_state:
     st.session_state.last_recorded_video_raw = None
 
@@ -180,6 +179,7 @@ def render_webcam_video_recorder():
             preview.srcObject = stream;
             startBtn.addEventListener('click', () => {
                 recordedChunks = [];
+                // Use standard parameters to ensure max cross-browser compatibility
                 recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
                 
                 recorder.ondataavailable = (e) => {
@@ -217,7 +217,8 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    return components.html(webcam_html, height=350, key="webcam_widget_v3")
+    # Key changed to force clean lifecycle mounting point update
+    return components.html(webcam_html, height=350, key="webcam_widget_v4_fixed")
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -249,6 +250,7 @@ with st.sidebar:
             }
             st.session_state.active_chat_id = new_id
             st.session_state.autoplay_audio_data = None
+            st.session_state.last_recorded_video_raw = None
             st.rerun()
 
         st.markdown("##### Active Logs Matrix:")
@@ -270,6 +272,7 @@ with st.sidebar:
             if st.button(btn_label, key=f"select_{c_id}", use_container_width=True, type="secondary" if not is_active else "primary"):
                 st.session_state.active_chat_id = c_id
                 st.session_state.autoplay_audio_data = None
+                st.session_state.last_recorded_video_raw = None
                 st.rerun()
                 
             if is_active:
@@ -292,6 +295,7 @@ with st.sidebar:
                             del st.session_state.all_chats[c_id]
                             st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
                             st.session_state.autoplay_audio_data = None
+                            st.session_state.last_recorded_video_raw = None
                             st.rerun()
                         else:
                             st.error("Cannot delete your last active session trace!")
@@ -358,7 +362,7 @@ def text_to_speech_bytes(text_payload):
     except Exception:
         return None
 
-# FIXED & ISOLATED SUBSCRIPTION PANEL COMPONENT
+# SUBSCRIPTION PANEL COMPONENT
 def show_subscription_options():
     st.subheader("Select a Subscription Tier to Continue:")
     col1, col2, col3 = st.columns(3)
@@ -432,24 +436,30 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
     st.markdown("### 🎥 Live Video Interview Feed")
     
+    # Render component frame and catch return trace
     recorded_video_base64 = render_webcam_video_recorder()
     
+    # CRITICAL LIFECYCLE FIX: Process data through a detached cache mechanism
     if recorded_video_base64 is not None:
-        try:
-            if hasattr(recorded_video_base64, 'value') and recorded_video_base64.value:
-                video_str = str(recorded_video_base64.value)
-            else:
-                video_str = str(recorded_video_base64)
+        if hasattr(recorded_video_base64, 'value') and recorded_video_base64.value:
+            st.session_state.last_recorded_video_raw = str(recorded_video_base64.value)
+        elif str(recorded_video_base64).strip() and str(recorded_video_base64) != "None":
+            st.session_state.last_recorded_video_raw = str(recorded_video_base64)
 
-            if "base64," in video_str:
-                base64_clean = video_str.split("base64,")[1]
-                video_bytes = base64.b64decode(base64_clean)
-                
-                file_name = f"interview_session_{active_id}.webm"
-                with open(file_name, "wb") as f:
-                    f.write(video_bytes)
-                
-                st.success(f"💾 Video file received from camera and saved safely as `{file_name}`!")
+    # Decoupled processing logic run strictly over standard primitive string reference
+    if st.session_state.last_recorded_video_raw and "base64," in st.session_state.last_recorded_video_raw:
+        try:
+            video_str = st.session_state.last_recorded_video_raw
+            base64_clean = video_str.split("base64,")[1]
+            video_bytes = base64.b64decode(base64_clean)
+            
+            file_name = f"interview_session_{active_id}.webm"
+            with open(file_name, "wb") as f:
+                f.write(video_bytes)
+            
+            st.success(f"💾 Video file received from camera and saved safely as `{file_name}`!")
+            # Wipe cached processing block to avoid loop writes on standard form reruns
+            st.session_state.last_recorded_video_raw = None
         except Exception as e:
             st.error(f"Error compiling video storage data payload: {str(e)}")
 
