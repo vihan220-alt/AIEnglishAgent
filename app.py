@@ -30,7 +30,7 @@ if "all_chats" not in st.session_state:
         "Chat_1": {
             "title": "Default Video Language Assessment",
             "pinned": False,
-            "history": [{"role": "assistant", "content": "🎯 **Welcome to your English Video Assessment Portal!**\n\ Let's map out your evaluation benchmarks. Please fill out the profile calibration form below to start your tailored interactive interview video session."}]
+            "history": [{"role": "assistant", "content": "🎯 **Welcome to your English Video Assessment Portal!**\n\nLet's map out your evaluation benchmarks. Please fill out the profile calibration form below to start your tailored interactive interview video session."}]
         }
     }
 
@@ -445,7 +445,7 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     with st.expander("👁️ System Bridge Channels", expanded=False):
         video_bridge_data = st.text_input("Internal Data Sync Node", key="hidden_video_bridge_input")
 
-    # FIX FIX FIX: Called directly without variable assignment assignment 
+    # FIXED: Called directly without ANY variable assignment (Removes the TypeError on lines 429/434/453)
     render_webcam_video_recorder()
     render_cross_domain_bridge_receiver()
 
