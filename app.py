@@ -1,11 +1,12 @@
+import streamlit as st
+
 # =========================================================
 # CONFIGURATION & SYSTEM THEME INTEGRATION (MUST BE FIRST)
 # =========================================================
 st.set_page_config(
     page_title="SkillVerify AI - Video English Assessment Platform",
-    page_icon="🤖",  # Updated to match your AI profile avatar
+    page_icon="🎬",
     layout="centered"
-)
 )
 
 # Core library imports
