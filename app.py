@@ -5,7 +5,7 @@ import streamlit as st
 # =========================================================
 st.set_page_config(
     page_title="SkillVerify AI - Video English Assessment Platform",
-    page_icon="🎬",
+    page_icon="🤖",
     layout="centered"
 )
 
@@ -51,11 +51,10 @@ if "performance_metrics" not in st.session_state:
 if "payment_plan_selected" not in st.session_state:
     st.session_state.payment_plan_selected = None
 
-# CRITICAL FIX: Persistent slot for the raw video data to prevent serialization lockups
+# Base64 staging pipeline slot
 if "last_recorded_video_raw" not in st.session_state:
     st.session_state.last_recorded_video_raw = None
 
-# Guarantee active_chat_id points to a valid session
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
         st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
@@ -161,13 +160,6 @@ def render_webcam_video_recorder():
     </div>
 
     <script>
-        function sendToStreamlit(base64Data) {
-            window.parent.postMessage({
-                type: "streamlit:setComponentValue",
-                value: base64Data
-            }, "*");
-        }
-
         let preview = document.getElementById('preview');
         let startBtn = document.getElementById('startBtn');
         let stopBtn = document.getElementById('stopBtn');
@@ -178,13 +170,22 @@ def render_webcam_video_recorder():
         navigator.mediaDevices.getUserMedia({ video: true, audio: true })
         .then(stream => {
             preview.srcObject = stream;
+            
             startBtn.addEventListener('click', () => {
                 recordedChunks = [];
-                // Use standard parameters to ensure max cross-browser compatibility
-                recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                // Check supporting types gracefully
+                let options = { mimeType: 'video/webm;codecs=vp9,opus' };
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options = { mimeType: 'video/webm;codecs=vp8,opus' };
+                }
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options = { mimeType: 'video/webm' };
+                }
+                
+                recorder = new MediaRecorder(stream, options);
                 
                 recorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) {
+                    if (e.data && e.data.size > 0) {
                         recordedChunks.push(e.data);
                     }
                 };
@@ -195,18 +196,28 @@ def render_webcam_video_recorder():
                     reader.readAsDataURL(blob); 
                     reader.onloadend = function() {
                         let base64String = reader.result;
-                        sendToStreamlit(base64String);
+                        
+                        // Find parent inputs safely across frame environments
+                        let targetInput = parent.document.getElementById("hidden_video_bridge_input");
+                        if (targetInput) {
+                            targetInput.value = base64String;
+                            targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
                     }
                 };
 
-                recorder.start();
+                recorder.start(1000); // Collect data slices every 1s to safeguard memory buffer
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
                 statusMsg.innerText = "📺 Session Recording Live (Video + Audio Capturing)...";
                 statusMsg.style.color = "#f43f5e";
             });
+            
             stopBtn.addEventListener('click', () => {
-                recorder.stop();
+                if(recorder && recorder.state !== "inactive") {
+                    recorder.stop();
+                }
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
                 statusMsg.innerText = "✔️ Video stream processed and submitted successfully!";
@@ -218,8 +229,7 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    # Key changed to force clean lifecycle mounting point update
-    return components.html(webcam_html, height=350, key="webcam_widget_v4_fixed")
+    components.html(webcam_html, height=340, key="webcam_widget_final_fixed")
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -255,12 +265,7 @@ with st.sidebar:
             st.rerun()
 
         st.markdown("##### Active Logs Matrix:")
-        
-        sorted_chat_ids = sorted(
-            st.session_state.all_chats.keys(), 
-            key=lambda k: st.session_state.all_chats[k]["pinned"], 
-            reverse=True
-        )
+        sorted_chat_ids = sorted(st.session_state.all_chats.keys(), key=lambda k: st.session_state.all_chats[k]["pinned"], reverse=True)
         
         for c_id in list(sorted_chat_ids):
             if c_id not in st.session_state.all_chats:
@@ -278,18 +283,14 @@ with st.sidebar:
                 
             if is_active:
                 col_pin, col_ren, col_del = st.columns(3)
-                
                 with col_pin:
-                    pin_text = "Unpin" if chat_obj["pinned"] else "Pin"
-                    if st.button(pin_text, key=f"pin_{c_id}", use_container_width=True):
+                    if st.button("Unpin" if chat_obj["pinned"] else "Pin", key=f"pin_{c_id}", use_container_width=True):
                         st.session_state.all_chats[c_id]["pinned"] = not st.session_state.all_chats[c_id]["pinned"]
                         st.rerun()
-                
                 with col_ren:
                     if st.button("Rename", key=f"ren_{c_id}", use_container_width=True):
                         st.session_state[f"show_rename_field_{c_id}"] = True
                         st.rerun()
-                
                 with col_del:
                     if st.button("🗑️ Delete", key=f"del_{c_id}", use_container_width=True):
                         if len(st.session_state.all_chats) > 1:
@@ -324,19 +325,17 @@ def parse_and_update_metrics(ai_text):
 
 def get_evaluator_response(plan_tier):
     if "GROQ_API_KEY" not in st.secrets:
-        return "Configuration Key Error: Please register GROQ_API_KEY in your deployment environment secrets panel."
+        return "Configuration Key Error: Please register GROQ_API_KEY in secrets."
 
     system_rules = (
         "You are a friendly, conversational English Language Assessor evaluating a video interview submission. "
         "Keep your responses extremely concise, short, and natural (maximum 2 sentences). "
-        "Do not write long paragraphs or list multiple questions. "
         "Always respond with exactly ONE clear, short conversational question at the end to keep the video chat interactive."
     )
     
     messages_payload = [{"role": "system", "content": system_rules}]
     for msg in current_chat["history"]:
-        role_map = "user" if msg["role"] == "user" else "assistant"
-        messages_payload.append({"role": role_map, "content": msg["content"]})
+        messages_payload.append({"role": "user" if msg["role"] == "user" else "assistant", "content": msg["content"]})
         
     llm_payload = {"model": "llama-3.3-70b-versatile", "messages": messages_payload}
     llm_headers = {"Content-Type": "application/json", "Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}"}
@@ -350,7 +349,7 @@ def get_evaluator_response(plan_tier):
             return response_content
         return "Server payload processing structural error match failed."
     except Exception as e:
-        return f"Network failure during model response request generation: {str(e)}"
+        return f"Network failure: {str(e)}"
 
 def text_to_speech_bytes(text_payload):
     try:
@@ -363,35 +362,29 @@ def text_to_speech_bytes(text_payload):
     except Exception:
         return None
 
-# SUBSCRIPTION PANEL COMPONENT
 def show_subscription_options():
     st.subheader("Select a Subscription Tier to Continue:")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown("### 🥉 Basic")
-        st.markdown("**₹15** / month")
+        st.markdown("### 🥉 Basic\n**₹15** / month")
         if st.button("Select ₹15 Plan", use_container_width=True, key="btn_tier_15"): 
             st.session_state.payment_plan_selected = ("Basic Premium", 15, "1 Month")
             st.rerun()
     with col2:
-        st.markdown("### 🥈 Standard")
-        st.markdown("**₹30** / month")
+        st.markdown("### 🥈 Standard\n**₹30** / month")
         if st.button("Select ₹30 Plan", use_container_width=True, type="primary", key="btn_tier_30"): 
             st.session_state.payment_plan_selected = ("Standard Premium", 30, "1 Month")
             st.rerun()
     with col3:
-        st.markdown("### 🥇 Executive")
-        st.markdown("**₹50** / month")
+        st.markdown("### 🥇 Executive\n**₹50** / month")
         if st.button("Select ₹50 Plan", use_container_width=True, key="btn_tier_50"): 
             st.session_state.payment_plan_selected = ("Executive Premium", 50, "1 Month")
             st.rerun()
             
     st.markdown("---")
-    st.markdown("##### 🏷️ Have a Coupon Code?")
     coupon_input = st.text_input("Enter Coupon Code here:", key="coupon_field").strip().upper()
-    
     if coupon_input in ["FREE3M", "SKILL3"]:
-        st.success("🎉 Coupon Applied Successfully! You get **3 Months FREE** on any selection.")
+        st.success("🎉 Coupon Applied Successfully! You get **3 Months FREE**.")
         if st.session_state.payment_plan_selected:
             p_name, _, _ = st.session_state.payment_plan_selected
             st.session_state.payment_plan_selected = (p_name, 0, "3 Months Promo")
@@ -400,18 +393,17 @@ def show_subscription_options():
         plan_nm, plan_amt, plan_dur = st.session_state.payment_plan_selected
         render_payment_gateway(auth_email, plan_nm, plan_amt, plan_dur)
         
-        if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True, key="execute_sim_payment"):
+        if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True):
             if supabase_client is None:
-                st.error("Database initialization failed. Please set up your secrets (`SUPABASE_KEY`) in your Streamlit dashboard settings first.")
+                st.error("Database initialization failed. Please set up your secrets parameters.")
             else:
-                target_plan_string = f"{plan_nm} ({plan_dur})"
-                success = update_user_plan_db(auth_email, target_plan_string)
+                success = update_user_plan_db(auth_email, f"{plan_nm} ({plan_dur})")
                 if success:
-                    st.success(f"Successfully activated {target_plan_string}! Reloading layout...")
+                    st.success("Successfully activated plan! Reloading layout...")
                     st.session_state.payment_plan_selected = None
                     st.rerun()
                 else:
-                    st.error("Database storage push failed. Verify connectivity parameters or check your network logs.")
+                    st.error("Database storage push failed. Verify connectivity parameters.")
 
 # =========================================================
 # ROUTED CONTENT INTERFACE SWITCHER VIEWS
@@ -423,46 +415,37 @@ if user_package_tier == "Expired":
 
 elif app_mode == "🗣️ Skill Assessment Portal":
     active_id = st.session_state.active_chat_id
-    if "all_chats" in st.session_state and active_id in st.session_state.all_chats:
-        st.title(f"{st.session_state.all_chats[active_id]['title']}")
-    else:
-        st.title("Portal Workspace: English Assessment Portal")
+    st.title(f"{st.session_state.all_chats[active_id]['title'] if active_id in st.session_state.all_chats else 'English Assessment Portal'}")
     
     if "Premium" not in user_package_tier:
         st.warning(f"⏳ Free Trial Active Account Profile — **{trial_countdown} days left**")
-        with st.expander("👑 Upgrade to Premium Instantly (₹15 / ₹30 / ₹50)", expanded=False):
+        with st.expander("👑 Upgrade to Premium Instantly", expanded=False):
             show_subscription_options()
     else:
         st.success(f"👑 Active License Verified — **{user_package_tier}**")
 
     st.markdown("### 🎥 Live Video Interview Feed")
     
-    # Render component frame and catch return trace
-    recorded_video_base64 = render_webcam_video_recorder()
-    
-    # CRITICAL LIFECYCLE FIX: Process data through a detached cache mechanism
-    if recorded_video_base64 is not None:
-        if hasattr(recorded_video_base64, 'value') and recorded_video_base64.value:
-            st.session_state.last_recorded_video_raw = str(recorded_video_base64.value)
-        elif str(recorded_video_base64).strip() and str(recorded_video_base64) != "None":
-            st.session_state.last_recorded_video_raw = str(recorded_video_base64)
+    # SYSTEM BRIDGE CHANNEL
+    with st.expander("👁️ System Bridge Channels", expanded=False):
+        video_bridge_data = st.text_input("Internal Data Sync Node", key="hidden_video_bridge_input")
 
-    # Decoupled processing logic run strictly over standard primitive string reference
-    if st.session_state.last_recorded_video_raw and "base64," in st.session_state.last_recorded_video_raw:
+    # Render video interface
+    render_webcam_video_recorder()
+
+    # Process data out of the text field asset pipeline safely
+    if video_bridge_data and "base64," in video_bridge_data:
         try:
-            video_str = st.session_state.last_recorded_video_raw
-            base64_clean = video_str.split("base64,")[1]
+            base64_clean = video_bridge_data.split("base64,")[1]
             video_bytes = base64.b64decode(base64_clean)
-            
             file_name = f"interview_session_{active_id}.webm"
             with open(file_name, "wb") as f:
                 f.write(video_bytes)
-            
-            st.success(f"💾 Video file received from camera and saved safely as `{file_name}`!")
-            # Wipe cached processing block to avoid loop writes on standard form reruns
-            st.session_state.last_recorded_video_raw = None
+            st.success(f"💾 Video file saved safely as `{file_name}`!")
+            # Use state management modification instead of raw clear parameters to prevent interface structural lockups
+            st.session_state.hidden_video_bridge_input = ""
         except Exception as e:
-            st.error(f"Error compiling video storage data payload: {str(e)}")
+            st.error(f"Error compiling video payload: {str(e)}")
 
     st.markdown("---")
 
@@ -477,28 +460,23 @@ elif app_mode == "🗣️ Skill Assessment Portal":
             with st.form("assessment_setup_form"):
                 target_skill = st.selectbox("Primary Video Assessment Track:", ["Spoken English & Fluency", "Corporate/Business Communication"])
                 experience_tier = st.selectbox("Target Competency Level:", ["Beginner / Elementary", "Advanced / Native Proficiency"])
-                submit_onboarding = st.form_submit_button("🔥 Launch Language Assessment Matrix", type="primary")
-                if submit_onboarding:
-                    context_injection = f"🎯 Profile setup for {target_skill} targeting {experience_tier} benchmarks."
-                    current_chat["history"].append({"role": "user", "content": context_injection})
-                    with st.spinner("Compiling structure context rules..."):
-                        eval_reply = get_evaluator_response(user_package_tier)
-                        current_chat["history"].append({"role": "assistant", "content": eval_reply})
-                        st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
-                        st.rerun()
+                if st.form_submit_button("🔥 Launch Language Assessment Matrix", type="primary"):
+                    current_chat["history"].append({"role": "user", "content": f"🎯 Profile setup for {target_skill} targeting {experience_tier} benchmarks."})
+                    eval_reply = get_evaluator_response(user_package_tier)
+                    current_chat["history"].append({"role": "assistant", "content": eval_reply})
+                    st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
+                    st.rerun()
 
-    audio_placeholder = st.empty()
     if st.session_state.autoplay_audio_data:
-        audio_placeholder.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
+        st.empty().audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
 
     text_input = st.chat_input("Type your translation, essay answer, or session text here...")
     if text_input:
         current_chat["history"].append({"role": "user", "content": text_input})
-        with st.spinner("Analyzing response dynamics..."):
-            eval_reply = get_evaluator_response(user_package_tier)
-            current_chat["history"].append({"role": "assistant", "content": eval_reply})
-            st.session_state.autoplay_audio_data = None
-            st.rerun()
+        eval_reply = get_evaluator_response(user_package_tier)
+        current_chat["history"].append({"role": "assistant", "content": eval_reply})
+        st.session_state.autoplay_audio_data = None
+        st.rerun()
 
 elif app_mode == "📊 Analytics Dashboard":
     st.title("Linguistic Matrix Progress Tracker")
@@ -510,83 +488,16 @@ elif app_mode == "📊 Analytics Dashboard":
         st.metric(label="Grammar Slips Logged", value=int(metrics.get('grammar_errors_logged', 0)))
 
 elif app_mode == "🌐 Explore Video Learning Engine":
-    st.title("🎬 50+ Topic Multi-Module Learning Hub")
-    st.markdown("Select an explicit module to reveal targeted micro-sessions. You can launch any topic directly into your conversational AI agent context framework.")
-
+    st.title("🎬 Topic Multi-Module Learning Hub")
     curriculum_matrix = {
         "📚 English Grammar Foundations": {
             "vid": "https://www.youtube.com/watch?v=3oIAICs8N9I",
-            "sessions": [
-                "Session 1: Subject-Verb Agreement Essentials", "Session 2: Mastering Modal Verbs (Can, Could, Should)",
-                "Session 3: Complex Prepositions in Business", "Session 4: Active vs. Passive Voice Calibration",
-                "Session 5: Correcting Run-On Sentences", "Session 6: Advanced Conditionals (If-Then Matrix)",
-                "Session 7: Gerunds vs. Infinitives rules", "Session 8: Structural Relative Clauses",
-                "Session 9: Adjective Ordering Sequences"
-            ]
-        },
-        "⏳ Tense Mastery (Deep Dive)": {
-            "vid": "https://www.youtube.com/watch?v=TsYMJQEtpJU",
-            "sessions": [
-                "Session 10: Simple Present vs. Present Continuous", "Session 11: Past Simple vs. Present Perfect Narratives",
-                "Session 12: Future Intention Precision (Will vs. Going to)", "Session 13: Past Perfect Event Sequencing",
-                "Session 14: Perfect Continuous Timing Layouts", "Session 15: Irregular Verbs Diagnostic Practice",
-                "Session 16: State Verbs vs. Action Verbs Rules", "Session 17: Reported Speech Time-Shifting"
-            ]
-        },
-        "🗣️ Communicable & Conversational Skills": {
-            "vid": "https://www.youtube.com/watch?v=HAnw168huqA",
-            "sessions": [
-                "Session 18: Fluid Speech Pacing Frameworks", "Session 19: Pitch & Intonation Modulation",
-                "Session 20: Eradicating Filler Words (Um, Like, Uh)", "Session 21: High-Impact Small Talk Starters",
-                "Session 22: Structuring Real-Time Opinions", "Session 23: Expressing Strong Disagreement Politely",
-                "Session 24: Interrupting with Professional Grace", "Session 25: Describing Trends and Metrics Fluently",
-                "Session 26: Idiomatic English Expressions for Daily Use"
-            ]
-        },
-        "📖 Reading & Comprehension Skills": {
-            "vid": "https://www.youtube.com/watch?v=CxiH7s0inJc",
-            "sessions": [
-                "Session 27: Skimming Complex Industry Reports", "Session 28: Scanning for Crucial Metrics Data",
-                "Session 29: Inferring Contextual Meanings of New Vocabulary", "Session 30: Paragraph Summary & Synthesis Retentions",
-                "Session 31: Identifying Bias in Written Editorial Content", "Session 32: Speed Reading Conditioning Exercises",
-                "Session 33: Structural Signpost Recognition"
-            ]
-        },
-        "⏳ Essential Corporate Soft Skills": {
-            "vid": "https://www.youtube.com/watch?v=8Oyd8d40om4",
-            "sessions": [
-                "Session 34: Active Listening Patterns in Teams", "Session 35: Delivering Constructive Criticism Elegantly",
-                "Session 36: Empathy Models in Remote Work Ecosystems", "Session 37: Cross-Functional Team Negotiation Tools",
-                "Session 38: De-escalation Paths for Workplace Disagreements", "Session 39: Assertive vs. Aggressive Vocal Styles",
-                "Session 40: Navigating Unconscious Biases in Dialog", "Session 41: Managing Time Commitments Verbally"
-            ]
-        },
-        "👔 Business Communication & Interview Prep": {
-            "vid": "https://www.youtube.com/watch?v=PCWVi5pAa30",
-            "sessions": [
-                "Session 42: Compelling Presentation Structural Frameworks", "Session 43: Handing Hostile Q&A Panels Safely",
-                "Session 44: High-Stakes Salary Negotiation Dialogue", "Session 45: Mastering the STAR Interview Formula",
-                "Session 46: Explaining Career Gaps with Absolute Confidence", "Session 47: Crafting an Impactful Elevator Pitch",
-                "Session 48: Remote Video Interface Presence Optimization", "Session 49: Telling Captivating Brand Stories",
-                "Session 50: Closing the Deal / Client Intake Closing Scripts"
-            ]
+            "sessions": ["Session 1: Subject-Verb Agreement Essentials", "Session 2: Mastering Modal Verbs"]
         }
     }
-
     selected_module = st.selectbox("🎯 Step 1: Select Training Module Category:", list(curriculum_matrix.keys()))
-    module_data = curriculum_matrix[selected_module]
-    
-    selected_session = st.selectbox("📝 Step 2: Choose Specific Focus Topic Session:", module_data["sessions"])
-    
-    st.markdown("---")
-    st.markdown(f"#### 📺 Target Study Stream: `{selected_session}`")
-    st.video(module_data["vid"])
-    
-    if st.button(f"🚀 Injection Topic Into Active AI Agent Profile", use_container_width=True, type="primary"):
-        injection_text = f"⚙️ SYSTEM UPDATE: Candidate has initialized study topic: **{selected_session}** from module context **{selected_module}**. Restrict evaluation focus to these specific competencies."
-        current_chat["history"].append({"role": "user", "content": injection_text})
-        current_chat["title"] = f"🎓 {selected_session.split(':')[0]}"
-        st.success(f"Success! Agent context set to **{selected_session}**. Head back over to the '🗣️ Skill Assessment Portal' workspace to start your live video run.")
+    selected_session = st.selectbox("📝 Step 2: Choose Specific Focus Topic Session:", curriculum_matrix[selected_module]["sessions"])
+    st.video(curriculum_matrix[selected_module]["vid"])
 
 elif app_mode == "📬 Submit Custom Prompts":
     st.title("Custom Evaluation Prompt Intake Node")
