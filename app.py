@@ -51,9 +51,9 @@ if "performance_metrics" not in st.session_state:
 if "payment_plan_selected" not in st.session_state:
     st.session_state.payment_plan_selected = None
 
-# Base64 staging pipeline slot
-if "last_recorded_video_raw" not in st.session_state:
-    st.session_state.last_recorded_video_raw = None
+# Base64 data collection target array
+if "incoming_video_payload" not in st.session_state:
+    st.session_state.incoming_video_payload = None
 
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
@@ -146,7 +146,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
     components.html(razorpay_html_code, height=160)
 
 # =========================================================
-# LIVE HTML5 WEBCAM VIDEO RECORDER NODE
+# LIVE HTML5 WEBCAM VIDEO RECORDER NODE (postMessage FIX)
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -173,7 +173,6 @@ def render_webcam_video_recorder():
             
             startBtn.addEventListener('click', () => {
                 recordedChunks = [];
-                // Check supporting types gracefully
                 let options = { mimeType: 'video/webm;codecs=vp9,opus' };
                 if (!MediaRecorder.isTypeSupported(options.mimeType)) {
                     options = { mimeType: 'video/webm;codecs=vp8,opus' };
@@ -197,17 +196,15 @@ def render_webcam_video_recorder():
                     reader.onloadend = function() {
                         let base64String = reader.result;
                         
-                        // Find parent inputs safely across frame environments
-                        let targetInput = parent.document.getElementById("hidden_video_bridge_input");
-                        if (targetInput) {
-                            targetInput.value = base64String;
-                            targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            targetInput.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
+                        // FIX: Secure custom event data passage bypassing window restrictions
+                        window.parent.postMessage({
+                            type: 'STREAMLIT_VIDEO_TRANSFER_EVENT',
+                            data: base64String
+                        }, '*');
                     }
                 };
 
-                recorder.start(1000); // Collect data slices every 1s to safeguard memory buffer
+                recorder.start(1000);
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
                 statusMsg.innerText = "📺 Session Recording Live (Video + Audio Capturing)...";
@@ -220,7 +217,7 @@ def render_webcam_video_recorder():
                 }
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
-                statusMsg.innerText = "✔️ Video stream processed and submitted successfully!";
+                statusMsg.innerText = "✔️ Processing data strings...";
                 statusMsg.style.color = "#10b981";
             });
         }).catch(err => {
@@ -230,6 +227,28 @@ def render_webcam_video_recorder():
     </script>
     """
     components.html(webcam_html, height=340, key="webcam_widget_final_fixed")
+
+# =========================================================
+# REVERSED BRIDGE LISTENER RECEIVER COMPONENT
+# =========================================================
+def render_cross_domain_bridge_receiver():
+    # Invisible channel that handles incoming data from the iframe safely inside the browser window context
+    receiver_js = """
+    <script>
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
+                const b64Data = event.data.data;
+                const hiddenInput = window.parent.document.getElementById("hidden_video_bridge_input");
+                if (hiddenInput) {
+                    hiddenInput.value = b64Data;
+                    hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+        });
+    </script>
+    """
+    components.html(receiver_js, height=0, width=0)
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -261,7 +280,7 @@ with st.sidebar:
             }
             st.session_state.active_chat_id = new_id
             st.session_state.autoplay_audio_data = None
-            st.session_state.last_recorded_video_raw = None
+            st.session_state.incoming_video_payload = None
             st.rerun()
 
         st.markdown("##### Active Logs Matrix:")
@@ -278,7 +297,7 @@ with st.sidebar:
             if st.button(btn_label, key=f"select_{c_id}", use_container_width=True, type="secondary" if not is_active else "primary"):
                 st.session_state.active_chat_id = c_id
                 st.session_state.autoplay_audio_data = None
-                st.session_state.last_recorded_video_raw = None
+                st.session_state.incoming_video_payload = None
                 st.rerun()
                 
             if is_active:
@@ -297,7 +316,7 @@ with st.sidebar:
                             del st.session_state.all_chats[c_id]
                             st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
                             st.session_state.autoplay_audio_data = None
-                            st.session_state.last_recorded_video_raw = None
+                            st.session_state.incoming_video_payload = None
                             st.rerun()
                         else:
                             st.error("Cannot delete your last active session trace!")
@@ -426,14 +445,15 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
     st.markdown("### 🎥 Live Video Interview Feed")
     
-    # SYSTEM BRIDGE CHANNEL
+    # SYSTEM BRIDGE INPUT FIELD NODE
     with st.expander("👁️ System Bridge Channels", expanded=False):
         video_bridge_data = st.text_input("Internal Data Sync Node", key="hidden_video_bridge_input")
 
-    # Render video interface
+    # Render recorder and invisible cross-domain event handler
     render_webcam_video_recorder()
+    render_cross_domain_bridge_receiver()
 
-    # Process data out of the text field asset pipeline safely
+    # Process base64 data safely out of input pipeline when updated
     if video_bridge_data and "base64," in video_bridge_data:
         try:
             base64_clean = video_bridge_data.split("base64,")[1]
@@ -441,9 +461,11 @@ elif app_mode == "🗣️ Skill Assessment Portal":
             file_name = f"interview_session_{active_id}.webm"
             with open(file_name, "wb") as f:
                 f.write(video_bytes)
-            st.success(f"💾 Video file saved safely as `{file_name}`!")
-            # Use state management modification instead of raw clear parameters to prevent interface structural lockups
+            st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
+            
+            # Clear text field component value to prevent duplicate sequential file system writes
             st.session_state.hidden_video_bridge_input = ""
+            st.rerun()
         except Exception as e:
             st.error(f"Error compiling video payload: {str(e)}")
 
