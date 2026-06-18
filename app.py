@@ -27,12 +27,7 @@ import streamlit.components.v1 as components
 from io import BytesIO
 from gtts import gTTS
 from datetime import datetime, date
-
-# Temporary conditional safety module block for Supabase
-try:
-    from supabase import create_client, Client
-except ImportError:
-    pass
+from supabase import create_client, Client
 
 # =========================================================
 # INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
@@ -68,6 +63,10 @@ if "payment_plan_selected" not in st.session_state:
 
 if "incoming_video_payload" not in st.session_state:
     st.session_state.incoming_video_payload = None
+
+# Base bridge input data tracker
+if "bridge_sync_data" not in st.session_state:
+    st.session_state.bridge_sync_data = ""
 
 # Fallback structure validation to prevent empty state drops
 if st.session_state.active_chat_id not in st.session_state.all_chats:
@@ -158,7 +157,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    razorpay_key = f"razorpay_frame_{hashlib.md5(email_recipient.encode()).hexdigest()}_v{st.session_state.iframe_render_idx}"
+    razorpay_key = f"razorpay_frame_{hashlib.md5(email_recipient.encode()).hexdigest()}_mode_{st.session_state.get('active_nav_mode', 'default')}_v{st.session_state.iframe_render_idx}"
     components.html(razorpay_html_code, height=160, key=razorpay_key)
 
 # =========================================================
@@ -234,8 +233,7 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    # FIX: Uses dynamic context identifier isolated from static namespaces to bypass TypeError
-    webcam_key = f"webcam_node_session_v{st.session_state.iframe_render_idx}_{st.session_state.active_chat_id}"
+    webcam_key = f"webcam_node_session_{st.session_state.active_chat_id}_v{st.session_state.iframe_render_idx}"
     components.html(webcam_html, height=340, key=webcam_key)
 
 # =========================================================
@@ -247,7 +245,7 @@ def render_cross_domain_bridge_receiver():
         window.addEventListener('message', function(event) {
             if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
                 const b64Data = event.data.data;
-                const hiddenInput = window.parent.document.getElementById("hidden_video_bridge_input");
+                const hiddenInput = window.parent.document.querySelector('input[aria-label="Internal Data Sync Node"]');
                 if (hiddenInput) {
                     hiddenInput.value = b64Data;
                     hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -257,7 +255,7 @@ def render_cross_domain_bridge_receiver():
         });
     </script>
     """
-    listener_key = f"cross_domain_bridge_listener_v{st.session_state.iframe_render_idx}_{st.session_state.active_chat_id}"
+    listener_key = f"cross_domain_bridge_listener_{st.session_state.active_chat_id}_v{st.session_state.iframe_render_idx}"
     components.html(receiver_js, height=0, width=0, key=listener_key)
 
 # =========================================================
@@ -436,7 +434,7 @@ def show_subscription_options():
         
         if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True, key="payment_simulation_trigger"):
             if supabase_client is None:
-                st.error("Database initialization connection error. Check setup profiles.")
+                st.error("Database initialization failed. Please set up your secrets parameters.")
             else:
                 success = update_user_plan_db(auth_email, f"{plan_nm} ({plan_dur})")
                 if success:
@@ -445,7 +443,7 @@ def show_subscription_options():
                     st.session_state.iframe_render_idx += 1
                     st.rerun()
                 else:
-                    st.error("Database storage push failed.")
+                    st.error("Database storage push failed. Verify connectivity parameters.")
 
 # =========================================================
 # ROUTED CONTENT INTERFACE SWITCHER VIEWS
@@ -469,8 +467,7 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     st.markdown("### 🎥 Live Video Interview Feed")
     
     with st.expander("👁️ System Bridge Channels", expanded=False):
-        v_bridge_key = f"hidden_video_bridge_input_v{st.session_state.iframe_render_idx}_{st.session_state.active_chat_id}"
-        video_bridge_data = st.text_input("Internal Data Sync Node", key=v_bridge_key)
+        video_bridge_data = st.text_input("Internal Data Sync Node", value=st.session_state.bridge_sync_data)
 
     render_webcam_video_recorder()
     render_cross_domain_bridge_receiver()
@@ -484,7 +481,8 @@ elif app_mode == "🗣️ Skill Assessment Portal":
                 f.write(video_bytes)
             st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
             
-            st.session_state[v_bridge_key] = ""
+            # Safe layout synchronization without modifying key configurations inside components
+            st.session_state.bridge_sync_data = ""
             st.session_state.iframe_render_idx += 1
             st.rerun()
         except Exception as e:
@@ -577,6 +575,48 @@ elif app_mode == "🌐 Explore Video Learning Engine":
                 "Session 26: Constructing Persuasive Value Proposition Hooks",
                 "Session 27: Executive Presence & Concluding Impact Statements"
             ]
+        },
+        "🤝 Professional Negotiation & Client Communication": {
+            "vid": "https://www.youtube.com/watch?v=3oIAICs8N9I",
+            "sessions": [
+                "Session 28: Softening Assertions using Hedging Language",
+                "Session 29: Handling Objections with Conversational Empathy",
+                "Session 30: Framing Deadlines Positively without Friction",
+                "Session 31: Setting Clear Boundaries on Scope Creep",
+                "Session 32: Conceding Points Strategically in Real-time",
+                "Session 33: Anchoring Price Discussions and Terms",
+                "Session 34: Regaining Control of Derailing Client Meetings",
+                "Session 35: Summarizing Action Items for Alignment Checks",
+                "Session 36: Closing Enterprise Deals with Firm Vocabulary"
+            ]
+        },
+        "📊 Technical Presentation & Data Storytelling": {
+            "vid": "https://www.youtube.com/watch?v=M2L76qM2sZ0",
+            "sessions": [
+                "Session 37: Describing Trends, Graphs, and Market Spikes",
+                "Session 38: Transitioning Between Complex Data Visuals",
+                "Session 39: Translating Technical Metrics for Non-Tech Stakeholders",
+                "Session 40: Simplifying Complex Software Architectures Verbally",
+                "Session 41: Managing Q&A Sessions and Hecklers Gracefully",
+                "Session 42: Narrative Arc Strategies for Technical Case Studies",
+                "Session 43: Engaging Remote Audiences During Slide Runs",
+                "Session 44: Emphasizing Risk Metrics using Comparative Phrases",
+                "Session 45: Converting Static Features into Active Business Value"
+            ]
+        },
+        "☕ Everyday Office Idioms & Socializing Vocabulary": {
+            "vid": "https://www.youtube.com/watch?v=gaI7vXvSExA",
+            "sessions": [
+                "Session 46: Casual English vs. Formal Office Interventions",
+                "Session 47: Watercooler Conversations and Polite Small Talk",
+                "Session 48: Navigating Cross-Cultural Greetings with Care",
+                "Session 49: Correct Use of Common Corporate Idioms",
+                "Session 50: Polite Interruptions During Heated Discussions",
+                "Session 51: Expressing Disagreement Constructively",
+                "Session 52: Pitching Casual Ideas During Brainstorming Rounds",
+                "Session 53: Writing & Verbally Validating Peer Praises",
+                "Session 54: Closing Casual Virtual Sync-Ups Smoothly"
+            ]
         }
     }
 
@@ -590,7 +630,7 @@ elif app_mode == "🌐 Explore Video Learning Engine":
         selected_session = st.selectbox(
             "📝 Step 2: Choose Specific Focus Topic Session:", 
             options=curriculum_matrix[selected_module]["sessions"],
-            key=f"session_select_node_{selected_module}"
+            key=f"session_select_node_{hashlib.md5(selected_module.encode()).hexdigest()}"
         )
 
     st.markdown("---")
