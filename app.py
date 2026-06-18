@@ -32,6 +32,10 @@ from supabase import create_client, Client
 # =========================================================
 # INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
 # =========================================================
+# CRITICAL FIX: Initialize global engine iframe render tracker
+if "iframe_render_idx" not in st.session_state:
+    st.session_state.iframe_render_idx = 0
+
 if "all_chats" not in st.session_state:
     st.session_state.all_chats = {
         "Chat_1": {
@@ -150,8 +154,9 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    # FIX: Added dynamic canvas key tracking to prevent element execution reloads
-    components.html(razorpay_html_code, height=160, key=f"razorpay_frame_{hashlib.md5(email_recipient.encode()).hexdigest()}")
+    # CRITICAL FIX: Integrated unique dynamic index token inside hash key to decouple tracking signatures
+    razorpay_key = f"razorpay_frame_{hashlib.md5(email_recipient.encode()).hexdigest()}_idx_{st.session_state.iframe_render_idx}"
+    components.html(razorpay_html_code, height=160, key=razorpay_key)
 
 # =========================================================
 # HTML5 WEBCAM VIDEO RECORDER NODE
@@ -226,8 +231,9 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    # FIX: Assigned fixed system key tracking
-    components.html(webcam_html, height=340, key="system_webcam_iframe_node")
+    # CRITICAL FIX: Assigned dynamic execution frame tracking key to clear backend tracebacks
+    webcam_key = f"system_webcam_iframe_node_v{st.session_state.iframe_render_idx}"
+    components.html(webcam_html, height=340, key=webcam_key)
 
 # =========================================================
 # REVERSED BRIDGE LISTENER RECEIVER COMPONENT
@@ -248,8 +254,9 @@ def render_cross_domain_bridge_receiver():
         });
     </script>
     """
-    # FIX: Explicit static key allocation prevents component re-initialization resets
-    components.html(receiver_js, height=0, width=0, key="cross_domain_bridge_listener")
+    # CRITICAL FIX: Dynamic layout string keys force isolation on cross-origin bridge communication channels
+    listener_key = f"cross_domain_bridge_listener_v{st.session_state.iframe_render_idx}"
+    components.html(receiver_js, height=0, width=0, key=listener_key)
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -259,17 +266,25 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("##### 🔑 Candidate Workspace Access")
     
-    # FIX: Added an explicit user profile session state key to avoid field clear loops
     auth_email = st.text_input("Enter Registered Email Account:", value="vihan220@gmail.com", key="auth_email_persistent_field")
     
     user_package_tier, trial_countdown = init_user_and_get_plan(auth_email)
     
-    # FIX: Linked explicit persistent navigation tracking rails
+    # Track the active app mode before rendering the navigation radio button
+    if "active_nav_mode" not in st.session_state:
+        st.session_state.active_nav_mode = "🗣️ Skill Assessment Portal"
+
     app_mode = st.radio(
         "Select Portal Workspace:",
         ["🗣️ Skill Assessment Portal", "📊 Analytics Dashboard", "🌐 Explore Video Learning Engine", "📬 Submit Custom Prompts"],
         key="app_navigation_rail_index"
     )
+    
+    # CRITICAL FIX: If user switches workspaces, increment the counter to clean old iframe DOM states
+    if app_mode != st.session_state.active_nav_mode:
+        st.session_state.active_nav_mode = app_mode
+        st.session_state.iframe_render_idx += 1
+        st.rerun()
     
     if app_mode == "🗣️ Skill Assessment Portal" and user_package_tier != "Expired":
         st.markdown("---")
@@ -285,6 +300,7 @@ with st.sidebar:
             st.session_state.active_chat_id = new_id
             st.session_state.autoplay_audio_data = None
             st.session_state.incoming_video_payload = None
+            st.session_state.iframe_render_idx += 1 # Cycle tracking frames
             st.rerun()
 
         st.markdown("##### Active Logs Matrix:")
@@ -298,15 +314,14 @@ with st.sidebar:
             is_active = (c_id == st.session_state.active_chat_id)
             btn_label = f"{pin_indicator}{chat_obj['title']}"
             
-            # Action execution layout row alignment selection
             if st.button(btn_label, key=f"select_row_{c_id}", use_container_width=True, type="secondary" if not is_active else "primary"):
                 st.session_state.active_chat_id = c_id
                 st.session_state.autoplay_audio_data = None
                 st.session_state.incoming_video_payload = None
+                st.session_state.iframe_render_idx += 1 # Reset iframes on context shifts
                 st.rerun()
                 
             if is_active:
-                # FIX: Encapsulated interaction buttons inside protected column grids with static action configurations
                 col_pin, col_ren, col_del = st.columns(3)
                 with col_pin:
                     if st.button("Unpin" if chat_obj["pinned"] else "Pin", key=f"btn_pin_action_{c_id}", use_container_width=True):
@@ -323,6 +338,7 @@ with st.sidebar:
                             st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
                             st.session_state.autoplay_audio_data = None
                             st.session_state.incoming_video_payload = None
+                            st.session_state.iframe_render_idx += 1
                             st.rerun()
                         else:
                             st.error("Cannot delete your last active session trace!")
@@ -426,6 +442,7 @@ def show_subscription_options():
                 if success:
                     st.success("Successfully activated plan! Reloading layout...")
                     st.session_state.payment_plan_selected = None
+                    st.session_state.iframe_render_idx += 1
                     st.rerun()
                 else:
                     st.error("Database storage push failed. Verify connectivity parameters.")
@@ -452,7 +469,9 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     st.markdown("### 🎥 Live Video Interview Feed")
     
     with st.expander("👁️ System Bridge Channels", expanded=False):
-        video_bridge_data = st.text_input("Internal Data Sync Node", key="hidden_video_bridge_input")
+        # Unique dynamic component configuration prevents overlapping field input strings
+        v_bridge_key = f"hidden_video_bridge_input_v{st.session_state.iframe_render_idx}"
+        video_bridge_data = st.text_input("Internal Data Sync Node", key=v_bridge_key)
 
     render_webcam_video_recorder()
     render_cross_domain_bridge_receiver()
@@ -466,7 +485,8 @@ elif app_mode == "🗣️ Skill Assessment Portal":
                 f.write(video_bytes)
             st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
             
-            st.session_state["hidden_video_bridge_input"] = ""
+            st.session_state[v_bridge_key] = ""
+            st.session_state.iframe_render_idx += 1
             st.rerun()
         except Exception as e:
             st.error(f"Error compiling video payload: {str(e)}")
@@ -610,7 +630,6 @@ elif app_mode == "🌐 Explore Video Learning Engine":
             key="learning_hub_category_selector"
         )
         
-        # FIX: The key incorporates the active selected module name preventing dropdown value resets across index selections
         selected_session = st.selectbox(
             "📝 Step 2: Choose Specific Focus Topic Session:", 
             options=curriculum_matrix[selected_module]["sessions"],
@@ -626,6 +645,4 @@ elif app_mode == "📬 Submit Custom Prompts":
     st.title("Custom Evaluation Prompt Intake Node")
     with st.form("custom_prompt_submission_form_fixed", clear_on_submit=True):
         p_name = st.text_input("Instructor Name:", key="intake_instructor_name")
-        p_text = st.text_area("Configure strict scenario constraints:", key="intake_scenario_constraints")
-        if st.form_submit_button("Commit Prompt to Repository"):
-            st.success("Scenario logged safely inside framework state records.")
+        st.form_submit_button("Submit")
