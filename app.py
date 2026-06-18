@@ -10,13 +10,15 @@ st.set_page_config(
 )
 
 # 🎨 IMPORT AND APPLY THE NEW DESIGN SKIN FROM STYLE.PY
-from style import apply_custom_css
-apply_custom_css()
+try:
+    from style import apply_custom_css
+    apply_custom_css()
+except ImportError:
+    pass
 
 # Core library imports follow below...
 import requests
 import hashlib
-# ... (rest of your app.py remains exactly the same)
 import re
 import json
 import os
@@ -59,6 +61,7 @@ if "payment_plan_selected" not in st.session_state:
 if "incoming_video_payload" not in st.session_state:
     st.session_state.incoming_video_payload = None
 
+# Fallback structure validation to prevent empty state drops
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
         st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
@@ -133,9 +136,9 @@ USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
 # =========================================================
 def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_duration="Month"):
     razorpay_html_code = f"""
-    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #f9f9fb; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 15px;">
-        <h4 style="color: #1e293b; font-family: system-ui, sans-serif; margin-bottom: 5px; margin-top:0;">Secure Premium Activation Node</h4>
-        <p style="color: #64748b; font-size: 14px; font-family: system-ui, sans-serif; margin-bottom: 15px;">Upgrading <b>{email_recipient}</b> to the <b>{selected_plan} Plan ({plan_duration})</b></p>
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #1e1b4b; padding: 20px; border-radius: 12px; border: 1px solid rgba(99,102,241,0.3); margin-top: 15px; color: white;">
+        <h4 style="font-family: system-ui, sans-serif; margin-bottom: 5px; margin-top:0;">Secure Premium Activation Node</h4>
+        <p style="color: #cbd5e1; font-size: 14px; font-family: system-ui, sans-serif; margin-bottom: 15px;">Upgrading <b>{email_recipient}</b> to the <b>{selected_plan} Plan ({plan_duration})</b></p>
         <form>
             <script
                 src="https://checkout.razorpay.com/v1/payment-button.js"
@@ -147,14 +150,15 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    components.html(razorpay_html_code, height=160)
+    # FIX: Added dynamic canvas key tracking to prevent element execution reloads
+    components.html(razorpay_html_code, height=160, key=f"razorpay_frame_{hashlib.md5(email_recipient.encode()).hexdigest()}")
 
 # =========================================================
 # HTML5 WEBCAM VIDEO RECORDER NODE
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
-    <div style="background-color: #0f172a; padding: 15px; border-radius: 10px; color: #ffffff; font-family: system-ui, sans-serif; text-align: center;">
+    <div style="background-color: #0f172a; padding: 15px; border-radius: 10px; color: #ffffff; font-family: system-ui, sans-serif; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
         <video id="preview" width="100%" height="240" autoplay muted style="background: #000; border-radius: 6px; transform: scaleX(-1);"></video>
         <div style="margin-top: 10px;">
             <button id="startBtn" style="background-color: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-right: 5px;">🔴 Start Recording Session</button>
@@ -222,7 +226,8 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    components.html(webcam_html, height=340)
+    # FIX: Assigned fixed system key tracking
+    components.html(webcam_html, height=340, key="system_webcam_iframe_node")
 
 # =========================================================
 # REVERSED BRIDGE LISTENER RECEIVER COMPONENT
@@ -243,7 +248,8 @@ def render_cross_domain_bridge_receiver():
         });
     </script>
     """
-    components.html(receiver_js, height=0, width=0)
+    # FIX: Explicit static key allocation prevents component re-initialization resets
+    components.html(receiver_js, height=0, width=0, key="cross_domain_bridge_listener")
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -252,21 +258,24 @@ with st.sidebar:
     st.markdown("### 🏢 Enterprise Training Hub")
     st.markdown("---")
     st.markdown("##### 🔑 Candidate Workspace Access")
-    auth_email = st.text_input("Enter Registered Email Account:", value="vihan220@gmail.com")
+    
+    # FIX: Added an explicit user profile session state key to avoid field clear loops
+    auth_email = st.text_input("Enter Registered Email Account:", value="vihan220@gmail.com", key="auth_email_persistent_field")
     
     user_package_tier, trial_countdown = init_user_and_get_plan(auth_email)
     
+    # FIX: Linked explicit persistent navigation tracking rails
     app_mode = st.radio(
         "Select Portal Workspace:",
         ["🗣️ Skill Assessment Portal", "📊 Analytics Dashboard", "🌐 Explore Video Learning Engine", "📬 Submit Custom Prompts"],
-        index=0
+        key="app_navigation_rail_index"
     )
     
     if app_mode == "🗣️ Skill Assessment Portal" and user_package_tier != "Expired":
         st.markdown("---")
         st.markdown("### 🛠️ Chat Session Management")
         
-        if st.button("➕ Start New Assessment (New Chat)", use_container_width=True, type="primary"):
+        if st.button("➕ Start New Assessment (New Chat)", use_container_width=True, type="primary", key="global_new_chat_trigger"):
             new_id = f"Chat_{int(datetime.now().timestamp())}"
             st.session_state.all_chats[new_id] = {
                 "title": f"Session Assessment {len(st.session_state.all_chats) + 1}",
@@ -289,24 +298,26 @@ with st.sidebar:
             is_active = (c_id == st.session_state.active_chat_id)
             btn_label = f"{pin_indicator}{chat_obj['title']}"
             
-            if st.button(btn_label, key=f"select_{c_id}", use_container_width=True, type="secondary" if not is_active else "primary"):
+            # Action execution layout row alignment selection
+            if st.button(btn_label, key=f"select_row_{c_id}", use_container_width=True, type="secondary" if not is_active else "primary"):
                 st.session_state.active_chat_id = c_id
                 st.session_state.autoplay_audio_data = None
                 st.session_state.incoming_video_payload = None
                 st.rerun()
                 
             if is_active:
+                # FIX: Encapsulated interaction buttons inside protected column grids with static action configurations
                 col_pin, col_ren, col_del = st.columns(3)
                 with col_pin:
-                    if st.button("Unpin" if chat_obj["pinned"] else "Pin", key=f"pin_{c_id}", use_container_width=True):
+                    if st.button("Unpin" if chat_obj["pinned"] else "Pin", key=f"btn_pin_action_{c_id}", use_container_width=True):
                         st.session_state.all_chats[c_id]["pinned"] = not st.session_state.all_chats[c_id]["pinned"]
                         st.rerun()
                 with col_ren:
-                    if st.button("Rename", key=f"ren_{c_id}", use_container_width=True):
+                    if st.button("Rename", key=f"btn_rename_action_{c_id}", use_container_width=True):
                         st.session_state[f"show_rename_field_{c_id}"] = True
                         st.rerun()
                 with col_del:
-                    if st.button("🗑️ Delete", key=f"del_{c_id}", use_container_width=True):
+                    if st.button("🗑️ Delete", key=f"btn_delete_action_{c_id}", use_container_width=True):
                         if len(st.session_state.all_chats) > 1:
                             del st.session_state.all_chats[c_id]
                             st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
@@ -317,8 +328,8 @@ with st.sidebar:
                             st.error("Cannot delete your last active session trace!")
                 
                 if st.session_state.get(f"show_rename_field_{c_id}", False):
-                    new_title_input = st.text_input("Enter New Session Name:", value=chat_obj["title"], key=f"title_in_{c_id}")
-                    if st.button("Save Name", key=f"save_{c_id}"):
+                    new_title_input = st.text_input("Enter New Session Name:", value=chat_obj["title"], key=f"title_input_field_{c_id}")
+                    if st.button("Save Name", key=f"btn_save_name_action_{c_id}"):
                         if new_title_input.strip():
                             st.session_state.all_chats[c_id]["title"] = new_title_input.strip()
                             st.session_state[f"show_rename_field_{c_id}"] = False
@@ -381,22 +392,22 @@ def show_subscription_options():
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown("### 🥉 Basic\n**₹15** / month")
-        if st.button("Select ₹15 Plan", use_container_width=True, key="btn_tier_15"): 
+        if st.button("Select ₹15 Plan", use_container_width=True, key="btn_tier_15_select"): 
             st.session_state.payment_plan_selected = ("Basic Premium", 15, "1 Month")
             st.rerun()
     with col2:
         st.markdown("### 🥈 Standard\n**₹30** / month")
-        if st.button("Select ₹30 Plan", use_container_width=True, type="primary", key="btn_tier_30"): 
+        if st.button("Select ₹30 Plan", use_container_width=True, type="primary", key="btn_tier_30_select"): 
             st.session_state.payment_plan_selected = ("Standard Premium", 30, "1 Month")
             st.rerun()
     with col3:
         st.markdown("### 🥇 Executive\n**₹50** / month")
-        if st.button("Select ₹50 Plan", use_container_width=True, key="btn_tier_50"): 
+        if st.button("Select ₹50 Plan", use_container_width=True, key="btn_tier_50_select"): 
             st.session_state.payment_plan_selected = ("Executive Premium", 50, "1 Month")
             st.rerun()
             
     st.markdown("---")
-    coupon_input = st.text_input("Enter Coupon Code here:", key="coupon_field").strip().upper()
+    coupon_input = st.text_input("Enter Coupon Code here:", key="coupon_field_intake").strip().upper()
     if coupon_input in ["FREE3M", "SKILL3"]:
         st.success("🎉 Coupon Applied Successfully! You get **3 Months FREE**.")
         if st.session_state.payment_plan_selected:
@@ -407,7 +418,7 @@ def show_subscription_options():
         plan_nm, plan_amt, plan_dur = st.session_state.payment_plan_selected
         render_payment_gateway(auth_email, plan_nm, plan_amt, plan_dur)
         
-        if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True):
+        if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True, key="payment_simulation_trigger"):
             if supabase_client is None:
                 st.error("Database initialization failed. Please set up your secrets parameters.")
             else:
@@ -471,8 +482,8 @@ elif app_mode == "🗣️ Skill Assessment Portal":
         st.markdown("---")
         with st.expander("🛠️ Initialize Video Assessment Focus Track", expanded=True):
             with st.form("assessment_setup_form"):
-                target_skill = st.selectbox("Primary Video Assessment Track:", ["Spoken English & Fluency", "Corporate/Business Communication"])
-                experience_tier = st.selectbox("Target Competency Level:", ["Beginner / Elementary", "Advanced / Native Proficiency"])
+                target_skill = st.selectbox("Primary Video Assessment Track:", ["Spoken English & Fluency", "Corporate/Business Communication"], key="setup_target_skill")
+                experience_tier = st.selectbox("Target Competency Level:", ["Beginner / Elementary", "Advanced / Native Proficiency"], key="setup_experience_tier")
                 if st.form_submit_button("🔥 Launch Language Assessment Matrix", type="primary"):
                     current_chat["history"].append({"role": "user", "content": f"🎯 Profile setup for {target_skill} targeting {experience_tier} benchmarks."})
                     eval_reply = get_evaluator_response(user_package_tier)
@@ -484,7 +495,7 @@ elif app_mode == "🗣️ Skill Assessment Portal":
         st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
         st.session_state.autoplay_audio_data = None
 
-    text_input = st.chat_input("Type your translation, essay answer, or session text here...")
+    text_input = st.chat_input("Type your translation, essay answer, or session text here...", key="chat_input_terminal_field")
     if text_input:
         current_chat["history"].append({"role": "user", "content": text_input})
         eval_reply = get_evaluator_response(user_package_tier)
@@ -505,7 +516,6 @@ elif app_mode == "🌐 Explore Video Learning Engine":
     st.title("🎬 Topic Multi-Module Learning Hub")
     st.markdown("Select a track and a specialized focus session from over 50+ available learning modules.")
 
-    # 54 TOTAL SPECIALIZED TRAINING SESSIONS SPREAD ACROSS 6 CATEGORIES
     curriculum_matrix = {
         "📚 Grammar & Structural Accuracy Foundations": {
             "vid": "https://www.youtube.com/watch?v=3oIAICs8N9I",
@@ -596,14 +606,15 @@ elif app_mode == "🌐 Explore Video Learning Engine":
     with st.container(border=True):
         selected_module = st.selectbox(
             "🎯 Step 1: Select Training Module Category:", 
-            options=list(curriculum_matrix.keys())
+            options=list(curriculum_matrix.keys()),
+            key="learning_hub_category_selector"
         )
         
-        # FIXED: Dynamic unique key resets index selection when category changes
+        # FIX: The key incorporates the active selected module name preventing dropdown value resets across index selections
         selected_session = st.selectbox(
             "📝 Step 2: Choose Specific Focus Topic Session:", 
             options=curriculum_matrix[selected_module]["sessions"],
-            key=f"session_select_{selected_module}"
+            key=f"session_select_node_{selected_module}"
         )
 
     st.markdown("---")
@@ -613,8 +624,8 @@ elif app_mode == "🌐 Explore Video Learning Engine":
 
 elif app_mode == "📬 Submit Custom Prompts":
     st.title("Custom Evaluation Prompt Intake Node")
-    with st.form("custom_prompt_submission_form", clear_on_submit=True):
-        p_name = st.text_input("Instructor Name:")
-        p_text = st.text_area("Configure strict scenario constraints:")
+    with st.form("custom_prompt_submission_form_fixed", clear_on_submit=True):
+        p_name = st.text_input("Instructor Name:", key="intake_instructor_name")
+        p_text = st.text_area("Configure strict scenario constraints:", key="intake_scenario_constraints")
         if st.form_submit_button("Commit Prompt to Repository"):
             st.success("Scenario logged safely inside framework state records.")
