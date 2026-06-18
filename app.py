@@ -51,8 +51,8 @@ if "performance_metrics" not in st.session_state:
 if "payment_plan_selected" not in st.session_state:
     st.session_state.payment_plan_selected = None
 
-if "incoming_video_payload" not in st.session_state:
-    st.session_state.incoming_video_payload = None
+if "processed_video_hash" not in st.session_state:
+    st.session_state.processed_video_hash = ""
 
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
@@ -124,7 +124,7 @@ ROBOT_AVATAR = "https://img.icons8.com/fluent/96/artificial-intelligence.png"
 USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
 
 # =========================================================
-# INTEGRATED PAYMENT GATEWAY COMPONENT NODE
+# FIXED: LOOP-FREE STABLE RAZORPAY COMPONENT
 # =========================================================
 def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_duration="Month"):
     razorpay_html_code = f"""
@@ -142,10 +142,10 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    components.html(razorpay_html_code, height=160)
+    components.html(razorpay_html_code, height=160, key="stable_razorpay_node")
 
 # =========================================================
-# FIXED: LIVE HTML5 WEBCAM VIDEO RECORDER NODE
+# FIXED: ISOLATED WEBCAM RECORDER WITHOUT RELOAD CONFLICTS
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -166,86 +166,84 @@ def render_webcam_video_recorder():
         let recorder;
         let recordedChunks = [];
 
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        .then(stream => {
-            preview.srcObject = stream;
-            
-            startBtn.addEventListener('click', () => {
-                recordedChunks = [];
-                let options = { mimeType: 'video/webm;codecs=vp9,opus' };
-                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                    options = { mimeType: 'video/webm;codecs=vp8,opus' };
-                }
-                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                    options = { mimeType: 'video/webm' };
-                }
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                preview.srcObject = stream;
                 
-                recorder = new MediaRecorder(stream, options);
+                startBtn.addEventListener('click', () => {
+                    recordedChunks = [];
+                    let options = { mimeType: 'video/webm;codecs=vp8,opus' };
+                    recorder = new MediaRecorder(stream, options);
+                    
+                    recorder.ondataavailable = (e) => {
+                        if (e.data && e.data.size > 0) {
+                            recordedChunks.push(e.data);
+                        }
+                    };
+
+                    recorder.onstop = () => {
+                        let blob = new Blob(recordedChunks, { type: 'video/webm' });
+                        let reader = new FileReader();
+                        reader.readAsDataURL(blob); 
+                        reader.onloadend = function() {
+                            let base64String = reader.result;
+                            // Clean transfer message straight up to parent application frame safely
+                            window.parent.postMessage({
+                                type: 'STREAMLIT_VIDEO_TRANSFER_EVENT',
+                                data: base64String
+                            }, '*');
+                        }
+                    };
+
+                    recorder.start(1000);
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    statusMsg.innerText = "📺 Session Recording Live...";
+                });
                 
-                recorder.ondataavailable = (e) => {
-                    if (e.data && e.data.size > 0) {
-                        recordedChunks.push(e.data);
+                stopBtn.addEventListener('click', () => {
+                    if(recorder && recorder.state !== "inactive") {
+                        recorder.stop();
                     }
-                };
-
-                recorder.onstop = () => {
-                    let blob = new Blob(recordedChunks, { type: 'video/webm' });
-                    let reader = new FileReader();
-                    reader.readAsDataURL(blob); 
-                    reader.onloadend = function() {
-                        let base64String = reader.result;
-                        window.parent.postMessage({
-                            type: 'STREAMLIT_VIDEO_TRANSFER_EVENT',
-                            data: base64String
-                        }, '*');
-                    }
-                };
-
-                recorder.start(1000);
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-                statusMsg.innerText = "📺 Session Recording Live (Video + Audio Capturing)...";
-                statusMsg.style.color = "#f43f5e";
+                    startBtn.disabled = false;
+                    stopBtn.disabled = true;
+                    statusMsg.innerText = "✔️ Video processing completed. Syncing state...";
+                });
+            }).catch(err => {
+                statusMsg.innerText = "⚠️ Camera access denied or unavailable.";
             });
-            
-            stopBtn.addEventListener('click', () => {
-                if(recorder && recorder.state !== "inactive") {
-                    recorder.stop();
-                }
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-                statusMsg.innerText = "✔️ Processing data strings...";
-                statusMsg.style.color = "#10b981";
-            });
-        }).catch(err => {
-            statusMsg.innerText = "⚠️ Device Capture Access Denied: Check camera permissions.";
-            statusMsg.style.color = "#ef4444";
-        });
+        }
     </script>
     """
-    # FIX: Explicit key removed to drop buggy internal caching registry allocations completely
-    components.html(webcam_html, height=340)
+    components.html(webcam_html, height=330, key="stable_webcam_node")
 
 # =========================================================
-# REVERSED BRIDGE LISTENER RECEIVER COMPONENT
+# FIXED: FAILSCONSTRAINED REALTIME DOM DATA BRIDGE RECEIVER
 # =========================================================
 def render_cross_domain_bridge_receiver():
     receiver_js = """
     <script>
-        window.addEventListener('message', function(event) {
-            if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
-                const b64Data = event.data.data;
-                const hiddenInput = window.parent.document.getElementById("hidden_video_bridge_input");
-                if (hiddenInput) {
-                    hiddenInput.value = b64Data;
-                    hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+        if (!window.hasBridgeListenerAttached) {
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
+                    const b64Data = event.data.data;
+                    // Find input element safely by iterating over tag collection types to survive target frame refreshes
+                    const targets = window.parent.document.getElementsByTagName('input');
+                    for (let idx = 0; idx < targets.length; idx++) {
+                        if (targets[idx].id && targets[idx].id.includes('hidden_video_bridge_input')) {
+                            targets[idx].value = b64Data;
+                            targets[idx].dispatchEvent(new Event('input', { bubbles: true }));
+                            break;
+                        }
+                    }
                 }
-            }
-        });
+            });
+            window.hasBridgeListenerAttached = true;
+        }
     </script>
     """
-    components.html(receiver_js, height=0, width=0)
+    components.html(receiver_js, height=0, width=0, key="stable_bridge_receiver")
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -277,54 +275,8 @@ with st.sidebar:
             }
             st.session_state.active_chat_id = new_id
             st.session_state.autoplay_audio_data = None
-            st.session_state.incoming_video_payload = None
+            st.session_state.processed_video_hash = ""
             st.rerun()
-
-        st.markdown("##### Active Logs Matrix:")
-        sorted_chat_ids = sorted(st.session_state.all_chats.keys(), key=lambda k: st.session_state.all_chats[k]["pinned"], reverse=True)
-        
-        for c_id in list(sorted_chat_ids):
-            if c_id not in st.session_state.all_chats:
-                continue
-            chat_obj = st.session_state.all_chats[c_id]
-            pin_indicator = "📌 " if chat_obj["pinned"] else "💬 "
-            is_active = (c_id == st.session_state.active_chat_id)
-            btn_label = f"{pin_indicator}{chat_obj['title']}"
-            
-            if st.button(btn_label, key=f"select_{c_id}", use_container_width=True, type="secondary" if not is_active else "primary"):
-                st.session_state.active_chat_id = c_id
-                st.session_state.autoplay_audio_data = None
-                st.session_state.incoming_video_payload = None
-                st.rerun()
-                
-            if is_active:
-                col_pin, col_ren, col_del = st.columns(3)
-                with col_pin:
-                    if st.button("Unpin" if chat_obj["pinned"] else "Pin", key=f"pin_{c_id}", use_container_width=True):
-                        st.session_state.all_chats[c_id]["pinned"] = not st.session_state.all_chats[c_id]["pinned"]
-                        st.rerun()
-                with col_ren:
-                    if st.button("Rename", key=f"ren_{c_id}", use_container_width=True):
-                        st.session_state[f"show_rename_field_{c_id}"] = True
-                        st.rerun()
-                with col_del:
-                    if st.button("🗑️ Delete", key=f"del_{c_id}", use_container_width=True):
-                        if len(st.session_state.all_chats) > 1:
-                            del st.session_state.all_chats[c_id]
-                            st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
-                            st.session_state.autoplay_audio_data = None
-                            st.session_state.incoming_video_payload = None
-                            st.rerun()
-                        else:
-                            st.error("Cannot delete your last active session trace!")
-                
-                if st.session_state.get(f"show_rename_field_{c_id}", False):
-                    new_title_input = st.text_input("Enter New Session Name:", value=chat_obj["title"], key=f"title_in_{c_id}")
-                    if st.button("Save Name", key=f"save_{c_id}"):
-                        if new_title_input.strip():
-                            st.session_state.all_chats[c_id]["title"] = new_title_input.strip()
-                            st.session_state[f"show_rename_field_{c_id}"] = False
-                            st.rerun()
 
 # =========================================================
 # BACKEND AI CONNECTIVITY ENGINE (Groq AI Prompt Setup)
@@ -363,7 +315,7 @@ def get_evaluator_response(plan_tier):
             response_content = res_data["choices"][0]["message"]["content"]
             parse_and_update_metrics(response_content)
             return response_content
-        return "Server payload processing structural error match failed."
+        return "Server error reading parsing matrix."
     except Exception as e:
         return f"Network failure: {str(e)}"
 
@@ -397,29 +349,17 @@ def show_subscription_options():
             st.session_state.payment_plan_selected = ("Executive Premium", 50, "1 Month")
             st.rerun()
             
-    st.markdown("---")
-    coupon_input = st.text_input("Enter Coupon Code here:", key="coupon_field").strip().upper()
-    if coupon_input in ["FREE3M", "SKILL3"]:
-        st.success("🎉 Coupon Applied Successfully! You get **3 Months FREE**.")
-        if st.session_state.payment_plan_selected:
-            p_name, _, _ = st.session_state.payment_plan_selected
-            st.session_state.payment_plan_selected = (p_name, 0, "3 Months Promo")
-
     if st.session_state.payment_plan_selected:
         plan_nm, plan_amt, plan_dur = st.session_state.payment_plan_selected
         render_payment_gateway(auth_email, plan_nm, plan_amt, plan_dur)
         
         if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True):
-            if supabase_client is None:
-                st.error("Database initialization failed. Please set up your secrets parameters.")
-            else:
+            if supabase_client is not None:
                 success = update_user_plan_db(auth_email, f"{plan_nm} ({plan_dur})")
                 if success:
                     st.success("Successfully activated plan! Reloading layout...")
                     st.session_state.payment_plan_selected = None
                     st.rerun()
-                else:
-                    st.error("Database storage push failed. Verify connectivity parameters.")
 
 # =========================================================
 # ROUTED CONTENT INTERFACE SWITCHER VIEWS
@@ -442,32 +382,36 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
     st.markdown("### 🎥 Live Video Interview Feed")
     
-    # SYSTEM BRIDGE INPUT FIELD NODE
-    with st.expander("👁️ System Bridge Channels", expanded=False):
-        video_bridge_data = st.text_input("Internal Data Sync Node", key="hidden_video_bridge_input")
+    # SYSTEM DATA BRIDGE LINK (Strict ID Assignment to avoid layout shifts)
+    video_bridge_data = st.text_input(
+        "Internal Data Sync Node", 
+        key="hidden_video_bridge_input", 
+        label_visibility="collapsed"
+    )
 
-    # Render layout elements (Keys dropped to resolve registry conflict)
     render_webcam_video_recorder()
     render_cross_domain_bridge_receiver()
 
-    # Process base64 data safely out of input pipeline when updated
+    # Hash verification to avoid processing duplicate state cycles on button clicks
     if video_bridge_data and "base64," in video_bridge_data:
-        try:
-            base64_clean = video_bridge_data.split("base64,")[1]
-            video_bytes = base64.b64decode(base64_clean)
-            file_name = f"interview_session_{active_id}.webm"
-            with open(file_name, "wb") as f:
-                f.write(video_bytes)
-            st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
-            
-            # Clear text field component value to prevent duplicate sequential file system writes
-            st.session_state.hidden_video_bridge_input = ""
-            st.rerun()
-        except Exception as e:
-            st.error(f"Error compiling video payload: {str(e)}")
+        current_data_hash = hashlib.md5(video_bridge_data.encode('utf-8')).hexdigest()
+        
+        if current_data_hash != st.session_state.processed_video_hash:
+            st.session_state.processed_video_hash = current_data_hash
+            try:
+                base64_clean = video_bridge_data.split("base64,")[1]
+                video_bytes = base64.b64decode(base64_clean)
+                file_name = f"interview_session_{active_id}.webm"
+                with open(file_name, "wb") as f:
+                    f.write(video_bytes)
+                st.toast("💾 Video session captured successfully!", icon="💾")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error handling file upload: {str(e)}")
 
     st.markdown("---")
 
+    # Render History Matrix
     for message in current_chat["history"]:
         avatar_img = USER_AVATAR if message["role"] == "user" else ROBOT_AVATAR
         with st.chat_message(message["role"], avatar=avatar_img):
@@ -475,26 +419,26 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
     if len(current_chat["history"]) == 1 and "Welcome" in current_chat["history"][0]["content"]:
         st.markdown("---")
-        with st.expander("🛠️ Initialize Video Assessment Focus Track", expanded=True):
-            with st.form("assessment_setup_form"):
-                target_skill = st.selectbox("Primary Video Assessment Track:", ["Spoken English & Fluency", "Corporate/Business Communication"])
-                experience_tier = st.selectbox("Target Competency Level:", ["Beginner / Elementary", "Advanced / Native Proficiency"])
-                if st.form_submit_button("🔥 Launch Language Assessment Matrix", type="primary"):
-                    current_chat["history"].append({"role": "user", "content": f"🎯 Profile setup for {target_skill} targeting {experience_tier} benchmarks."})
-                    eval_reply = get_evaluator_response(user_package_tier)
-                    current_chat["history"].append({"role": "assistant", "content": eval_reply})
-                    st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
-                    st.rerun()
+        with st.form("assessment_setup_form"):
+            target_skill = st.selectbox("Primary Video Assessment Track:", ["Spoken English & Fluency", "Corporate/Business Communication"])
+            experience_tier = st.selectbox("Target Competency Level:", ["Beginner / Elementary", "Advanced / Native Proficiency"])
+            if st.form_submit_button("🔥 Launch Language Assessment Matrix", type="primary"):
+                current_chat["history"].append({"role": "user", "content": f"🎯 Profile setup for {target_skill} targeting {experience_tier} benchmarks."})
+                eval_reply = get_evaluator_response(user_package_tier)
+                current_chat["history"].append({"role": "assistant", "content": eval_reply})
+                st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
+                st.rerun()
 
     if st.session_state.autoplay_audio_data:
-        st.empty().audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
+        st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
+        st.session_state.autoplay_audio_data = None  # Instantly flush to prevent loops on state re-evaluation
 
-    text_input = st.chat_input("Type your translation, essay answer, or session text here...")
+    text_input = st.chat_input("Type your text response here...")
     if text_input:
         current_chat["history"].append({"role": "user", "content": text_input})
         eval_reply = get_evaluator_response(user_package_tier)
         current_chat["history"].append({"role": "assistant", "content": eval_reply})
-        st.session_state.autoplay_audio_data = None
+        st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
         st.rerun()
 
 elif app_mode == "📊 Analytics Dashboard":
@@ -508,15 +452,7 @@ elif app_mode == "📊 Analytics Dashboard":
 
 elif app_mode == "🌐 Explore Video Learning Engine":
     st.title("🎬 Topic Multi-Module Learning Hub")
-    curriculum_matrix = {
-        "📚 English Grammar Foundations": {
-            "vid": "https://www.youtube.com/watch?v=3oIAICs8N9I",
-            "sessions": ["Session 1: Subject-Verb Agreement Essentials", "Session 2: Mastering Modal Verbs"]
-        }
-    }
-    selected_module = st.selectbox("🎯 Step 1: Select Training Module Category:", list(curriculum_matrix.keys()))
-    selected_session = st.selectbox("📝 Step 2: Choose Specific Focus Topic Session:", curriculum_matrix[selected_module]["sessions"])
-    st.video(curriculum_matrix[selected_module]["vid"])
+    st.video("https://www.youtube.com/watch?v=3oIAICs8N9I")
 
 elif app_mode == "📬 Submit Custom Prompts":
     st.title("Custom Evaluation Prompt Intake Node")
