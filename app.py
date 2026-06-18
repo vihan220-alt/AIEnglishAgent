@@ -9,9 +9,14 @@ st.set_page_config(
     layout="centered"
 )
 
-# Core library imports
+# 🎨 IMPORT AND APPLY THE NEW DESIGN SKIN FROM STYLE.PY
+from style import apply_custom_css
+apply_custom_css()
+
+# Core library imports follow below...
 import requests
 import hashlib
+# ... (rest of your app.py remains exactly the same)
 import re
 import json
 import os
