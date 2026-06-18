@@ -27,7 +27,12 @@ import streamlit.components.v1 as components
 from io import BytesIO
 from gtts import gTTS
 from datetime import datetime, date
-from supabase import create_client, Client
+
+# Defensive configuration check for optional Database Client library
+try:
+    from supabase import create_client, Client
+except ImportError:
+    pass
 
 # =========================================================
 # INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
@@ -64,11 +69,10 @@ if "payment_plan_selected" not in st.session_state:
 if "incoming_video_payload" not in st.session_state:
     st.session_state.incoming_video_payload = None
 
-# Base bridge input data tracker
 if "bridge_sync_data" not in st.session_state:
     st.session_state.bridge_sync_data = ""
 
-# Fallback structure validation to prevent empty state drops
+# Guard rails to validate structural continuity of active chats
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
         st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
@@ -85,7 +89,7 @@ if st.session_state.active_chat_id not in st.session_state.all_chats:
 current_chat = st.session_state.all_chats[st.session_state.active_chat_id]
 
 # =========================================================
-# SUPABASE DATABASE STORAGE ENGINE
+# SUPABASE DATABASE STORAGE ENGINE (DEFENSIVE BOUNDS)
 # =========================================================
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", "https://xudmbkuruxfdpprwplee.supabase.co")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
@@ -157,7 +161,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    razorpay_key = f"razorpay_frame_{hashlib.md5(email_recipient.encode()).hexdigest()}_mode_{st.session_state.get('active_nav_mode', 'default')}_v{st.session_state.iframe_render_idx}"
+    razorpay_key = f"razorpay_frame_{hashlib.md5(email_recipient.encode()).hexdigest()}_v{st.session_state.iframe_render_idx}"
     components.html(razorpay_html_code, height=160, key=razorpay_key)
 
 # =========================================================
@@ -434,7 +438,7 @@ def show_subscription_options():
         
         if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True, key="payment_simulation_trigger"):
             if supabase_client is None:
-                st.error("Database initialization failed. Please set up your secrets parameters.")
+                st.error("Database initialization failed. Please verify secret credentials configuration setup.")
             else:
                 success = update_user_plan_db(auth_email, f"{plan_nm} ({plan_dur})")
                 if success:
@@ -443,7 +447,7 @@ def show_subscription_options():
                     st.session_state.iframe_render_idx += 1
                     st.rerun()
                 else:
-                    st.error("Database storage push failed. Verify connectivity parameters.")
+                    st.error("Database storage push failed. Verify parameters.")
 
 # =========================================================
 # ROUTED CONTENT INTERFACE SWITCHER VIEWS
@@ -481,7 +485,6 @@ elif app_mode == "🗣️ Skill Assessment Portal":
                 f.write(video_bytes)
             st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
             
-            # Safe layout synchronization without modifying key configurations inside components
             st.session_state.bridge_sync_data = ""
             st.session_state.iframe_render_idx += 1
             st.rerun()
@@ -627,10 +630,12 @@ elif app_mode == "🌐 Explore Video Learning Engine":
             key="learning_hub_category_selector"
         )
         
+        # BULLETPROOF FIX: Use a fully static selectbox key context. 
+        # Streamlit dynamically matches inner option instances smoothly without throwing duplicate component footprint errors.
         selected_session = st.selectbox(
             "📝 Step 2: Choose Specific Focus Topic Session:", 
             options=curriculum_matrix[selected_module]["sessions"],
-            key=f"session_select_node_{hashlib.md5(selected_module.encode()).hexdigest()}"
+            key="learning_hub_session_selector"
         )
 
     st.markdown("---")
