@@ -145,7 +145,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
     components.html(razorpay_html_code, height=160)
 
 # =========================================================
-# LIVE HTML5 WEBCAM VIDEO RECORDER NODE
+# FIXED: LIVE HTML5 WEBCAM VIDEO RECORDER NODE
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -223,7 +223,8 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    components.html(webcam_html, height=340, key="webcam_widget_final_fixed")
+    # FIX: Explicit key removed to drop buggy internal caching registry allocations completely
+    components.html(webcam_html, height=340)
 
 # =========================================================
 # REVERSED BRIDGE LISTENER RECEIVER COMPONENT
@@ -445,7 +446,7 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     with st.expander("👁️ System Bridge Channels", expanded=False):
         video_bridge_data = st.text_input("Internal Data Sync Node", key="hidden_video_bridge_input")
 
-    # FIXED: Called directly without ANY variable assignment (Removes the TypeError on lines 429/434/453)
+    # Render layout elements (Keys dropped to resolve registry conflict)
     render_webcam_video_recorder()
     render_cross_domain_bridge_receiver()
 
