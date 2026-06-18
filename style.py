@@ -2,9 +2,9 @@ import streamlit as st
 
 def apply_custom_css():
     """
-    Injects professional, modern CSS styling to transform the Streamlit interface.
-    Features a deep midnight backdrop, responsive typography, glowing card structures,
-    and cleanly styled input nodes.
+    Injects high-visibility CSS styling to transform the Streamlit interface.
+    Forces all text targets, selectbox labels, radio items, descriptions, and 
+    captions into clear high-contrast white/light-slate ranges.
     """
     custom_css = """
     <style>
@@ -12,15 +12,18 @@ def apply_custom_css():
         .stApp {
             background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #020617 100%);
             background-attachment: fixed;
-            color: #f1f5f9;
+            color: #f1f5f9 !important;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
-        /* Sidebar Styling Override */
+        /* Sidebar Styling Override & Text Visibility */
         [data-testid="stSidebar"] {
             background-color: rgba(15, 23, 42, 0.95) !important;
             border-right: 1px solid rgba(99, 102, 241, 0.2);
             box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+        }
+        [data-testid="stSidebar"] p, [data-testid="stSidebar"] label, [data-testid="stSidebar"] span {
+            color: #f1f5f9 !important;
         }
 
         /* Header / Toolbar Hidden Clean Up */
@@ -31,7 +34,7 @@ def apply_custom_css():
         /* Styled Dynamic Containers & Cards */
         div[data-testid="stElementContainer"] > div.stBlock {
             background: rgba(30, 41, 59, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 12px;
             padding: 1.25rem;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -45,7 +48,18 @@ def apply_custom_css():
             box-shadow: 0 8px 24px rgba(99, 102, 241, 0.1);
         }
 
-        /* Typography Formatting Fixes */
+        /* CRITICAL: Force All Standard Forms, Dropdowns, Radios, and Inline Text Labels to White */
+        label, p, span, .stText, [data-testid="stMarkdownContainer"] p {
+            color: #f1f5f9 !important;
+        }
+        
+        /* Low-Contrast Captions Upgrade */
+        .stCaption, caption, small, [data-testid="stCaptionContainer"] {
+            color: #94a3b8 !important;
+            font-size: 0.85rem !important;
+        }
+
+        /* Typography Heading Formatting Fixes */
         h1 {
             color: #ffffff !important;
             font-weight: 800 !important;
@@ -56,8 +70,8 @@ def apply_custom_css():
             padding-bottom: 0.5rem;
         }
 
-        h2, h3, h4, h5 {
-            color: #e2e8f0 !important;
+        h2, h3, h4, h5, h6 {
+            color: #ffffff !important;
             font-weight: 600 !important;
             letter-spacing: -0.02em !important;
         }
@@ -90,16 +104,28 @@ def apply_custom_css():
             box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.4);
             border-color: rgba(255, 255, 255, 0.2) !important;
         }
+
+        /* Custom Input Node Overrides (Dropdown Options & Forms) */
+        div[data-baseweb="select"] > div {
+            background-color: #0f172a !important;
+            color: #ffffff !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            border-radius: 8px !important;
+        }
         
-        .stButton > button:active {
-            transform: translateY(1px);
+        /* Target dropdown expanded options panel menu */
+        div[data-baseweb="menu"] li {
+            color: #ffffff !important;
+            background-color: #0f172a !important;
+        }
+        div[data-baseweb="menu"] li:hover {
+            background-color: #312e81 !important;
         }
 
-        /* Custom Input Node Overrides */
-        input, textarea, select {
+        input, textarea {
             background-color: #0f172a !important;
-            color: #f1f5f9 !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            color: #ffffff !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
             border-radius: 8px !important;
         }
 
@@ -109,6 +135,10 @@ def apply_custom_css():
         }
 
         /* Chat Input Sticky Tray UI Fix */
+        div[data-testid="stChatInput"] textarea {
+            background-color: #1e293b !important;
+            color: #ffffff !important;
+        }
         div[data-testid="stChatInput"] {
             background-color: #1e293b !important;
             border: 1px solid rgba(99, 102, 241, 0.3) !important;
@@ -120,6 +150,9 @@ def apply_custom_css():
         div[data-testid="stMetricValue"] {
             color: #38bdf8 !important;
             font-weight: 700 !important;
+        }
+        div[data-testid="stMetricLabel"] p {
+            color: #94a3b8 !important;
         }
     </style>
     """
