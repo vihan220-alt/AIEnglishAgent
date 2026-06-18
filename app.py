@@ -124,7 +124,7 @@ ROBOT_AVATAR = "https://img.icons8.com/fluent/96/artificial-intelligence.png"
 USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
 
 # =========================================================
-# FIXED PAYMENT GATEWAY COMPONENT
+# PAYMENT GATEWAY COMPONENT (Fixed argument mapping)
 # =========================================================
 def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_duration="Month"):
     razorpay_html_code = f"""
@@ -142,10 +142,10 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    components.html(html=razorpay_html_code, height=160, key="stable_razorpay_node")
+    components.html(razorpay_html_code, height=160, key="stable_razorpay_node")
 
 # =========================================================
-# FIXED WEBCAM RECORDER (Explicit kwargs to prevent TypeErrors)
+# WEBCAM RECORDER (Fixed: Stripped html= keyword to solve TypeErrors)
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -215,8 +215,8 @@ def render_webcam_video_recorder():
         }
     </script>
     """
-    # Using strict keyword-only configuration parameters to avoid internal wrapper conversion drops
-    components.html(html=webcam_html, height=340, key="stable_webcam_node_v5")
+    # HTML payload passed as positional first argument to secure universal runtime alignment
+    components.html(webcam_html, height=340, key="stable_webcam_node_v6")
 
 # =========================================================
 # CROSS-DOMAIN BRIDGE LISTENER
@@ -242,7 +242,7 @@ def render_cross_domain_bridge_receiver():
         }
     </script>
     """
-    components.html(html=receiver_js, height=0, width=0, key="stable_bridge_receiver")
+    components.html(receiver_js, height=0, width=0, key="stable_bridge_receiver")
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
