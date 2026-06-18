@@ -3,11 +3,48 @@ import streamlit as st
 def apply_custom_css():
     """
     Injects high-visibility CSS styling to transform the Streamlit interface.
-    Forces all text targets, selectbox labels, radio items, descriptions, and 
-    captions into clear high-contrast white/light-slate ranges.
+    Forces all text targets, inputs, and custom high-contrast scrollbars (scrollers) 
+    into absolute high-visibility clarity.
     """
     custom_css = """
     <style>
+        /* =========================================================
+           CUSTOM HIGH-VISIBILITY SCROLLER (SCROLLBAR) RULES
+        ========================================================= */
+        /* WebKit Engines (Chrome, Safari, Edge, Brave) */
+        ::-webkit-scrollbar {
+            width: 12px !important;
+            height: 12px !important;
+            display: block !important;
+        }
+
+        /* Scrollbar Track (The runway underneath) */
+        ::-webkit-scrollbar-track {
+            background: #0f172a !important; /* Matches deepest dark backdrop range */
+            border-radius: 8px !important;
+        }
+
+        /* Scrollbar Thumb (The moving draggable bar) */
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%) !important; /* Indigo accent indicator */
+            border: 2px solid #0f172a !important; /* Creates a clean gap around the scroller */
+            border-radius: 8px !important;
+        }
+
+        /* Scrollbar Thumb Hover State */
+        ::-webkit-scrollbar-thumb:hover {
+            background: #818cf8 !important; /* Brighter glow when interacting */
+        }
+
+        /* Firefox Support Compatibility Standard */
+        * {
+            scrollbar-width: auto !important;
+            scrollbar-color: #6366f1 #0f172a !important;
+        }
+
+        /* =========================================================
+           GLOBAL CANVAS BACKGROUND & TEXT CORRECTIONS
+        ========================================================= */
         /* Global Background & App Workspace Canvas */
         .stApp {
             background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #020617 100%);
@@ -48,7 +85,7 @@ def apply_custom_css():
             box-shadow: 0 8px 24px rgba(99, 102, 241, 0.1);
         }
 
-        /* CRITICAL: Force All Standard Forms, Dropdowns, Radios, and Inline Text Labels to White */
+        /* Force All Standard Forms, Dropdowns, Radios, and Inline Text Labels to White */
         label, p, span, .stText, [data-testid="stMarkdownContainer"] p {
             color: #f1f5f9 !important;
         }
