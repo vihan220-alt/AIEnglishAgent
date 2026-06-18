@@ -594,9 +594,11 @@ elif app_mode == "🌐 Explore Video Learning Engine":
             options=list(curriculum_matrix.keys())
         )
         
+        # FIXED: Dynamic unique key resets index selection when category changes
         selected_session = st.selectbox(
             "📝 Step 2: Choose Specific Focus Topic Session:", 
-            options=curriculum_matrix[selected_module]["sessions"]
+            options=curriculum_matrix[selected_module]["sessions"],
+            key=f"session_select_{selected_module}"
         )
 
     st.markdown("---")
