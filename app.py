@@ -124,7 +124,7 @@ ROBOT_AVATAR = "https://img.icons8.com/fluent/96/artificial-intelligence.png"
 USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
 
 # =========================================================
-# PAYMENT GATEWAY COMPONENT (Clean positional params)
+# PAYMENT GATEWAY COMPONENT
 # =========================================================
 def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_duration="Month"):
     razorpay_html_code = f"""
@@ -145,7 +145,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
     components.html(razorpay_html_code, height=160)
 
 # =========================================================
-# WEBCAM RECORDER (Stripped down entirely to prevent TypeErrors)
+# WEBCAM RECORDER (Fixed: Removed assignment and extra keys)
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -215,8 +215,7 @@ def render_webcam_video_recorder():
         }
     </script>
     """
-    # Pure positional arguments only to guarantee universal compliance across all versions
-    components.html(webcam_html, height=340)
+    components.html(webcam_html, height=350)
 
 # =========================================================
 # CROSS-DOMAIN BRIDGE LISTENER
@@ -387,6 +386,7 @@ elif app_mode == "🗣️ Skill Assessment Portal":
         label_visibility="collapsed"
     )
 
+    # Render purely as an action, no assignments to trigger standard internal TypeErrors
     render_webcam_video_recorder()
     render_cross_domain_bridge_receiver()
 
@@ -413,6 +413,7 @@ elif app_mode == "🗣️ Skill Assessment Portal":
         with st.chat_message(message["role"], avatar=avatar_img):
             st.markdown(message["content"])
 
+    # SELECTORS COMPONENT LOAD REGION
     if len(current_chat["history"]) == 1 and "Welcome" in current_chat["history"][0]["content"]:
         st.markdown("---")
         with st.form("assessment_setup_form"):
