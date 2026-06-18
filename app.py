@@ -124,7 +124,7 @@ ROBOT_AVATAR = "https://img.icons8.com/fluent/96/artificial-intelligence.png"
 USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
 
 # =========================================================
-# PAYMENT GATEWAY COMPONENT (Fixed argument mapping)
+# PAYMENT GATEWAY COMPONENT (Clean positional params)
 # =========================================================
 def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_duration="Month"):
     razorpay_html_code = f"""
@@ -142,10 +142,10 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    components.html(razorpay_html_code, height=160, key="stable_razorpay_node")
+    components.html(razorpay_html_code, height=160)
 
 # =========================================================
-# WEBCAM RECORDER (Fixed: Stripped html= keyword to solve TypeErrors)
+# WEBCAM RECORDER (Stripped down entirely to prevent TypeErrors)
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -215,8 +215,8 @@ def render_webcam_video_recorder():
         }
     </script>
     """
-    # HTML payload passed as positional first argument to secure universal runtime alignment
-    components.html(webcam_html, height=340, key="stable_webcam_node_v6")
+    # Pure positional arguments only to guarantee universal compliance across all versions
+    components.html(webcam_html, height=340)
 
 # =========================================================
 # CROSS-DOMAIN BRIDGE LISTENER
@@ -242,7 +242,7 @@ def render_cross_domain_bridge_receiver():
         }
     </script>
     """
-    components.html(receiver_js, height=0, width=0, key="stable_bridge_receiver")
+    components.html(receiver_js, height=0, width=0)
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
