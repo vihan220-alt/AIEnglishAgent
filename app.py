@@ -436,7 +436,6 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     st.markdown("### 🎥 Live Video Interview Feed")
     
     with st.expander("👁️ System Bridge Channels", expanded=False):
-        # FIX: Value assigned through st.session_state initialization to prevent duplicate triggers
         video_bridge_data = st.text_input("Internal Data Sync Node", key="hidden_video_bridge_input")
 
     render_webcam_video_recorder()
@@ -451,7 +450,6 @@ elif app_mode == "🗣️ Skill Assessment Portal":
                 f.write(video_bytes)
             st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
             
-            # FIX: Clear target value safely via session_state to avoid validation crash exceptions
             st.session_state["hidden_video_bridge_input"] = ""
             st.rerun()
         except Exception as e:
@@ -477,7 +475,6 @@ elif app_mode == "🗣️ Skill Assessment Portal":
                     st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
                     st.rerun()
 
-    # FIX: Clear state immediately after component play processing to terminate endless rerun cycles
     if st.session_state.autoplay_audio_data:
         st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
         st.session_state.autoplay_audio_data = None
@@ -501,29 +498,110 @@ elif app_mode == "📊 Analytics Dashboard":
 
 elif app_mode == "🌐 Explore Video Learning Engine":
     st.title("🎬 Topic Multi-Module Learning Hub")
-    
-    # UPGRADED: Expanded multi-tiered matrix tracking modules, individual videos, and specific focus session tracks
+    st.markdown("Select a track and a specialized focus session from over 50+ available learning modules.")
+
+    # 54 TOTAL SPECIALIZED TRAINING SESSIONS SPREAD ACROSS 6 CATEGORIES
     curriculum_matrix = {
-        "📚 English Grammar Foundations": {
+        "📚 Grammar & Structural Accuracy Foundations": {
             "vid": "https://www.youtube.com/watch?v=3oIAICs8N9I",
-            "sessions": ["Session 1: Subject-Verb Agreement Essentials", "Session 2: Mastering Modal Verbs"]
+            "sessions": [
+                "Session 1: Subject-Verb Agreement Principles",
+                "Session 2: Mastering Modal Verbs for Obligation & Permission",
+                "Session 3: Present Perfect vs. Past Simple Tense Transitions",
+                "Session 4: Conditional Clauses (Type 1, 2, and 3 Mechanics)",
+                "Session 5: Prepositions of Place, Time, and Direction",
+                "Session 6: Active vs. Passive Voice in Corporate Reporting",
+                "Session 7: Gerunds and Infinitives Diagnostic Rules",
+                "Session 8: Correcting Common Dangling Modifiers",
+                "Session 9: Relative Clauses and Pronoun Alignment"
+            ]
         },
-        "💼 Corporate Accent Modulation": {
+        "💼 Corporate Accent Modulation & Phonetics": {
             "vid": "https://www.youtube.com/watch?v=M2L76qM2sZ0",
-            "sessions": ["Session 1: Professional Intonation & Pacing", "Session 2: Overcoming Mother Tongue Influence (MTI)"]
+            "sessions": [
+                "Session 10: Professional Intonation & Sentence Stress Pacing",
+                "Session 11: Overcoming Mother Tongue Influence (MTI) Variables",
+                "Session 12: Vowel Sounds: Long vs. Short Monophthongs",
+                "Session 13: Consonant Clusters and Crisp Endings",
+                "Session 14: Connected Speech & Linking Words Seamlessly",
+                "Session 15: Pitch Shifts for Emphasizing Key Business Metrics",
+                "Session 16: Diaphragmatic Breathing for Vocal Clarity",
+                "Session 17: Eliminating Fillers (Um, Ah, Like) via Pausing",
+                "Session 18: Neutralizing Regional Dialect Pitch Drops"
+            ]
         },
-        "🚀 Advanced Sentence Structures for Interviews": {
+        "🚀 Advanced Interview Sentence Structures": {
             "vid": "https://www.youtube.com/watch?v=gaI7vXvSExA",
-            "sessions": ["Session 1: High-Impact Project Pitches", "Session 2: Formulating STAR-Method Responses"]
+            "sessions": [
+                "Session 19: High-Impact Project Pitch Starters",
+                "Session 20: Formulating STAR-Method Behavioral Responses",
+                "Session 21: Diplomatic Redirection Patterns for Difficult Queries",
+                "Session 22: Highlighting Leadership Trajectories Verbally",
+                "Session 23: Expressing Salary Expectations Confidently",
+                "Session 24: Explaining Career Gaps Using Growth Assertions",
+                "Session 25: Vocabulary Filters to Sound Executive and Mature",
+                "Session 26: Constructing Persuasive Value Proposition Hooks",
+                "Session 27: Executive Presence & Concluding Impact Statements"
+            ]
+        },
+        "🤝 Professional Negotiation & Client Communication": {
+            "vid": "https://www.youtube.com/watch?v=3oIAICs8N9I",
+            "sessions": [
+                "Session 28: Softening Assertions using Hedging Language",
+                "Session 29: Handling Objections with Conversational Empathy",
+                "Session 30: Framing Deadlines Positively without Friction",
+                "Session 31: Setting Clear Boundaries on Scope Creep",
+                "Session 32: Conceding Points Strategically in Real-time",
+                "Session 33: Anchoring Price Discussions and Terms",
+                "Session 34: Regaining Control of Derailing Client Meetings",
+                "Session 35: Summarizing Action Items for Alignment Checks",
+                "Session 36: Closing Enterprise Deals with Firm Vocabulary"
+            ]
+        },
+        "📊 Technical Presentation & Data Storytelling": {
+            "vid": "https://www.youtube.com/watch?v=M2L76qM2sZ0",
+            "sessions": [
+                "Session 37: Describing Trends, Graphs, and Market Spikes",
+                "Session 38: Transitioning Between Complex Data Visuals",
+                "Session 39: Translating Technical Metrics for Non-Tech Stakeholders",
+                "Session 40: Simplifying Complex Software Architectures Verbally",
+                "Session 41: Managing Q&A Sessions and Hecklers Gracefully",
+                "Session 42: Narrative Arc Strategies for Technical Case Studies",
+                "Session 43: Engaging Remote Audiences During Slide Runs",
+                "Session 44: Emphasizing Risk Metrics using Comparative Phrases",
+                "Session 45: Converting Static Features into Active Business Value"
+            ]
+        },
+        "☕ Everyday Office Idioms & Socializing Vocabulary": {
+            "vid": "https://www.youtube.com/watch?v=gaI7vXvSExA",
+            "sessions": [
+                "Session 46: Casual English vs. Formal Office Interventions",
+                "Session 47: Watercooler Conversations and Polite Small Talk",
+                "Session 48: Navigating Cross-Cultural Greetings with Care",
+                "Session 49: Correct Use of Common Corporate Idioms",
+                "Session 50: Polite Interruptions During Heated Discussions",
+                "Session 51: Expressing Disagreement Constructively",
+                "Session 52: Pitching Casual Ideas During Brainstorming Rounds",
+                "Session 53: Writing & Verbally Validating Peer Praises",
+                "Session 54: Closing Casual Virtual Sync-Ups Smoothly"
+            ]
         }
     }
-    
-    # Multi-tiered Selectors implementation
-    selected_module = st.selectbox("🎯 Step 1: Select Training Module Category:", list(curriculum_matrix.keys()))
-    selected_session = st.selectbox("📝 Step 2: Choose Specific Focus Topic Session:", curriculum_matrix[selected_module]["sessions"])
-    
+
+    with st.container(border=True):
+        selected_module = st.selectbox(
+            "🎯 Step 1: Select Training Module Category:", 
+            options=list(curriculum_matrix.keys())
+        )
+        
+        selected_session = st.selectbox(
+            "📝 Step 2: Choose Specific Focus Topic Session:", 
+            options=curriculum_matrix[selected_module]["sessions"]
+        )
+
     st.markdown("---")
-    st.markdown(f"#### 📺 Playing: {selected_module} — *{selected_session}*")
+    st.markdown(f"### 📺 Now Playing: **{selected_session}**")
+    st.caption(f"Curriculum Track: {selected_module}")
     st.video(curriculum_matrix[selected_module]["vid"])
 
 elif app_mode == "📬 Submit Custom Prompts":
