@@ -124,7 +124,7 @@ ROBOT_AVATAR = "https://img.icons8.com/fluent/96/artificial-intelligence.png"
 USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
 
 # =========================================================
-# FIXED: LOOP-FREE STABLE RAZORPAY COMPONENT
+# FIXED SIGNATURE: handles plan_duration safely to prevent TypeErrors
 # =========================================================
 def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_duration="Month"):
     razorpay_html_code = f"""
@@ -145,7 +145,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
     components.html(razorpay_html_code, height=160, key="stable_razorpay_node")
 
 # =========================================================
-# FIXED: ISOLATED WEBCAM RECORDER WITHOUT RELOAD CONFLICTS
+# WEBCAM RECORDER WITHOUT RELOAD CONFLICTS
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -188,7 +188,6 @@ def render_webcam_video_recorder():
                         reader.readAsDataURL(blob); 
                         reader.onloadend = function() {
                             let base64String = reader.result;
-                            // Clean transfer message straight up to parent application frame safely
                             window.parent.postMessage({
                                 type: 'STREAMLIT_VIDEO_TRANSFER_EVENT',
                                 data: base64String
@@ -219,7 +218,7 @@ def render_webcam_video_recorder():
     components.html(webcam_html, height=330, key="stable_webcam_node")
 
 # =========================================================
-# FIXED: FAILSCONSTRAINED REALTIME DOM DATA BRIDGE RECEIVER
+# CROSS-DOMAIN BRIDGE LISTENER
 # =========================================================
 def render_cross_domain_bridge_receiver():
     receiver_js = """
@@ -228,7 +227,6 @@ def render_cross_domain_bridge_receiver():
             window.addEventListener('message', function(event) {
                 if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
                     const b64Data = event.data.data;
-                    // Find input element safely by iterating over tag collection types to survive target frame refreshes
                     const targets = window.parent.document.getElementsByTagName('input');
                     for (let idx = 0; idx < targets.length; idx++) {
                         if (targets[idx].id && targets[idx].id.includes('hidden_video_bridge_input')) {
@@ -382,7 +380,6 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
     st.markdown("### 🎥 Live Video Interview Feed")
     
-    # SYSTEM DATA BRIDGE LINK (Strict ID Assignment to avoid layout shifts)
     video_bridge_data = st.text_input(
         "Internal Data Sync Node", 
         key="hidden_video_bridge_input", 
@@ -392,7 +389,6 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     render_webcam_video_recorder()
     render_cross_domain_bridge_receiver()
 
-    # Hash verification to avoid processing duplicate state cycles on button clicks
     if video_bridge_data and "base64," in video_bridge_data:
         current_data_hash = hashlib.md5(video_bridge_data.encode('utf-8')).hexdigest()
         
@@ -411,7 +407,6 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
     st.markdown("---")
 
-    # Render History Matrix
     for message in current_chat["history"]:
         avatar_img = USER_AVATAR if message["role"] == "user" else ROBOT_AVATAR
         with st.chat_message(message["role"], avatar=avatar_img):
@@ -431,7 +426,7 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
     if st.session_state.autoplay_audio_data:
         st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
-        st.session_state.autoplay_audio_data = None  # Instantly flush to prevent loops on state re-evaluation
+        st.session_state.autoplay_audio_data = None  
 
     text_input = st.chat_input("Type your text response here...")
     if text_input:
