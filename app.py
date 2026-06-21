@@ -23,7 +23,7 @@ import re
 import json
 import os
 import base64
-import streamlit.components.v1 as components  # Clean and explicit import alias
+import streamlit.components.v1 as components
 from io import BytesIO
 from gtts import gTTS
 from datetime import datetime, date
@@ -153,8 +153,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    # CORRECTED: Using components.html with strict key safety tracker
-    razorpay_key = f"razorpay_payment_frame_{st.session_state.iframe_render_idx}"
+    razorpay_key = f"razorpay_frame_{hashlib.md5(email_recipient.encode()).hexdigest()}_idx_{st.session_state.iframe_render_idx}"
     components.html(razorpay_html_code, height=160, key=razorpay_key)
 
 # =========================================================
@@ -230,14 +229,14 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    # CORRECTED: Clean call through imported module alias
-    webcam_dynamic_key = f"webcam_recording_node_uid_{st.session_state.iframe_render_idx}"
-    components.html(webcam_html, height=340, key=webcam_dynamic_key)
+    webcam_key = f"system_webcam_iframe_node_v{st.session_state.iframe_render_idx}"
+    components.html(webcam_html, height=340, key=webcam_key)
 
 # =========================================================
 # REVERSED BRIDGE LISTENER RECEIVER COMPONENT
 # =========================================================
 def render_cross_domain_bridge_receiver():
+    # FIXED: Selecting the Streamlit DOM target using aria-label ensures accurate parameter binding
     receiver_js = """
     <script>
         window.addEventListener('message', function(event) {
@@ -253,9 +252,8 @@ def render_cross_domain_bridge_receiver():
         });
     </script>
     """
-    # CORRECTED: Clean call through imported module alias
-    listener_dynamic_key = f"cross_domain_listener_uid_{st.session_state.iframe_render_idx}"
-    components.html(receiver_js, height=0, width=0, key=listener_dynamic_key)
+    listener_key = f"cross_domain_bridge_listener_v{st.session_state.iframe_render_idx}"
+    components.html(receiver_js, height=0, width=0, key=listener_key)
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
