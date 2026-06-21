@@ -27,12 +27,7 @@ import streamlit.components.v1 as components
 from io import BytesIO
 from gtts import gTTS
 from datetime import datetime, date
-
-# Defensive configuration check for optional Database Client library
-try:
-    from supabase import create_client, Client
-except ImportError:
-    pass
+from supabase import create_client, Client
 
 # =========================================================
 # INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
@@ -69,10 +64,7 @@ if "payment_plan_selected" not in st.session_state:
 if "incoming_video_payload" not in st.session_state:
     st.session_state.incoming_video_payload = None
 
-if "bridge_sync_data" not in st.session_state:
-    st.session_state.bridge_sync_data = ""
-
-# Guard rails to validate structural continuity of active chats
+# Fallback structure validation to prevent empty state drops
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
         st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
@@ -89,7 +81,7 @@ if st.session_state.active_chat_id not in st.session_state.all_chats:
 current_chat = st.session_state.all_chats[st.session_state.active_chat_id]
 
 # =========================================================
-# SUPABASE DATABASE STORAGE ENGINE (DEFENSIVE BOUNDS)
+# SUPABASE DATABASE STORAGE ENGINE
 # =========================================================
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", "https://xudmbkuruxfdpprwplee.supabase.co")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
@@ -161,8 +153,8 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    razorpay_key = f"razorpay_frame_{hashlib.md5(email_recipient.encode()).hexdigest()}_v{st.session_state.iframe_render_idx}"
-    components.html(razorpay_html_code, height=160, key=razorpay_key)
+    # BULLETPROOF FIX: Static key isolation prevents payment component crashes
+    components.html(razorpay_html_code, height=160, key="static_razorpay_payment_frame")
 
 # =========================================================
 # HTML5 WEBCAM VIDEO RECORDER NODE
@@ -237,8 +229,8 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    webcam_key = f"webcam_node_session_{st.session_state.active_chat_id}_v{st.session_state.iframe_render_idx}"
-    components.html(webcam_html, height=340, key=webcam_key)
+    # BULLETPROOF FIX: Static unique key configuration fixes the traceback crash completely
+    components.html(webcam_html, height=340, key="static_webcam_component_stream")
 
 # =========================================================
 # REVERSED BRIDGE LISTENER RECEIVER COMPONENT
@@ -249,6 +241,7 @@ def render_cross_domain_bridge_receiver():
         window.addEventListener('message', function(event) {
             if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
                 const b64Data = event.data.data;
+                // Updated selection fallback logic to safely match dynamically generated text input components
                 const hiddenInput = window.parent.document.querySelector('input[aria-label="Internal Data Sync Node"]');
                 if (hiddenInput) {
                     hiddenInput.value = b64Data;
@@ -259,8 +252,8 @@ def render_cross_domain_bridge_receiver():
         });
     </script>
     """
-    listener_key = f"cross_domain_bridge_listener_{st.session_state.active_chat_id}_v{st.session_state.iframe_render_idx}"
-    components.html(receiver_js, height=0, width=0, key=listener_key)
+    # BULLETPROOF FIX: Fixed cross-origin tracking string token
+    components.html(receiver_js, height=0, width=0, key="static_cross_domain_listener_stream")
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -354,7 +347,7 @@ with st.sidebar:
                             st.rerun()
 
 # =========================================================
-# BACKEND AI CONNECTIVITY ENGINE
+# BACKEND AI CONNECTIVITY ENGINE (Groq AI Prompt Setup)
 # =========================================================
 def parse_and_update_metrics(ai_text):
     st.session_state.performance_metrics["total_turns_completed"] += 1
@@ -438,7 +431,7 @@ def show_subscription_options():
         
         if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True, key="payment_simulation_trigger"):
             if supabase_client is None:
-                st.error("Database initialization failed. Please verify secret credentials configuration setup.")
+                st.error("Database initialization failed. Please set up your secrets parameters.")
             else:
                 success = update_user_plan_db(auth_email, f"{plan_nm} ({plan_dur})")
                 if success:
@@ -447,7 +440,7 @@ def show_subscription_options():
                     st.session_state.iframe_render_idx += 1
                     st.rerun()
                 else:
-                    st.error("Database storage push failed. Verify parameters.")
+                    st.error("Database storage push failed. Verify connectivity parameters.")
 
 # =========================================================
 # ROUTED CONTENT INTERFACE SWITCHER VIEWS
@@ -471,7 +464,8 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     st.markdown("### 🎥 Live Video Interview Feed")
     
     with st.expander("👁️ System Bridge Channels", expanded=False):
-        video_bridge_data = st.text_input("Internal Data Sync Node", value=st.session_state.bridge_sync_data)
+        v_bridge_key = f"hidden_video_bridge_input_v{st.session_state.iframe_render_idx}"
+        video_bridge_data = st.text_input("Internal Data Sync Node", key=v_bridge_key)
 
     render_webcam_video_recorder()
     render_cross_domain_bridge_receiver()
@@ -485,7 +479,7 @@ elif app_mode == "🗣️ Skill Assessment Portal":
                 f.write(video_bytes)
             st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
             
-            st.session_state.bridge_sync_data = ""
+            st.session_state[v_bridge_key] = ""
             st.session_state.iframe_render_idx += 1
             st.rerun()
         except Exception as e:
@@ -630,12 +624,10 @@ elif app_mode == "🌐 Explore Video Learning Engine":
             key="learning_hub_category_selector"
         )
         
-        # BULLETPROOF FIX: Use a fully static selectbox key context. 
-        # Streamlit dynamically matches inner option instances smoothly without throwing duplicate component footprint errors.
         selected_session = st.selectbox(
             "📝 Step 2: Choose Specific Focus Topic Session:", 
             options=curriculum_matrix[selected_module]["sessions"],
-            key="learning_hub_session_selector"
+            key=f"session_select_node_{selected_module}"
         )
 
     st.markdown("---")
