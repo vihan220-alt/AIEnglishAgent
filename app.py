@@ -23,8 +23,6 @@ import re
 import json
 import os
 import base64
-# BULLETPROOF FIX: Use a unique alias to prevent variable shadowing/overwriting
-import streamlit.components.v1 as st_components
 from io import BytesIO
 from gtts import gTTS
 from datetime import datetime, date
@@ -154,7 +152,8 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    st_components.html(razorpay_html_code, height=160, key="static_razorpay_payment_frame")
+    # FIXED: Direct native call path eliminates shadowing bugs
+    st.components.v1.html(razorpay_html_code, height=160, key="static_razorpay_payment_frame")
 
 # =========================================================
 # HTML5 WEBCAM VIDEO RECORDER NODE
@@ -229,8 +228,8 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    # BULLETPROOF FIX: Referenced via non-shadowable engine alias
-    st_components.html(webcam_html, height=340, key="static_webcam_component_stream")
+    # FIXED: Direct native call path eliminates shadowing bugs
+    st.components.v1.html(webcam_html, height=340, key="static_webcam_component_stream")
 
 # =========================================================
 # REVERSED BRIDGE LISTENER RECEIVER COMPONENT
@@ -251,7 +250,8 @@ def render_cross_domain_bridge_receiver():
         });
     </script>
     """
-    st_components.html(receiver_js, height=0, width=0, key="static_cross_domain_listener_stream")
+    # FIXED: Direct native call path eliminates shadowing bugs
+    st.components.v1.html(receiver_js, height=0, width=0, key="static_cross_domain_listener_stream")
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
