@@ -23,7 +23,7 @@ import re
 import json
 import os
 import base64
-import streamlit.components.v1 as components  # Use explicit alias to prevent namespace pollution
+import streamlit.components.v1 as components  # Clean and explicit import alias
 from io import BytesIO
 from gtts import gTTS
 from datetime import datetime, date
@@ -153,7 +153,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    # FIX: Made dynamic to prevent state collision
+    # CORRECTED: Using components.html with strict key safety tracker
     razorpay_key = f"razorpay_payment_frame_{st.session_state.iframe_render_idx}"
     components.html(razorpay_html_code, height=160, key=razorpay_key)
 
@@ -230,7 +230,7 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    # CRITICAL FIX: Explicitly use components.html with a strictly dynamic tracking key signature
+    # CORRECTED: Clean call through imported module alias
     webcam_dynamic_key = f"webcam_recording_node_uid_{st.session_state.iframe_render_idx}"
     components.html(webcam_html, height=340, key=webcam_dynamic_key)
 
@@ -253,7 +253,7 @@ def render_cross_domain_bridge_receiver():
         });
     </script>
     """
-    # FIX: Made dynamic to prevent execution collision
+    # CORRECTED: Clean call through imported module alias
     listener_dynamic_key = f"cross_domain_listener_uid_{st.session_state.iframe_render_idx}"
     components.html(receiver_js, height=0, width=0, key=listener_dynamic_key)
 
@@ -469,7 +469,6 @@ elif app_mode == "🗣️ Skill Assessment Portal":
         v_bridge_key = f"hidden_video_bridge_input_v{st.session_state.iframe_render_idx}"
         video_bridge_data = st.text_input("Internal Data Sync Node", key=v_bridge_key)
 
-    # Call the fixed rendering rules cleanly
     render_webcam_video_recorder()
     render_cross_domain_bridge_receiver()
 
