@@ -23,7 +23,8 @@ import re
 import json
 import os
 import base64
-import streamlit.components.v1 as components
+# BULLETPROOF FIX: Use a unique alias to prevent variable shadowing/overwriting
+import streamlit.components.v1 as st_components
 from io import BytesIO
 from gtts import gTTS
 from datetime import datetime, date
@@ -153,8 +154,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    # BULLETPROOF FIX: Static key isolation prevents payment component crashes
-    components.html(razorpay_html_code, height=160, key="static_razorpay_payment_frame")
+    st_components.html(razorpay_html_code, height=160, key="static_razorpay_payment_frame")
 
 # =========================================================
 # HTML5 WEBCAM VIDEO RECORDER NODE
@@ -229,8 +229,8 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    # BULLETPROOF FIX: Static unique key configuration fixes the traceback crash completely
-    components.html(webcam_html, height=340, key="static_webcam_component_stream")
+    # BULLETPROOF FIX: Referenced via non-shadowable engine alias
+    st_components.html(webcam_html, height=340, key="static_webcam_component_stream")
 
 # =========================================================
 # REVERSED BRIDGE LISTENER RECEIVER COMPONENT
@@ -241,7 +241,6 @@ def render_cross_domain_bridge_receiver():
         window.addEventListener('message', function(event) {
             if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
                 const b64Data = event.data.data;
-                // Updated selection fallback logic to safely match dynamically generated text input components
                 const hiddenInput = window.parent.document.querySelector('input[aria-label="Internal Data Sync Node"]');
                 if (hiddenInput) {
                     hiddenInput.value = b64Data;
@@ -252,8 +251,7 @@ def render_cross_domain_bridge_receiver():
         });
     </script>
     """
-    # BULLETPROOF FIX: Fixed cross-origin tracking string token
-    components.html(receiver_js, height=0, width=0, key="static_cross_domain_listener_stream")
+    st_components.html(receiver_js, height=0, width=0, key="static_cross_domain_listener_stream")
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
