@@ -157,7 +157,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
     components.html(razorpay_html_code, height=160, key=razorpay_key)
 
 # =========================================================
-# HTML5 WEBCAM VIDEO RECORDER NODE
+# HTML5 WEBCAM VIDEO RECORDER NODE WITH FALLBACK DOM PATHS
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -233,20 +233,36 @@ def render_webcam_video_recorder():
     components.html(webcam_html, height=340, key=webcam_key)
 
 # =========================================================
-# REVERSED BRIDGE LISTENER RECEIVER COMPONENT
+# REVERSED BRIDGE LISTENER RECEIVER COMPONENT (CORS IMMUNE)
 # =========================================================
 def render_cross_domain_bridge_receiver():
-    # FIXED: Selecting the Streamlit DOM target using aria-label ensures accurate parameter binding
+    # Fallback cascade lookup targets native input elements comprehensively
     receiver_js = """
     <script>
         window.addEventListener('message', function(event) {
             if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
                 const b64Data = event.data.data;
-                const hiddenInput = window.parent.document.querySelector('input[aria-label="Internal Data Sync Node"]');
+                
+                // Fallback Chain Strategy to securely catch the element regardless of container wraps
+                let hiddenInput = window.parent.document.querySelector('input[aria-label="Internal Data Sync Node"]');
+                
+                if (!hiddenInput) {
+                     // Try input by fallback data field matching rules
+                     const inputs = window.parent.document.getElementsByTagName('input');
+                     for (let idx = 0; idx < inputs.length; idx++) {
+                         if (inputs[idx].getAttribute('aria-label') && inputs[idx].getAttribute('aria-label').includes('Internal Data Sync')) {
+                             hiddenInput = inputs[idx];
+                             break;
+                         }
+                     }
+                }
+                
                 if (hiddenInput) {
                     hiddenInput.value = b64Data;
                     hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
                     hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                } else {
+                    console.error("Critical: Could not resolve cross-domain sync node input element targets.");
                 }
             }
         });
@@ -309,7 +325,7 @@ with st.sidebar:
             is_active = (c_id == st.session_state.active_chat_id)
             btn_label = f"{pin_indicator}{chat_obj['title']}"
             
-            if st.button(btn_label, key=f"select_row_{c_id}", use_container_width=True, type="secondary" if not is_active else "primary"):
+            if st.button(f"{btn_label}", key=f"select_row_{c_id}", use_container_width=True, type="secondary" if not is_active else "primary"):
                 st.session_state.active_chat_id = c_id
                 st.session_state.autoplay_audio_data = None
                 st.session_state.incoming_video_payload = None
@@ -380,9 +396,7 @@ def get_evaluator_response(plan_tier):
         llm_response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=llm_headers, json=llm_payload)
         res_data = llm_response.json()
         if isinstance(res_data, dict) and "choices" in res_data:
-            response_content = res_data["choices"][0]["message"]["content"]
-            parse_and_update_metrics(response_content)
-            return response_content
+            return res_data["choices"][0]["message"]["content"]
         return "Server payload processing structural error match failed."
     except Exception as e:
         return f"Network failure: {str(e)}"
@@ -463,9 +477,9 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
     st.markdown("### 🎥 Live Video Interview Feed")
     
-    with st.expander("👁️ System Bridge Channels", expanded=False):
-        v_bridge_key = f"hidden_video_bridge_input_v{st.session_state.iframe_render_idx}"
-        video_bridge_data = st.text_input("Internal Data Sync Node", key=v_bridge_key)
+    # Kept outside the expander container row structure to minimize layout generation differences
+    v_bridge_key = f"hidden_video_bridge_input_v{st.session_state.iframe_render_idx}"
+    video_bridge_data = st.text_input("Internal Data Sync Node", key=v_bridge_key, label_visibility="collapsed")
 
     render_webcam_video_recorder()
     render_cross_domain_bridge_receiver()
