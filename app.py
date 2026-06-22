@@ -16,7 +16,7 @@ try:
 except ImportError:
     pass
 
-# Core library imports
+# Core library imports follow below...
 import requests
 import hashlib
 import re
@@ -63,6 +63,13 @@ if "payment_plan_selected" not in st.session_state:
 
 if "incoming_video_payload" not in st.session_state:
     st.session_state.incoming_video_payload = None
+
+# New variables to track persistent session authentication states
+if "is_logged_in" not in st.session_state:
+    st.session_state.is_logged_in = False
+
+if "user_email" not in st.session_state:
+    st.session_state.user_email = ""
 
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
@@ -194,11 +201,12 @@ def render_webcam_video_recorder():
                     let reader = new FileReader();
                     reader.readAsDataURL(blob); 
                     reader.onloadend = function() {
+                        let base64String = reader.result;
                         window.parent.postMessage({
                             type: 'STREAMLIT_VIDEO_TRANSFER_EVENT',
-                            data: reader.result
+                            data: base64String
                         }, '*');
-                    };
+                    }
                 };
 
                 recorder.start(1000);
@@ -212,16 +220,16 @@ def render_webcam_video_recorder():
                 if(recorder && recorder.state !== "inactive") recorder.stop();
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
-                statusMsg.innerText = "✔️ Dispatched to main host interface loop.";
+                statusMsg.innerText = "✔️ Processing data strings...";
                 statusMsg.style.color = "#10b981";
             });
         }).catch(err => {
-            statusMsg.innerText = "⚠️ Device Capture Access Denied.";
+            statusMsg.innerText = "⚠️ Device Capture Access Denied: Check camera permissions.";
             statusMsg.style.color = "#ef4444";
         });
     </script>
     """
-    components.html(webcam_html, height=320)
+    components.html(webcam_html, height=340)
 
 # =========================================================
 # REVERSED BRIDGE LISTENER RECEIVER COMPONENT
@@ -232,18 +240,11 @@ def render_cross_domain_bridge_receiver():
         window.addEventListener('message', function(event) {
             if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
                 const b64Data = event.data.data;
-                const inputs = window.parent.document.querySelectorAll('input[type="text"]');
-                let targetInput = null;
-                for (let i = 0; i < inputs.length; i++) {
-                    if (inputs[i].id && inputs[i].id.includes("hidden_video_bridge_input")) {
-                        targetInput = inputs[i];
-                        break;
-                    }
-                }
-                if (targetInput) {
-                    targetInput.value = b64Data;
-                    targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                const hiddenInput = window.parent.document.getElementById("hidden_video_bridge_input");
+                if (hiddenInput) {
+                    hiddenInput.value = b64Data;
+                    hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             }
         });
@@ -252,97 +253,7 @@ def render_cross_domain_bridge_receiver():
     components.html(receiver_js, height=0, width=0)
 
 # =========================================================
-# SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
-# =========================================================
-with st.sidebar:
-    st.markdown("### 🏢 Enterprise Training Hub")
-    st.markdown("---")
-    st.markdown("##### 🔑 Candidate Workspace Access")
-    
-    auth_email = st.text_input("Enter Registered Email Account:", value="vihan220@gmail.com", key="auth_email_persistent_field")
-    user_package_tier, trial_countdown = init_user_and_get_plan(auth_email)
-    
-    if "active_nav_mode" not in st.session_state:
-        st.session_state.active_nav_mode = "🗣️ Skill Assessment Portal"
-
-    app_mode = st.radio(
-        "Select Portal Workspace:",
-        ["🗣️ Skill Assessment Portal", "📊 Analytics Dashboard", "🌐 Explore Video Learning Engine", "📬 Submit Custom Prompts"],
-        key="app_navigation_rail_index"
-    )
-    
-    if app_mode != st.session_state.active_nav_mode:
-        st.session_state.active_nav_mode = app_mode
-        st.session_state.iframe_render_idx += 1
-        st.rerun()
-    
-    if app_mode == "🗣️ Skill Assessment Portal" and user_package_tier != "Expired":
-        st.markdown("---")
-        st.markdown("### 🛠️ Chat Session Management")
-        
-        if st.button("➕ Start New Assessment (New Chat)", use_container_width=True, type="primary", key="global_new_chat_trigger"):
-            new_id = f"Chat_{int(datetime.now().timestamp())}"
-            st.session_state.all_chats[new_id] = {
-                "title": f"Session Assessment {len(st.session_state.all_chats) + 1}",
-                "pinned": False,
-                "history": [{"role": "assistant", "content": "🎯 **Welcome to your New English Language Assessment!**\n\nPlease initialize your profile benchmarks below to start."}]
-            }
-            st.session_state.active_chat_id = new_id
-            st.session_state.autoplay_audio_data = None
-            st.session_state.incoming_video_payload = None
-            st.session_state.iframe_render_idx += 1
-            st.rerun()
-
-        st.markdown("##### Active Logs Matrix:")
-        sorted_chat_ids = sorted(st.session_state.all_chats.keys(), key=lambda k: st.session_state.all_chats[k]["pinned"], reverse=True)
-        
-        for c_id in list(sorted_chat_ids):
-            if c_id not in st.session_state.all_chats:
-                continue
-            chat_obj = st.session_state.all_chats[c_id]
-            pin_indicator = "📌 " if chat_obj["pinned"] else "💬 "
-            is_active = (c_id == st.session_state.active_chat_id)
-            btn_label = f"{pin_indicator}{chat_obj['title']}"
-            
-            if st.button(btn_label, key=f"select_row_{c_id}", use_container_width=True, type="secondary" if not is_active else "primary"):
-                st.session_state.active_chat_id = c_id
-                st.session_state.autoplay_audio_data = None
-                st.session_state.incoming_video_payload = None
-                st.session_state.iframe_render_idx += 1
-                st.rerun()
-                
-            if is_active:
-                col_pin, col_ren, col_del = st.columns(3)
-                with col_pin:
-                    if st.button("Unpin" if chat_obj["pinned"] else "Pin", key=f"btn_pin_action_{c_id}", use_container_width=True):
-                        st.session_state.all_chats[c_id]["pinned"] = not st.session_state.all_chats[c_id]["pinned"]
-                        st.rerun()
-                with col_ren:
-                    if st.button("Rename", key=f"btn_rename_action_{c_id}", use_container_width=True):
-                        st.session_state[f"show_rename_field_{c_id}"] = True
-                        st.rerun()
-                with col_del:
-                    if st.button("🗑️ Delete", key=f"btn_delete_action_{c_id}", use_container_width=True):
-                        if len(st.session_state.all_chats) > 1:
-                            del st.session_state.all_chats[c_id]
-                            st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
-                            st.session_state.autoplay_audio_data = None
-                            st.session_state.incoming_video_payload = None
-                            st.session_state.iframe_render_idx += 1
-                            st.rerun()
-                        else:
-                            st.error("Cannot delete your last active session trace!")
-                
-                if st.session_state.get(f"show_rename_field_{c_id}", False):
-                    new_title_input = st.text_input("Enter New Session Name:", value=chat_obj["title"], key=f"title_input_field_{c_id}")
-                    if st.button("Save Name", key=f"btn_save_name_action_{c_id}"):
-                        if new_title_input.strip():
-                            st.session_state.all_chats[c_id]["title"] = new_title_input.strip()
-                            st.session_state[f"show_rename_field_{c_id}"] = False
-                            st.rerun()
-
-# =========================================================
-# BACKEND AI CONNECTIVITY ENGINE
+# BACKEND AI CONNECTIVITY ENGINE (Groq AI Prompt Setup)
 # =========================================================
 def parse_and_update_metrics(ai_text):
     st.session_state.performance_metrics["total_turns_completed"] += 1
@@ -378,7 +289,7 @@ def get_evaluator_response(plan_tier):
             response_content = res_data["choices"][0]["message"]["content"]
             parse_and_update_metrics(response_content)
             return response_content
-        return "Server payload parsing error."
+        return "Server payload processing structural error match failed."
     except Exception as e:
         return f"Network failure: {str(e)}"
 
@@ -422,168 +333,335 @@ def show_subscription_options():
 
     if st.session_state.payment_plan_selected:
         plan_nm, plan_amt, plan_dur = st.session_state.payment_plan_selected
-        render_payment_gateway(auth_email, plan_nm, plan_amt, plan_dur)
+        render_payment_gateway(st.session_state.user_email, plan_nm, plan_amt, plan_dur)
         
         if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True, key="payment_simulation_trigger"):
             if supabase_client is None:
-                st.error("Database missing configuration parameters.")
+                st.error("Database initialization failed. Please set up your secrets parameters.")
             else:
-                success = update_user_plan_db(auth_email, f"{plan_nm} ({plan_dur})")
+                success = update_user_plan_db(st.session_state.user_email, f"{plan_nm} ({plan_dur})")
                 if success:
                     st.success("Successfully activated plan! Reloading layout...")
                     st.session_state.payment_plan_selected = None
                     st.session_state.iframe_render_idx += 1
                     st.rerun()
                 else:
-                    st.error("Database storage push failed.")
+                    st.error("Database storage push failed. Verify connectivity parameters.")
 
 # =========================================================
-# ROUTED CONTENT INTERFACE SWITCHER VIEWS
+# CORE WORKSPACE ACCESS ENFORCEMENT CONDITIONAL
 # =========================================================
-if user_package_tier == "Expired":
-    st.title("SkillVerify English Assessment Portal 🚀")
-    st.error("⚠️ Your 15-day Free Trial package limits have been exhausted!")
-    show_subscription_options()
-
-elif app_mode == "🗣️ Skill Assessment Portal":
-    active_id = st.session_state.active_chat_id
-    st.title(f"{st.session_state.all_chats[active_id]['title'] if active_id in st.session_state.all_chats else 'English Assessment Portal'}")
+# If the candidate has not authenticated via the intake loop, trap rendering inside the onboarding portal
+if not st.session_state.is_logged_in:
+    st.title("🔐 Candidate Onboarding & Qualification Portal")
+    st.markdown("Please provide your background attributes below to initialize your interactive workspace license profiles.")
     
-    if "Premium" not in user_package_tier:
-        st.warning(f"⏳ Free Trial Active Account Profile — **{trial_countdown} days left**")
-        with st.expander("👑 Upgrade to Premium Instantly", expanded=False):
-            show_subscription_options()
-    else:
-        st.success(f"👑 Active License Verified — **{user_package_tier}**")
-
-    st.markdown("### 🎥 Live Video Interview Feed")
-    
-    with st.expander("👁️ System Bridge Channels", expanded=False):
-        v_bridge_key = f"hidden_video_bridge_input_v{st.session_state.iframe_render_idx}"
-        video_bridge_data = st.text_input("Internal Data Sync Node", key=v_bridge_key)
-
-    render_webcam_video_recorder()
-    render_cross_domain_bridge_receiver()
-
-    if video_bridge_data and "base64," in video_bridge_data:
-        try:
-            base64_clean = video_bridge_data.split("base64,")[1]
-            video_bytes = base64.b64decode(base64_clean)
-            file_name = f"interview_session_{active_id}.webm"
-            with open(file_name, "wb") as f:
-                f.write(video_bytes)
-            st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
-            
-            st.session_state[v_bridge_key] = ""
-            st.session_state.iframe_render_idx += 1
-            st.rerun()
-        except Exception as e:
-            st.error(f"Error compiling video payload: {str(e)}")
-
-    st.markdown("---")
-
-    # 1. DISPLAY MESSAGE HISTORY STACK
-    for message in current_chat["history"]:
-        avatar_img = USER_AVATAR if message["role"] == "user" else ROBOT_AVATAR
-        with st.chat_message(message["role"], avatar=avatar_img):
-            st.markdown(message["content"])
-
-    # 2. INTEGRATE AUDIO SPEAK CONTROLS DIRECTLY UNDER LOG WINDOW
-    st.write("") 
-    ctrl_col1, ctrl_col2, _ = st.columns([1, 1, 2])
-    
-    with ctrl_col1:
-        if st.button("🔊 Speak Out Loud", use_container_width=True, key="speak_out_loud_trigger_btn"):
-            if current_chat["history"]:
-                assist_msgs = [m["content"] for m in current_chat["history"] if m["role"] == "assistant"]
-                if assist_msgs:
-                    st.session_state.autoplay_audio_data = text_to_speech_bytes(assist_msgs[-1])
-                    st.rerun()
-                
-    with ctrl_col2:
-        if st.button("🛑 Stop Audio", use_container_width=True, key="stop_audio_playback_btn"):
-            st.session_state.autoplay_audio_data = None
-            st.rerun()
-
-    # 3. RENDER CAPTURED SPEECH DATA WITH AUTOPLAY HANDLERS
-    if st.session_state.autoplay_audio_data:
-        st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
-        st.session_state.autoplay_audio_data = None
-
-    if len(current_chat["history"]) == 1 and "Welcome" in current_chat["history"][0]["content"]:
+    with st.form("candidate_onboarding_form", clear_on_submit=False):
+        reg_email = st.text_input("Email ID Address:", placeholder="example@domain.com")
+        reg_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••")
+        reg_age = st.number_input("What is your age?", min_value=1, max_value=120, value=25)
+        reg_intent = st.text_area("Why do you want to join this assessment platform?", placeholder="Specify your linguistic learning objectives...")
+        reg_gender = st.radio("Select Gender Profile:", ["Male", "Female"])
+        
+        submit_reg = st.form_submit_button("Verify Account & Enter Portal", type="primary")
+        
+        if submit_reg:
+            if not reg_email.strip() or not reg_password.strip() or not reg_intent.strip():
+                st.error("⚠️ All intake metrics fields must be populated completely to activate structural rules.")
+            else:
+                # Successfully logged in. Store email persistently and unlock workspace context.
+                st.session_state.is_logged_in = True
+                st.session_state.user_email = reg_email.strip().lower()
+                st.success("✓ Profile parsed successfully! Initializing layout matrix...")
+                st.rerun()
+else:
+    # =========================================================
+    # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
+    # =========================================================
+    with st.sidebar:
+        st.markdown("### 🏢 Enterprise Training Hub")
         st.markdown("---")
-        with st.expander("🛠️ Initialize Video Assessment Focus Track", expanded=True):
-            with st.form("assessment_setup_form"):
-                target_skill = st.selectbox("Primary Video Assessment Track:", ["Spoken English & Fluency", "Corporate/Business Communication"], key="setup_target_skill")
-                experience_tier = st.selectbox("Target Competency Level:", ["Beginner / Elementary", "Advanced / Native Proficiency"], key="setup_experience_tier")
-                if st.form_submit_button("🔥 Launch Language Assessment Matrix", type="primary"):
-                    current_chat["history"].append({"role": "user", "content": f"🎯 Profile setup for {target_skill} targeting {experience_tier} benchmarks."})
-                    eval_reply = get_evaluator_response(user_package_tier)
-                    current_chat["history"].append({"role": "assistant", "content": eval_reply})
-                    st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
-                    st.rerun()
+        st.markdown(f"##### 🔑 Profile Active: `{st.session_state.user_email}`")
+        
+        if st.button("🚪 Log Out / Switch Account", use_container_width=True):
+            st.session_state.is_logged_in = False
+            st.session_state.user_email = ""
+            st.rerun()
+        
+        user_package_tier, trial_countdown = init_user_and_get_plan(st.session_state.user_email)
+        
+        if "active_nav_mode" not in st.session_state:
+            st.session_state.active_nav_mode = "🗣️ Skill Assessment Portal"
 
-    text_input = st.chat_input("Type your translation, essay answer, or session text here...", key="chat_input_terminal_field")
-    if text_input:
-        current_chat["history"].append({"role": "user", "content": text_input})
-        eval_reply = get_evaluator_response(user_package_tier)
-        current_chat["history"].append({"role": "assistant", "content": eval_reply})
-        st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
-        st.rerun()
-
-elif app_mode == "📊 Analytics Dashboard":
-    st.title("Linguistic Matrix Progress Tracker")
-    metrics = st.session_state.performance_metrics
-    m_col1, m_col2 = st.columns(2)
-    with m_col1: 
-        st.metric(label="Calculated Fluency Score", value=f"{metrics.get('fluency_score', 0.0)} / 10.0")
-    with m_col2: 
-        st.metric(label="Grammar Slips Logged", value=int(metrics.get('grammar_errors_logged', 0)))
-
-elif app_mode == "🌐 Explore Video Learning Engine":
-    st.title("🎬 Topic Multi-Module Learning Hub")
-    st.markdown("Select a track and a specialized focus session from over 50+ available learning modules.")
-
-    curriculum_matrix = {
-        "📚 Grammar & Structural Accuracy Foundations": {
-            "vid": "https://www.youtube.com/watch?v=3oIAICs8N9I",
-            "sessions": [
-                "Session 1: Subject-Verb Agreement Principles",
-                "Session 2: Mastering Modal Verbs for Obligation & Permission",
-                "Session 3: Present Perfect vs. Past Simple Tense Transitions",
-                "Session 4: Conditional Clauses (Type 1, 2, and 3 Mechanics)",
-                "Session 5: Prepositions of Place, Time, and Direction"
-            ]
-        },
-        "💼 Corporate Accent Modulation & Phonetics": {
-            "vid": "https://www.youtube.com/watch?v=M2L76qM2sZ0",
-            "sessions": [
-                "Session 10: Professional Intonation & Sentence Stress Pacing",
-                "Session 11: Overcoming Mother Tongue Influence (MTI) Variables"
-            ]
-        }
-    }
-
-    with st.container(border=True):
-        selected_module = st.selectbox(
-            "🎯 Step 1: Select Training Module Category:", 
-            options=list(curriculum_matrix.keys()),
-            key="learning_hub_category_selector"
+        app_mode = st.radio(
+            "Select Portal Workspace:",
+            ["🗣️ Skill Assessment Portal", "📊 Analytics Dashboard", "🌐 Explore Video Learning Engine", "📬 Submit Custom Prompts"],
+            key="app_navigation_rail_index"
         )
         
-        selected_session = st.selectbox(
-            "📝 Step 2: Choose Specific Focus Topic Session:", 
-            options=curriculum_matrix[selected_module]["sessions"],
-            key=f"session_select_node_{selected_module}"
-        )
+        if app_mode != st.session_state.active_nav_mode:
+            st.session_state.active_nav_mode = app_mode
+            st.session_state.iframe_render_idx += 1
+            st.rerun()
+        
+        if app_mode == "🗣️ Skill Assessment Portal" and user_package_tier != "Expired":
+            st.markdown("---")
+            st.markdown("### 🛠️ Chat Session Management")
+            
+            if st.button("➕ Start New Assessment (New Chat)", use_container_width=True, type="primary", key="global_new_chat_trigger"):
+                new_id = f"Chat_{int(datetime.now().timestamp())}"
+                st.session_state.all_chats[new_id] = {
+                    "title": f"Session Assessment {len(st.session_state.all_chats) + 1}",
+                    "pinned": False,
+                    "history": [{"role": "assistant", "content": "🎯 **Welcome to your New English Language Assessment!**\n\nPlease initialize your profile benchmarks below to start."}]
+                }
+                st.session_state.active_chat_id = new_id
+                st.session_state.autoplay_audio_data = None
+                st.session_state.incoming_video_payload = None
+                st.session_state.iframe_render_idx += 1 
+                st.rerun()
 
-    st.markdown("---")
-    st.markdown(f"### 📺 Now Playing: **{selected_session}**")
-    st.caption(f"Curriculum Track: {selected_module}")
-    st.video(curriculum_matrix[selected_module]["vid"])
+            st.markdown("##### Active Logs Matrix:")
+            sorted_chat_ids = sorted(st.session_state.all_chats.keys(), key=lambda k: st.session_state.all_chats[k]["pinned"], reverse=True)
+            
+            for c_id in list(sorted_chat_ids):
+                if c_id not in st.session_state.all_chats:
+                    continue
+                chat_obj = st.session_state.all_chats[c_id]
+                pin_indicator = "📌 " if chat_obj["pinned"] else "💬 "
+                is_active = (c_id == st.session_state.active_chat_id)
+                btn_label = f"{pin_indicator}{chat_obj['title']}"
+                
+                if st.button(btn_label, key=f"select_row_{c_id}", use_container_width=True, type="secondary" if not is_active else "primary"):
+                    st.session_state.active_chat_id = c_id
+                    st.session_state.autoplay_audio_data = None
+                    st.session_state.incoming_video_payload = None
+                    st.session_state.iframe_render_idx += 1 
+                    st.rerun()
+                    
+                if is_active:
+                    col_pin, col_ren, col_del = st.columns(3)
+                    with col_pin:
+                        if st.button("Unpin" if chat_obj["pinned"] else "Pin", key=f"btn_pin_action_{c_id}", use_container_width=True):
+                            st.session_state.all_chats[c_id]["pinned"] = not st.session_state.all_chats[c_id]["pinned"]
+                            st.rerun()
+                    with col_ren:
+                        if st.button("Rename", key=f"btn_rename_action_{c_id}", use_container_width=True):
+                            st.session_state[f"show_rename_field_{c_id}"] = True
+                            st.rerun()
+                    with col_del:
+                        if st.button("🗑️ Delete", key=f"btn_delete_action_{c_id}", use_container_width=True):
+                            if len(st.session_state.all_chats) > 1:
+                                del st.session_state.all_chats[c_id]
+                                st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
+                                st.session_state.autoplay_audio_data = None
+                                st.session_state.incoming_video_payload = None
+                                st.session_state.iframe_render_idx += 1
+                                st.rerun()
+                            else:
+                                st.error("Cannot delete your last active session trace!")
+                    
+                    if st.session_state.get(f"show_rename_field_{c_id}", False):
+                        new_title_input = st.text_input("Enter New Session Name:", value=chat_obj["title"], key=f"title_input_field_{c_id}")
+                        if st.button("Save Name", key=f"btn_save_name_action_{c_id}"):
+                            if new_title_input.strip():
+                                st.session_state.all_chats[c_id]["title"] = new_title_input.strip()
+                                st.session_state[f"show_rename_field_{c_id}"] = False
+                                st.rerun()
 
-elif app_mode == "📬 Submit Custom Prompts":
-    st.title("Custom Evaluation Prompt Intake Node")
-    with st.form("custom_prompt_submission_form_fixed", clear_on_submit=True):
-        p_name = st.text_input("Instructor Name:", key="intake_instructor_name")
-        st.form_submit_button("Submit")
+    # =========================================================
+    # ROUTED CONTENT INTERFACE SWITCHER VIEWS
+    # =========================================================
+    if user_package_tier == "Expired":
+        st.title("SkillVerify English Assessment Portal 🚀")
+        st.error("⚠️ Your 15-day Free Trial package limits have been exhausted!")
+        show_subscription_options()
+
+    elif app_mode == "🗣️ Skill Assessment Portal":
+        active_id = st.session_state.active_chat_id
+        st.title(f"{st.session_state.all_chats[active_id]['title'] if active_id in st.session_state.all_chats else 'English Assessment Portal'}")
+        
+        if "Premium" not in user_package_tier:
+            st.warning(f"⏳ Free Trial Active Account Profile — **{trial_countdown} days left**")
+            with st.expander("👑 Upgrade to Premium Instantly", expanded=False):
+                show_subscription_options()
+        else:
+            st.success(f"👑 Active License Verified — **{user_package_tier}**")
+
+        st.markdown("### 🎥 Live Video Interview Feed")
+        
+        with st.expander("👁️ System Bridge Channels", expanded=False):
+            v_bridge_key = f"hidden_video_bridge_input_v{st.session_state.iframe_render_idx}"
+            video_bridge_data = st.text_input("Internal Data Sync Node", key=v_bridge_key)
+
+        render_webcam_video_recorder()
+        render_cross_domain_bridge_receiver()
+
+        if video_bridge_data and "base64," in video_bridge_data:
+            try:
+                base64_clean = video_bridge_data.split("base64,")[1]
+                video_bytes = base64.b64decode(base64_clean)
+                file_name = f"interview_session_{active_id}.webm"
+                with open(file_name, "wb") as f:
+                    f.write(video_bytes)
+                st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
+                
+                st.session_state[v_bridge_key] = ""
+                st.session_state.iframe_render_idx += 1
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error compiling video payload: {str(e)}")
+
+        st.markdown("---")
+
+        # RENDER CONVERSATION HISTORY
+        for message in current_chat["history"]:
+            avatar_img = USER_AVATAR if message["role"] == "user" else ROBOT_AVATAR
+            with st.chat_message(message["role"], avatar=avatar_img):
+                st.markdown(message["content"])
+
+        if len(current_chat["history"]) == 1 and "Welcome" in current_chat["history"][0]["content"]:
+            st.markdown("---")
+            with st.expander("🛠️ Initialize Video Assessment Focus Track", expanded=True):
+                with st.form("assessment_setup_form"):
+                    target_skill = st.selectbox("Primary Video Assessment Track:", ["Spoken English & Fluency", "Corporate/Business Communication"], key="setup_target_skill")
+                    experience_tier = st.selectbox("Target Competency Level:", ["Beginner / Elementary", "Advanced / Native Proficiency"], key="setup_experience_tier")
+                    if st.form_submit_button("🔥 Launch Language Assessment Matrix", type="primary"):
+                        current_chat["history"].append({"role": "user", "content": f"🎯 Profile setup for {target_skill} targeting {experience_tier} benchmarks."})
+                        eval_reply = get_evaluator_response(user_package_tier)
+                        current_chat["history"].append({"role": "assistant", "content": eval_reply})
+                        st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
+                        st.rerun()
+
+        # DUAL CALLOUT PIPELINE: INJECTING NATIVE BROWSER MICROPHONE DICTATION NODE
+        st.markdown("##### 🎙️ Voice Dictation Integration (Speak Options)")
+        Micro_Speech_Bridge_Html = """
+        <div style="background-color: #0f172a; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+            <button id="sttMicBtn" style="background-color: #10b981; color: white; border: none; padding: 8px 14px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 13px;">
+                🎤 Click to Speak
+            </button>
+            <span id="sttStatusText" style="color: #94a3b8; font-size: 12px; font-family: system-ui, sans-serif;">Microphone engine standby...</span>
+        </div>
+
+        <script>
+            const micBtnElement = document.getElementById('sttMicBtn');
+            const statusLabelElement = document.getElementById('sttStatusText');
+            
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                statusLabelElement.innerText = "⚠️ Speech capture API unsupported by current browser runtime.";
+                micBtnElement.disabled = true;
+            } else {
+                const SpeechRecognitionEngine = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const activeRecognitionInstance = new SpeechRecognitionEngine();
+                activeRecognitionInstance.continuous = false;
+                activeRecognitionInstance.interimResults = false;
+                activeRecognitionInstance.lang = 'en-US';
+
+                micBtnElement.addEventListener('click', () => {
+                    try {
+                        activeRecognitionInstance.start();
+                        statusLabelElement.innerText = "🎙️ Listening to vocal inputs... Speak clearly now.";
+                        statusLabelElement.style.color = "#f43f5e";
+                    } catch(e) {}
+                });
+
+                activeRecognitionInstance.onresult = (event) => {
+                    const extractedTranscriptText = event.results[0][0].transcript;
+                    statusLabelElement.innerText = "✓ Voice captured.";
+                    statusLabelElement.style.color = "#10b981";
+                    
+                    // Route text straight to Streamlit chat terminal DOM nodes
+                    const nativeChatFieldTextArea = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
+                    if (nativeChatFieldTextArea) {
+                        nativeChatFieldTextArea.value = extractedTranscriptText;
+                        nativeChatFieldTextArea.dispatchEvent(new Event('input', { bubbles: true }));
+                        statusLabelElement.innerText = "✓ Text piped to text input box below! Click send arrow to confirm.";
+                    }
+                };
+
+                activeRecognitionInstance.onerror = () => {
+                    statusLabelElement.innerText = "⚠️ Voice capture timeout error or hardware access denied.";
+                    statusLabelElement.style.color = "#ef4444";
+                };
+                
+                activeRecognitionInstance.onend = () => {
+                    if (statusLabelElement.innerText.includes("Listening")) {
+                        statusLabelElement.innerText = "Microphone engine standby...";
+                        statusLabelElement.style.color = "#94a3b8";
+                    }
+                };
+            }
+        </script>
+        """
+        components.html(Micro_Speech_Bridge_Html, height=65)
+
+        # PLAYBACK AUTOMATION DISPATCHER
+        if st.session_state.autoplay_audio_data:
+            st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
+            st.session_state.autoplay_audio_data = None
+
+        # UNIFIED TERMINAL FOR STREAMLIT CHAT INPUT
+        text_input = st.chat_input("Type your translation, essay answer, or session text here...", key="chat_input_terminal_field")
+        if text_input:
+            current_chat["history"].append({"role": "user", "content": text_input})
+            eval_reply = get_evaluator_response(user_package_tier)
+            current_chat["history"].append({"role": "assistant", "content": eval_reply})
+            st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
+            st.rerun()
+
+    elif app_mode == "📊 Analytics Dashboard":
+        st.title("Linguistic Matrix Progress Tracker")
+        metrics = st.session_state.performance_metrics
+        m_col1, m_col2 = st.columns(2)
+        with m_col1: 
+            st.metric(label="Calculated Fluency Score", value=f"{metrics.get('fluency_score', 0.0)} / 10.0")
+        with m_col2: 
+            st.metric(label="Grammar Slips Logged", value=int(metrics.get('grammar_errors_logged', 0)))
+
+    elif app_mode == "🌐 Explore Video Learning Engine":
+        st.title("🎬 Topic Multi-Module Learning Hub")
+        st.markdown("Select a track and a specialized focus session from over 50+ available learning modules.")
+
+        curriculum_matrix = {
+            "📚 Grammar & Structural Accuracy Foundations": {
+                "vid": "https://www.youtube.com/watch?v=3oIAICs8N9I",
+                "sessions": [
+                    "Session 1: Subject-Verb Agreement Principles",
+                    "Session 2: Mastering Modal Verbs for Obligation & Permission",
+                    "Session 3: Present Perfect vs. Past Simple Tense Transitions",
+                    "Session 4: Conditional Clauses (Type 1, 2, and 3 Mechanics)",
+                    "Session 5: Prepositions of Place, Time, and Direction"
+                ]
+            },
+            "💼 Corporate Accent Modulation & Phonetics": {
+                "vid": "https://www.youtube.com/watch?v=M2L76qM2sZ0",
+                "sessions": [
+                    "Session 10: Professional Intonation & Sentence Stress Pacing",
+                    "Session 11: Overcoming Mother Tongue Influence (MTI) Variables"
+                ]
+            }
+        }
+
+        with st.container(border=True):
+            selected_module = st.selectbox(
+                "🎯 Step 1: Select Training Module Category:", 
+                options=list(curriculum_matrix.keys()),
+                key="learning_hub_category_selector"
+            )
+            
+            selected_session = st.selectbox(
+                "📝 Step 2: Choose Specific Focus Topic Session:", 
+                options=curriculum_matrix[selected_module]["sessions"],
+                key=f"session_select_node_{selected_module}"
+            )
+
+        st.markdown("---")
+        st.markdown(f"### 📺 Now Playing: **{selected_session}**")
+        st.caption(f"Curriculum Track: {selected_module}")
+        st.video(curriculum_matrix[selected_module]["vid"])
+
+    elif app_mode == "📬 Submit Custom Prompts":
+        st.title("Custom Evaluation Prompt Intake Node")
+        with st.form("custom_prompt_submission_form_fixed", clear_on_submit=True):
+            p_name = st.text_input("Instructor Name:", key="intake_instructor_name")
+            st.form_submit_button("Submit")
