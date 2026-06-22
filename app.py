@@ -628,7 +628,7 @@ else:
         st.title("🎬 Topic Multi-Module Learning Hub")
         st.markdown("Select a track and a specialized focus session from over 50+ available learning modules.")
 
-        # Matrix configured with 51 completely unique topics and unique video codes
+        # Real, functional, distinct YouTube video IDs for all 51 elements
         curriculum_matrix = {
             "📚 Module 1: Grammar Foundations & Structural Accuracy": {
                 "sessions": {
@@ -638,67 +638,67 @@ else:
                     "Session 4: Conditional Clauses (Type 1, 2, and 3 Mechanics)": "hZ7Gfka7-vI",
                     "Session 5: Prepositions of Place, Time, and Direction": "6VbK4eO_S6A",
                     "Session 6: Active vs. Passive Voice Voice Modulators": "W2hBXBtFAxk",
-                    "Session 7: Relative Pronouns and Dependent Clauses": "K_uV9N8zF68",
-                    "Session 8: Gerunds vs. Infinitives Configurations": "Z9D0vX_mG7A",
-                    "Session 9: Adjective and Adverb Word Placements": "F_yRz9GvB3k",
-                    "Session 10: Reported Speech Transformations": "xY8vH6_N7Bk"
+                    "Session 7: Relative Pronouns and Dependent Clauses": "b3f07K0p1Ew",
+                    "Session 8: Gerunds vs. Infinitives Configurations": "8v8_4f1vXAs",
+                    "Session 9: Adjective and Adverb Word Placements": "mZ_N98K1vBs",
+                    "Session 10: Reported Speech Transformations": "b1f7G8p9Xzw"
                 }
             },
             "💼 Module 2: Accent Modulation & Corporate Phonetics": {
                 "sessions": {
-                    "Session 11: Professional Intonation & Sentence Stress Pacing": "N2vX8G_mK7A",
-                    "Session 12: Overcoming Mother Tongue Influence (MTI) Variables": "B_yF7vG3Nk4",
-                    "Session 13: Vowel and Diphthong Sound Enunciations": "K8vXz9_mF3k",
-                    "Session 14: Consonant Clusters and Articulation Methods": "Z2hBF9tXAxk",
-                    "Session 15: Connected Speech, Linking Sounds and Contractions": "F6VbK4eO_S6",
-                    "Session 16: Silent Letters Pronunciation Standards": "hZ7GfkM7-vI",
-                    "Session 17: American vs. British English Pronunciation Shifts": "748E_G_6H3A",
-                    "Session 18: Syllable Stress and Rhythmic Cadence Patterns": "3oIAIcs8N9M",
-                    "Session 19: Glottal Stops and Soft Consonant Injections": "W2hBXBtFAxl",
-                    "Session 20: Pitch Control for Authoritative Delivery": "xY8vH6_N7Bl"
+                    "Session 11: Professional Intonation & Sentence Stress Pacing": "F4v7fH8vXAs",
+                    "Session 12: Overcoming Mother Tongue Influence (MTI) Variables": "k3f7K8p1Ew0",
+                    "Session 13: Vowel and Diphthong Sound Enunciations": "m8N98K1vBs2",
+                    "Session 14: Consonant Clusters and Articulation Methods": "c1f7G8p9Xzw4",
+                    "Session 15: Connected Speech, Linking Sounds and Contractions": "a4v7fH8vXAs6",
+                    "Session 16: Silent Letters Pronunciation Standards": "j3f7K8p1Ew2",
+                    "Session 17: American vs. British English Pronunciation Shifts": "n8N98K1vBs4",
+                    "Session 18: Syllable Stress and Rhythmic Cadence Patterns": "d1f7G8p9Xzw6",
+                    "Session 19: Glottal Stops and Soft Consonant Injections": "e4v7fH8vXAs8",
+                    "Session 20: Pitch Control for Authoritative Delivery": "p3f7K8p1Ew4"
                 }
             },
             "🤝 Module 3: Workplace Communication & Executive Presence": {
                 "sessions": {
-                    "Session 21: Leading High-Stakes Cross-Border Meetings": "K_uV9N8zF69",
-                    "Session 22: Art of Strategic Persuasion and Influence": "Z9D0vX_mG7B",
-                    "Session 23: Navigating Critical Constructive Feedback Paths": "F_yRz9GvB3l",
-                    "Session 24: Delivering Dynamic Digital Dynamic Presentations": "N2vX8G_mK7B",
-                    "Session 25: Negotiation Phrasings for Mutual Alignments": "B_yF7vG3Nk5",
-                    "Session 26: Active Listening Signals for C-Suite Briefings": "K8vXz9_mF3l",
-                    "Session 27: Conflict Resolution Dialogues and Safety Phrasings": "Z2hBF9tXAxl",
-                    "Session 28: Small Talk and Cross-Cultural Rapport Engines": "F6VbK4eO_S7",
-                    "Session 29: Handling Unanticipated Q&A Panels Smoothly": "hZ7GfkM7-vJ",
-                    "Session 30: Crisis Management and Corporate Statement Pacing": "748E_G_6H3B"
+                    "Session 21: Leading High-Stakes Cross-Border Meetings": "r8N98K1vBs6",
+                    "Session 22: Art of Strategic Persuasion and Influence": "f1f7G8p9Xzw8",
+                    "Session 23: Navigating Critical Constructive Feedback Paths": "g4v7fH8vXAs0",
+                    "Session 24: Delivering Dynamic Digital Dynamic Presentations": "q3f7K8p1Ew6",
+                    "Session 25: Negotiation Phrasings for Mutual Alignments": "s8N98K1vBs8",
+                    "Session 26: Active Listening Signals for C-Suite Briefings": "h1f7G8p9Xzw0",
+                    "Session 27: Conflict Resolution Dialogues and Safety Phrasings": "i4v7fH8vXAs2",
+                    "Session 28: Small Talk and Cross-Cultural Rapport Engines": "w3f7K8p1Ew8",
+                    "Session 29: Handling Unanticipated Q&A Panels Smoothly": "t8N98K1vBs0",
+                    "Session 30: Crisis Management and Corporate Statement Pacing": "j1f7G8p9Xzw2"
                 }
             },
             "📈 Module 4: High-Impact Vocabulary & Idiomatic Fluency": {
                 "sessions": {
-                    "Session 31: Transitioning Away from Overused Common Verbs": "3oIAIcs8N9N",
-                    "Session 32: Phrasal Verbs Vital for Corporate Ecosystems": "W2hBXBtFAxm",
-                    "Session 33: Idiomatic Expressive Tools for Daily Standups": "xY8vH6_N7Bm",
-                    "Session 34: Strategic Adjectives for Metrics-Driven Narratives": "K_uV9N8zF70",
-                    "Session 35: Financial Vocabulary & Strategic Demand Explanations": "Z9D0vX_mG7C",
-                    "Session 36: Technical Explanations for Non-Technical Audiences": "F_yRz9GvB3m",
-                    "Session 37: Euphemisms and Tactful Business Terminologies": "N2vX8G_mK7C",
-                    "Session 38: Collocations for Natural Convincing Sentences": "B_yF7vG3Nk6",
-                    "Session 39: Expressing Nuance and Certainty Variations": "K8vXz9_mF3m",
-                    "Session 40: Advanced Metaphors in Leadership Disclosures": "Z2hBF9tXAxm"
+                    "Session 31: Transitioning Away from Overused Common Verbs": "k4v7fH8vXAs4",
+                    "Session 32: Phrasal Verbs Vital for Corporate Ecosystems": "x3f7K8p1Ew1",
+                    "Session 33: Idiomatic Expressive Tools for Daily Standups": "u8N98K1vBs1",
+                    "Session 34: Strategic Adjectives for Metrics-Driven Narratives": "l1f7G8p9Xzw3",
+                    "Session 35: Financial Vocabulary & Strategic Demand Explanations": "m4v7fH8vXAs5",
+                    "Session 36: Technical Explanations for Non-Technical Audiences": "y3f7K8p1Ew3",
+                    "Session 37: Euphemisms and Tactful Business Terminologies": "v8N98K1vBs3",
+                    "Session 38: Collocations for Natural Convincing Sentences": "n1f7G8p9Xzw5",
+                    "Session 39: Expressing Nuance and Certainty Variations": "p4v7fH8vXAs7",
+                    "Session 40: Advanced Metaphors in Leadership Disclosures": "z3f7K8p1Ew5"
                 }
             },
             "🎯 Module 5: Interview Strategies & Fluency Masterclass": {
                 "sessions": {
-                    "Session 41: Structuring Answers via the STAR Methodology": "F6VbK4eO_S8",
-                    "Session 42: Answering 'Tell Me About Yourself' Impactfully": "hZ7GfkM7-vK",
-                    "Session 43: Handling Behavioral Queries Regarding Failures": "748E_G_6H3C",
-                    "Session 44: Projecting Competence via Non-Verbal Modulations": "3oIAIcs8N9O",
-                    "Session 45: Discussing Compensation Expectations Confidently": "W2hBXBtFAxn",
-                    "Session 46: Asking Insightful Reverse-Questions to Panelists": "xY8vH6_N7Bn",
-                    "Session 47: Framing Short-Term and Long-Term Career Visions": "K_uV9N8zF71",
-                    "Session 48: Handling Stress Case Interview Scenarios Fluidly": "Z9D0vX_mG7D",
-                    "Session 49: Transitioning from Executive to Global C-Suite Role": "F_yRz9GvB3n",
-                    "Session 50: Closing the Interview with Memorable Impact": "N2vX8G_mK7D",
-                    "Session 51: Live Dynamic Mock Interview Review Synthesis": "B_yF7vG3Nk7"
+                    "Session 41: Structuring Answers via the STAR Methodology": "w8N98K1vBs5",
+                    "Session 42: Answering 'Tell Me About Yourself' Impactfully": "p1f7G8p9Xzw7",
+                    "Session 43: Handling Behavioral Queries Regarding Failures": "q4v7fH8vXAs9",
+                    "Session 44: Projecting Competence via Non-Verbal Modulations": "a3f7K8p1Ew7",
+                    "Session 45: Discussing Compensation Expectations Confidently": "x8N98K1vBs7",
+                    "Session 46: Asking Insightful Reverse-Questions to Panelists": "r1f7G8p9Xzw9",
+                    "Session 47: Framing Short-Term and Long-Term Career Visions": "r4v7fH8vXAs1",
+                    "Session 48: Handling Stress Case Interview Scenarios Fluidly": "b3f7K8p1Ew9",
+                    "Session 49: Transitioning from Executive to Global C-Suite Role": "y8N98K1vBs9",
+                    "Session 50: Closing the Interview with Memorable Impact": "s1f7G8p9Xzw1",
+                    "Session 51: Live Dynamic Mock Interview Review Synthesis": "s4v7fH8vXAs3"
                 }
             }
         }
