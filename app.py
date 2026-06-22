@@ -16,7 +16,7 @@ try:
 except ImportError:
     pass
 
-# Core library imports follow below...
+# Core library imports
 import requests
 import hashlib
 import re
@@ -50,7 +50,6 @@ if "active_chat_id" not in st.session_state:
 if "autoplay_audio_data" not in st.session_state:
     st.session_state.autoplay_audio_data = None
 
-# New state to persist text payload explicitly for manual "Speak" requests
 if "last_assistant_response" not in st.session_state:
     st.session_state.last_assistant_response = ""
 
@@ -111,11 +110,58 @@ def init_user_and_get_plan(email_str):
             new_profile = {"email": clean_email, "user_plan": "Trial", "signup_date": str(date.today())}
             supabase_client.table("users").insert(new_profile).execute()
             return "Trial", 15
-       # =========================================================
-# HTML5 WEBCAM VIDEO RECORDING NODE (FIXED STRING)
+        user_data = user_records[0]
+        assigned_plan = user_data.get("user_plan", "Trial")
+        signup_dt_str = user_data.get("signup_date", str(date.today()))
+        signup_date_obj = datetime.strptime(signup_dt_str, "%Y-%m-%d").date()
+        days_consumed = (date.today() - signup_date_obj).days
+        remaining_trial_days = max(0, 15 - days_consumed)
+        if assigned_plan == "Trial" and remaining_trial_days <= 0:
+            supabase_client.table("users").update({"user_plan": "Expired"}).eq("email", clean_email).execute()
+            return "Expired", 0
+        return assigned_plan, remaining_trial_days
+    except Exception:
+        return "Trial", 15
+
+def update_user_plan_db(email_str, target_plan):
+    clean_email = email_str.strip().lower()
+    if supabase_client is None:
+        return False
+    try:
+        supabase_client.table("users").update({"user_plan": target_plan}).eq("email", clean_email).execute()
+        return True
+    except Exception:
+        return False
+
+ROBOT_AVATAR = "https://img.icons8.com/fluent/96/artificial-intelligence.png"
+USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
+
+# =========================================================
+# INTEGRATED PAYMENT GATEWAY COMPONENT NODE
+# =========================================================
+def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_duration="Month"):
+    render_idx = st.session_state.get("iframe_render_idx", 0)
+    razorpay_html_code = f"""
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #1e1b4b; padding: 20px; border-radius: 12px; border: 1px solid rgba(99,102,241,0.3); margin-top: 15px; color: white;">
+        <h4 style="font-family: system-ui, sans-serif; margin-bottom: 5px; margin-top:0;">Secure Premium Activation Node</h4>
+        <p style="color: #cbd5e1; font-size: 14px; font-family: system-ui, sans-serif; margin-bottom: 15px;">Upgrading <b>{email_recipient}</b> to the <b>{selected_plan} Plan ({plan_duration})</b></p>
+        <form>
+            <script
+                src="https://checkout.razorpay.com/v1/payment-button.js"
+                data-payment_button_id="pl_O5jXm9vC2XzY8q" 
+                data-button_text="Pay Now (₹{cost_inr})"
+                data-button_theme="brand-color"
+                async>
+            </script>
+        </form>
+    </div>
+    """
+    components.html(razorpay_html_code, height=160, key=f"rzp_gateway_v{render_idx}")
+
+# =========================================================
+# HTML5 WEBCAM VIDEO RECORDER NODE (FIXED SYNTAX & KEYS)
 # =========================================================
 def render_webcam_video_recorder():
-    # Keep JavaScript brackets completely safe from Python f-string confusion
     webcam_html = """
     <div style="background-color: #0f172a; padding: 15px; border-radius: 10px; color: #ffffff; font-family: system-ui, sans-serif; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
         <video id="preview" width="100%" height="240" autoplay muted style="background: #000; border-radius: 6px; transform: scaleX(-1);"></video>
@@ -160,72 +206,6 @@ def render_webcam_video_recorder():
                             type: 'STREAMLIT_VIDEO_TRANSFER_EVENT',
                             data: base64String
                         }, '*');
-                    };
-                };
-
-                recorder.start(1000);
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-                statusMsg.innerText = "📺 Session Recording Live (Video + Audio Capturing)...";
-                statusMsg.style.color = "#f43f5e";
-            });
-            
-            stopBtn.addEventListener('click', () => {
-                if(recorder && recorder.state !== "inactive") {
-                    recorder.stop();
-                }
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-                statusMsg.innerText = "✔️ Processing data strings...";
-                statusMsg.style.color = "#10b981";
-            });
-        }).catch(err => {
-            statusMsg.innerText = "⚠️ Device Capture Access Denied: Check camera permissions.";
-            statusMsg.style.color = "#ef4444";
-        });
-    </script>
-    """
-    # Pull the index out to a standard variable first to keep components.html execution clean
-    render_idx = st.session_state.get("iframe_render_idx", 0)
-    component_key = f"webcam_feed_component_v{render_idx}"
-    
-    components.html(webcam_html, height=340, key=component_key)
-
-# =========================================================
-# REVERSED BRIDGE LISTENER RECEIVER COMPONENT (FIXED)
-# =========================================================
-def render_cross_domain_bridge_receiver():
-    receiver_js = """
-    <script>
-        window.addEventListener('message', function(event) {
-            if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
-                const b64Data = event.data.data;
-                const hiddenInput = window.parent.document.getElementById("hidden_video_bridge_input");
-                if (hiddenInput) {
-                    hiddenInput.value = b64Data;
-                    hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            }
-        });
-    </script>
-    """
-    render_idx = st.session_state.get("iframe_render_idx", 0)
-    bridge_key = f"bridge_receiver_node_v{render_idx}"
-    
-    components.html(receiver_js, height=0, width=0, key=bridge_key)
-                };
-
-                recorder.onstop = () => {
-                    let blob = new Blob(recordedChunks, { type: 'video/webm' });
-                    let reader = new FileReader();
-                    reader.readAsDataURL(blob); 
-                    reader.onloadend = function() {
-                        let base64String = reader.result;
-                        window.parent.postMessage({
-                            type: 'STREAMLIT_VIDEO_TRANSFER_EVENT',
-                            data: base64String
-                        }, '*');
                     }
                 };
 
@@ -251,10 +231,11 @@ def render_cross_domain_bridge_receiver():
         });
     </script>
     """
-    components.html(webcam_html, height=340, key=f"webcam_feed_component_v{st.session_state.iframe_render_idx}")
+    current_idx = st.session_state.get("iframe_render_idx", 0)
+    components.html(webcam_html, height=340, key=f"webcam_feed_component_v{current_idx}")
 
 # =========================================================
-# REVERSED BRIDGE LISTENER RECEIVER COMPONENT
+# REVERSED BRIDGE LISTENER RECEIVER COMPONENT (FIXED)
 # =========================================================
 def render_cross_domain_bridge_receiver():
     receiver_js = """
@@ -272,7 +253,8 @@ def render_cross_domain_bridge_receiver():
         });
     </script>
     """
-    components.html(receiver_js, height=0, width=0, key=f"bridge_receiver_node_v{st.session_state.iframe_render_idx}")
+    current_idx = st.session_state.get("iframe_render_idx", 0)
+    components.html(receiver_js, height=0, width=0, key=f"bridge_receiver_node_v{current_idx}")
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -404,7 +386,6 @@ def get_evaluator_response(plan_tier):
         if isinstance(res_data, dict) and "choices" in res_data:
             response_content = res_data["choices"][0]["message"]["content"]
             parse_and_update_metrics(response_content)
-            # Track the text payload for speech accessors
             st.session_state.last_assistant_response = response_content
             return response_content
         return "Server payload processing structural error match failed."
@@ -488,7 +469,8 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     st.markdown("### 🎥 Live Video Interview Feed")
     
     with st.expander("👁️ System Bridge Channels", expanded=False):
-        v_bridge_key = f"hidden_video_bridge_input_v{st.session_state.iframe_render_idx}"
+        current_idx = st.session_state.get("iframe_render_idx", 0)
+        v_bridge_key = f"hidden_video_bridge_input_v{current_idx}"
         video_bridge_data = st.text_input("Internal Data Sync Node", key=v_bridge_key)
 
     render_webcam_video_recorder()
@@ -517,18 +499,14 @@ elif app_mode == "🗣️ Skill Assessment Portal":
         with st.chat_message(message["role"], avatar=avatar_img):
             st.markdown(message["content"])
 
-    # =========================================================
-    # ADDED: DEDICATED CONVERSATIONAL SPEECH CONTROL BUTTONS
-    # =========================================================
+    # Conversational Speech Control Buttons
     st.write("") 
     ctrl_col1, ctrl_col2, _ = st.columns([1, 1, 2])
     
     with ctrl_col1:
         if st.button("🔊 Speak Out Loud", use_container_width=True, help="Re-read the evaluator's last prompt aloud."):
-            # Fallback initialization check if a chat field has structural text
             text_target = st.session_state.last_assistant_response
             if not text_target and current_chat["history"]:
-                # Grab the latest assistant response from background log sequence instead
                 assist_msgs = [m["content"] for m in current_chat["history"] if m["role"] == "assistant"]
                 if assist_msgs:
                     text_target = assist_msgs[-1]
@@ -548,12 +526,9 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     # Audio Render Injection Anchor
     if st.session_state.autoplay_audio_data:
         st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
-        # Clear out data after automatic execution cycle to avoid loops on raw page interaction
         st.session_state.autoplay_audio_data = None
 
-    # =========================================================
-    # INITIALIZATION MATRICES & BASIC CHAT INTAKE
-    # =========================================================
+    # Initialization Matrices & Basic Chat Intake
     if len(current_chat["history"]) == 1 and "Welcome" in current_chat["history"][0]["content"]:
         st.markdown("---")
         with st.expander("🛠️ Initialize Video Assessment Focus Track", expanded=True):
