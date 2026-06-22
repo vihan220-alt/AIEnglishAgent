@@ -152,7 +152,6 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    # FIX: Removed invalid 'key' argument to prevent component registration crash
     components.html(razorpay_html_code, height=160)
 
 # =========================================================
@@ -222,7 +221,6 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    # FIX: Removed invalid 'key' argument to prevent component registration crash
     components.html(webcam_html, height=320)
 
 # =========================================================
@@ -234,7 +232,6 @@ def render_cross_domain_bridge_receiver():
         window.addEventListener('message', function(event) {
             if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
                 const b64Data = event.data.data;
-                // Target the currently active instance of the text field cleanly
                 const inputs = window.parent.document.querySelectorAll('input[type="text"]');
                 let targetInput = null;
                 for (let i = 0; i < inputs.length; i++) {
@@ -252,7 +249,6 @@ def render_cross_domain_bridge_receiver():
         });
     </script>
     """
-    # FIX: Removed invalid 'key' argument to prevent component registration crash
     components.html(receiver_js, height=0, width=0)
 
 # =========================================================
@@ -486,10 +482,33 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
     st.markdown("---")
 
+    # 1. DISPLAY MESSAGE HISTORY STACK
     for message in current_chat["history"]:
         avatar_img = USER_AVATAR if message["role"] == "user" else ROBOT_AVATAR
         with st.chat_message(message["role"], avatar=avatar_img):
             st.markdown(message["content"])
+
+    # 2. INTEGRATE AUDIO SPEAK CONTROLS DIRECTLY UNDER LOG WINDOW
+    st.write("") 
+    ctrl_col1, ctrl_col2, _ = st.columns([1, 1, 2])
+    
+    with ctrl_col1:
+        if st.button("🔊 Speak Out Loud", use_container_width=True, key="speak_out_loud_trigger_btn"):
+            if current_chat["history"]:
+                assist_msgs = [m["content"] for m in current_chat["history"] if m["role"] == "assistant"]
+                if assist_msgs:
+                    st.session_state.autoplay_audio_data = text_to_speech_bytes(assist_msgs[-1])
+                    st.rerun()
+                
+    with ctrl_col2:
+        if st.button("🛑 Stop Audio", use_container_width=True, key="stop_audio_playback_btn"):
+            st.session_state.autoplay_audio_data = None
+            st.rerun()
+
+    # 3. RENDER CAPTURED SPEECH DATA WITH AUTOPLAY HANDLERS
+    if st.session_state.autoplay_audio_data:
+        st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
+        st.session_state.autoplay_audio_data = None
 
     if len(current_chat["history"]) == 1 and "Welcome" in current_chat["history"][0]["content"]:
         st.markdown("---")
@@ -503,10 +522,6 @@ elif app_mode == "🗣️ Skill Assessment Portal":
                     current_chat["history"].append({"role": "assistant", "content": eval_reply})
                     st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
                     st.rerun()
-
-    if st.session_state.autoplay_audio_data:
-        st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
-        st.session_state.autoplay_audio_data = None
 
     text_input = st.chat_input("Type your translation, essay answer, or session text here...", key="chat_input_terminal_field")
     if text_input:
