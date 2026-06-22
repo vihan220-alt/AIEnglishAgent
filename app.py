@@ -159,7 +159,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
     components.html(razorpay_html_code, height=160, key=f"rzp_gateway_v{render_idx}")
 
 # =========================================================
-# HTML5 WEBCAM VIDEO RECORDER NODE (FIXED SYNTAX & KEYS)
+# HTML5 WEBCAM VIDEO RECORDER NODE
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -235,7 +235,7 @@ def render_webcam_video_recorder():
     components.html(webcam_html, height=340, key=f"webcam_feed_component_v{current_idx}")
 
 # =========================================================
-# REVERSED BRIDGE LISTENER RECEIVER COMPONENT (FIXED)
+# REVERSED BRIDGE LISTENER RECEIVER COMPONENT
 # =========================================================
 def render_cross_domain_bridge_receiver():
     receiver_js = """
@@ -528,7 +528,7 @@ elif app_mode == "🗣️ Skill Assessment Portal":
         st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
         st.session_state.autoplay_audio_data = None
 
-    # Initialization Matrices & Basic Chat Intake
+    # Initialization Matrices Setup View
     if len(current_chat["history"]) == 1 and "Welcome" in current_chat["history"][0]["content"]:
         st.markdown("---")
         with st.expander("🛠️ Initialize Video Assessment Focus Track", expanded=True):
@@ -542,6 +542,7 @@ elif app_mode == "🗣️ Skill Assessment Portal":
                     st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
                     st.rerun()
 
+    # Single Unified Chat Input Terminal Field
     text_input = st.chat_input("Type your translation, essay answer, or session text here...", key="chat_input_terminal_field")
     if text_input:
         current_chat["history"].append({"role": "user", "content": text_input})
