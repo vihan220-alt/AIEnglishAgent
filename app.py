@@ -32,6 +32,9 @@ from supabase import create_client, Client
 # =========================================================
 # INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
 # =========================================================
+if "iframe_render_idx" not in st.session_state:
+    st.session_state.iframe_render_idx = 0
+
 if "all_chats" not in st.session_state:
     st.session_state.all_chats = {
         "Chat_1": {
@@ -58,9 +61,8 @@ if "performance_metrics" not in st.session_state:
 if "payment_plan_selected" not in st.session_state:
     st.session_state.payment_plan_selected = None
 
-# Captured base64 stream target
-if "raw_webcam_data_string" not in st.session_state:
-    st.session_state.raw_webcam_data_string = ""
+if "incoming_video_payload" not in st.session_state:
+    st.session_state.incoming_video_payload = None
 
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
@@ -150,10 +152,11 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    components.html(razorpay_html_code, height=160, key="rzp_gateway_stable_key")
+    # FIX: Removed invalid 'key' argument to prevent component registration crash
+    components.html(razorpay_html_code, height=160)
 
 # =========================================================
-# HTML5 WEBCAM VIDEO RECORDER WITH POSTMESSAGE CHANNELS
+# HTML5 WEBCAM VIDEO RECORDER NODE
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -192,12 +195,11 @@ def render_webcam_video_recorder():
                     let reader = new FileReader();
                     reader.readAsDataURL(blob); 
                     reader.onloadend = function() {
-                        // NATIVE SECURE CROSS-DOMAIN BROADCAST MECHANISM
                         window.parent.postMessage({
                             type: 'STREAMLIT_VIDEO_TRANSFER_EVENT',
                             data: reader.result
                         }, '*');
-                    }
+                    };
                 };
 
                 recorder.start(1000);
@@ -211,7 +213,7 @@ def render_webcam_video_recorder():
                 if(recorder && recorder.state !== "inactive") recorder.stop();
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
-                statusMsg.innerText = "✔️ Stream dispatched to main host loop.";
+                statusMsg.innerText = "✔️ Dispatched to main host interface loop.";
                 statusMsg.style.color = "#10b981";
             });
         }).catch(err => {
@@ -220,7 +222,38 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    components.html(webcam_html, height=320, key="webcam_panel_fixed_key")
+    # FIX: Removed invalid 'key' argument to prevent component registration crash
+    components.html(webcam_html, height=320)
+
+# =========================================================
+# REVERSED BRIDGE LISTENER RECEIVER COMPONENT
+# =========================================================
+def render_cross_domain_bridge_receiver():
+    receiver_js = """
+    <script>
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
+                const b64Data = event.data.data;
+                // Target the currently active instance of the text field cleanly
+                const inputs = window.parent.document.querySelectorAll('input[type="text"]');
+                let targetInput = null;
+                for (let i = 0; i < inputs.length; i++) {
+                    if (inputs[i].id && inputs[i].id.includes("hidden_video_bridge_input")) {
+                        targetInput = inputs[i];
+                        break;
+                    }
+                }
+                if (targetInput) {
+                    targetInput.value = b64Data;
+                    targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+        });
+    </script>
+    """
+    # FIX: Removed invalid 'key' argument to prevent component registration crash
+    components.html(receiver_js, height=0, width=0)
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -233,11 +266,19 @@ with st.sidebar:
     auth_email = st.text_input("Enter Registered Email Account:", value="vihan220@gmail.com", key="auth_email_persistent_field")
     user_package_tier, trial_countdown = init_user_and_get_plan(auth_email)
     
+    if "active_nav_mode" not in st.session_state:
+        st.session_state.active_nav_mode = "🗣️ Skill Assessment Portal"
+
     app_mode = st.radio(
         "Select Portal Workspace:",
         ["🗣️ Skill Assessment Portal", "📊 Analytics Dashboard", "🌐 Explore Video Learning Engine", "📬 Submit Custom Prompts"],
         key="app_navigation_rail_index"
     )
+    
+    if app_mode != st.session_state.active_nav_mode:
+        st.session_state.active_nav_mode = app_mode
+        st.session_state.iframe_render_idx += 1
+        st.rerun()
     
     if app_mode == "🗣️ Skill Assessment Portal" and user_package_tier != "Expired":
         st.markdown("---")
@@ -252,7 +293,8 @@ with st.sidebar:
             }
             st.session_state.active_chat_id = new_id
             st.session_state.autoplay_audio_data = None
-            st.session_state.raw_webcam_data_string = ""
+            st.session_state.incoming_video_payload = None
+            st.session_state.iframe_render_idx += 1
             st.rerun()
 
         st.markdown("##### Active Logs Matrix:")
@@ -269,7 +311,8 @@ with st.sidebar:
             if st.button(btn_label, key=f"select_row_{c_id}", use_container_width=True, type="secondary" if not is_active else "primary"):
                 st.session_state.active_chat_id = c_id
                 st.session_state.autoplay_audio_data = None
-                st.session_state.raw_webcam_data_string = ""
+                st.session_state.incoming_video_payload = None
+                st.session_state.iframe_render_idx += 1
                 st.rerun()
                 
             if is_active:
@@ -288,7 +331,8 @@ with st.sidebar:
                             del st.session_state.all_chats[c_id]
                             st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
                             st.session_state.autoplay_audio_data = None
-                            st.session_state.raw_webcam_data_string = ""
+                            st.session_state.incoming_video_payload = None
+                            st.session_state.iframe_render_idx += 1
                             st.rerun()
                         else:
                             st.error("Cannot delete your last active session trace!")
@@ -335,8 +379,10 @@ def get_evaluator_response(plan_tier):
         llm_response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=llm_headers, json=llm_payload)
         res_data = llm_response.json()
         if isinstance(res_data, dict) and "choices" in res_data:
-            return res_data["choices"][0]["message"]["content"]
-        return "Server error parsing AI response configurations."
+            response_content = res_data["choices"][0]["message"]["content"]
+            parse_and_update_metrics(response_content)
+            return response_content
+        return "Server payload parsing error."
     except Exception as e:
         return f"Network failure: {str(e)}"
 
@@ -384,12 +430,13 @@ def show_subscription_options():
         
         if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True, key="payment_simulation_trigger"):
             if supabase_client is None:
-                st.error("Database missing configuration setup parameters.")
+                st.error("Database missing configuration parameters.")
             else:
                 success = update_user_plan_db(auth_email, f"{plan_nm} ({plan_dur})")
                 if success:
                     st.success("Successfully activated plan! Reloading layout...")
                     st.session_state.payment_plan_selected = None
+                    st.session_state.iframe_render_idx += 1
                     st.rerun()
                 else:
                     st.error("Database storage push failed.")
@@ -415,77 +462,35 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
     st.markdown("### 🎥 Live Video Interview Feed")
     
-    # 1. RENDER INTERACTIVE RECORDING COMPONENTS
+    with st.expander("👁️ System Bridge Channels", expanded=False):
+        v_bridge_key = f"hidden_video_bridge_input_v{st.session_state.iframe_render_idx}"
+        video_bridge_data = st.text_input("Internal Data Sync Node", key=v_bridge_key)
+
     render_webcam_video_recorder()
+    render_cross_domain_bridge_receiver()
 
-    # 2. SEAMLESS REVERSED EXPERIMENT DATA BRIDGE TERMINAL (STABLE HTML NO-UI INPUT FIELD)
-    # This queries Streamlit's structural component events cleanly using explicit custom HTML bindings.
-    video_string_collector = st.components.v1.html(
-        """
-        <script>
-            window.addEventListener('message', function(event) {
-                if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
-                    // Injecting directly back using window location hooks safely
-                    const bridge_data = event.data.data;
-                    window.parent.postMessage({
-                        type: 'streamlit:setComponentValue',
-                        value: bridge_data
-                    }, '*');
-                }
-            });
-        </script>
-        """,
-        height=0,
-        width=0,
-        key="cross_domain_listener_bridge"
-    )
-
-    # 3. INTERCEPT BROADCASTED DATA FROM IFRAME VALUE INJECTIONS CLEANLY
-    if video_string_collector and "base64," in str(video_string_collector):
+    if video_bridge_data and "base64," in video_bridge_data:
         try:
-            base64_clean = str(video_string_collector).split("base64,")[1]
+            base64_clean = video_bridge_data.split("base64,")[1]
             video_bytes = base64.b64decode(base64_clean)
             file_name = f"interview_session_{active_id}.webm"
-            
-            with open(file_name, "wb") as output_file:
-                output_file.write(video_bytes)
-            
+            with open(file_name, "wb") as f:
+                f.write(video_bytes)
             st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
+            
+            st.session_state[v_bridge_key] = ""
+            st.session_state.iframe_render_idx += 1
             st.rerun()
         except Exception as e:
-            st.error(f"Error compiling video payload structural matrices: {str(e)}")
+            st.error(f"Error compiling video payload: {str(e)}")
 
     st.markdown("---")
 
-    # Display Message Log Stack
     for message in current_chat["history"]:
         avatar_img = USER_AVATAR if message["role"] == "user" else ROBOT_AVATAR
         with st.chat_message(message["role"], avatar=avatar_img):
             st.markdown(message["content"])
 
-    # Conversational Speech Control Buttons
-    st.write("") 
-    ctrl_col1, ctrl_col2, _ = st.columns([1, 1, 2])
-    
-    with ctrl_col1:
-        if st.button("🔊 Speak Out Loud", use_container_width=True, key="speak_out_loud_trigger_btn"):
-            if current_chat["history"]:
-                assist_msgs = [m["content"] for m in current_chat["history"] if m["role"] == "assistant"]
-                if assist_msgs:
-                    st.session_state.autoplay_audio_data = text_to_speech_bytes(assist_msgs[-1])
-                    st.rerun()
-                
-    with ctrl_col2:
-        if st.button("🛑 Stop Audio", use_container_width=True, key="stop_audio_playback_btn"):
-            st.session_state.autoplay_audio_data = None
-            st.rerun()
-
-    # Audio Render Injection Anchor
-    if st.session_state.autoplay_audio_data:
-        st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
-        st.session_state.autoplay_audio_data = None
-
-    # Initialization Matrices Setup View
     if len(current_chat["history"]) == 1 and "Welcome" in current_chat["history"][0]["content"]:
         st.markdown("---")
         with st.expander("🛠️ Initialize Video Assessment Focus Track", expanded=True):
@@ -499,7 +504,10 @@ elif app_mode == "🗣️ Skill Assessment Portal":
                     st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
                     st.rerun()
 
-    # Single Unified Chat Input Terminal Field
+    if st.session_state.autoplay_audio_data:
+        st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
+        st.session_state.autoplay_audio_data = None
+
     text_input = st.chat_input("Type your translation, essay answer, or session text here...", key="chat_input_terminal_field")
     if text_input:
         current_chat["history"].append({"role": "user", "content": text_input})
@@ -528,7 +536,8 @@ elif app_mode == "🌐 Explore Video Learning Engine":
                 "Session 1: Subject-Verb Agreement Principles",
                 "Session 2: Mastering Modal Verbs for Obligation & Permission",
                 "Session 3: Present Perfect vs. Past Simple Tense Transitions",
-                "Session 4: Conditional Clauses (Type 1, 2, and 3 Mechanics)"
+                "Session 4: Conditional Clauses (Type 1, 2, and 3 Mechanics)",
+                "Session 5: Prepositions of Place, Time, and Direction"
             ]
         },
         "💼 Corporate Accent Modulation & Phonetics": {
@@ -546,6 +555,7 @@ elif app_mode == "🌐 Explore Video Learning Engine":
             options=list(curriculum_matrix.keys()),
             key="learning_hub_category_selector"
         )
+        
         selected_session = st.selectbox(
             "📝 Step 2: Choose Specific Focus Topic Session:", 
             options=curriculum_matrix[selected_module]["sessions"],
