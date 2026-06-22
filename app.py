@@ -32,9 +32,6 @@ from supabase import create_client, Client
 # =========================================================
 # INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
 # =========================================================
-if "iframe_render_idx" not in st.session_state:
-    st.session_state.iframe_render_idx = 0
-
 if "all_chats" not in st.session_state:
     st.session_state.all_chats = {
         "Chat_1": {
@@ -61,8 +58,9 @@ if "performance_metrics" not in st.session_state:
 if "payment_plan_selected" not in st.session_state:
     st.session_state.payment_plan_selected = None
 
-if "incoming_video_payload" not in st.session_state:
-    st.session_state.incoming_video_payload = None
+# Captured base64 stream target
+if "raw_webcam_data_string" not in st.session_state:
+    st.session_state.raw_webcam_data_string = ""
 
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
@@ -152,10 +150,10 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    components.html(razorpay_html_code, height=160, key="payment_gateway_component_fixed")
+    components.html(razorpay_html_code, height=160, key="rzp_gateway_stable_key")
 
 # =========================================================
-# HTML5 WEBCAM VIDEO RECORDER NODE
+# HTML5 WEBCAM VIDEO RECORDER WITH POSTMESSAGE CHANNELS
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -194,19 +192,11 @@ def render_webcam_video_recorder():
                     let reader = new FileReader();
                     reader.readAsDataURL(blob); 
                     reader.onloadend = function() {
-                        // Crucial Fix: Standard safe window traversal strategy
-                        let targets = [
-                            window.parent.document.querySelector('input[data-testid="stTextInput"]'),
-                            window.parent.document.getElementById("hidden_video_bridge_input")
-                        ];
-                        
-                        targets.forEach(inputEl => {
-                            if (inputEl) {
-                                inputEl.value = reader.result;
-                                inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-                                inputEl.dispatchEvent(new Event('change', { bubbles: true }));
-                            }
-                        });
+                        // NATIVE SECURE CROSS-DOMAIN BROADCAST MECHANISM
+                        window.parent.postMessage({
+                            type: 'STREAMLIT_VIDEO_TRANSFER_EVENT',
+                            data: reader.result
+                        }, '*');
                     }
                 };
 
@@ -221,42 +211,16 @@ def render_webcam_video_recorder():
                 if(recorder && recorder.state !== "inactive") recorder.stop();
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
-                statusMsg.innerText = "✔️ Processing data strings...";
+                statusMsg.innerText = "✔️ Stream dispatched to main host loop.";
                 statusMsg.style.color = "#10b981";
             });
         }).catch(err => {
-            statusMsg.innerText = "⚠️ Device Capture Access Denied: Check camera permissions.";
+            statusMsg.innerText = "⚠️ Device Capture Access Denied.";
             statusMsg.style.color = "#ef4444";
         });
     </script>
     """
-    components.html(webcam_html, height=340, key=f"webcam_feed_component_v{st.session_state.iframe_render_idx}")
-
-# =========================================================
-# REVERSED BRIDGE LISTENER RECEIVER COMPONENT
-# =========================================================
-def render_cross_domain_bridge_receiver():
-    receiver_js = """
-    <script>
-        window.addEventListener('message', function(event) {
-            if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
-                const b64Data = event.data.data;
-                let inputs = [
-                    window.parent.document.getElementById("hidden_video_bridge_input"),
-                    window.parent.document.querySelector('input[data-testid="stTextInput"]')
-                ];
-                inputs.forEach(targetField => {
-                    if (targetField) {
-                        targetField.value = b64Data;
-                        targetField.dispatchEvent(new Event('input', { bubbles: true }));
-                        targetField.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-                });
-            }
-        });
-    </script>
-    """
-    components.html(receiver_js, height=0, width=0, key="bridge_receiver_component_fixed")
+    components.html(webcam_html, height=320, key="webcam_panel_fixed_key")
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -269,19 +233,11 @@ with st.sidebar:
     auth_email = st.text_input("Enter Registered Email Account:", value="vihan220@gmail.com", key="auth_email_persistent_field")
     user_package_tier, trial_countdown = init_user_and_get_plan(auth_email)
     
-    if "active_nav_mode" not in st.session_state:
-        st.session_state.active_nav_mode = "🗣️ Skill Assessment Portal"
-
     app_mode = st.radio(
         "Select Portal Workspace:",
         ["🗣️ Skill Assessment Portal", "📊 Analytics Dashboard", "🌐 Explore Video Learning Engine", "📬 Submit Custom Prompts"],
         key="app_navigation_rail_index"
     )
-    
-    if app_mode != st.session_state.active_nav_mode:
-        st.session_state.active_nav_mode = app_mode
-        st.session_state.iframe_render_idx += 1
-        st.rerun()
     
     if app_mode == "🗣️ Skill Assessment Portal" and user_package_tier != "Expired":
         st.markdown("---")
@@ -296,8 +252,7 @@ with st.sidebar:
             }
             st.session_state.active_chat_id = new_id
             st.session_state.autoplay_audio_data = None
-            st.session_state.incoming_video_payload = None
-            st.session_state.iframe_render_idx += 1
+            st.session_state.raw_webcam_data_string = ""
             st.rerun()
 
         st.markdown("##### Active Logs Matrix:")
@@ -314,8 +269,7 @@ with st.sidebar:
             if st.button(btn_label, key=f"select_row_{c_id}", use_container_width=True, type="secondary" if not is_active else "primary"):
                 st.session_state.active_chat_id = c_id
                 st.session_state.autoplay_audio_data = None
-                st.session_state.incoming_video_payload = None
-                st.session_state.iframe_render_idx += 1
+                st.session_state.raw_webcam_data_string = ""
                 st.rerun()
                 
             if is_active:
@@ -334,8 +288,7 @@ with st.sidebar:
                             del st.session_state.all_chats[c_id]
                             st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
                             st.session_state.autoplay_audio_data = None
-                            st.session_state.incoming_video_payload = None
-                            st.session_state.iframe_render_idx += 1
+                            st.session_state.raw_webcam_data_string = ""
                             st.rerun()
                         else:
                             st.error("Cannot delete your last active session trace!")
@@ -382,10 +335,8 @@ def get_evaluator_response(plan_tier):
         llm_response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=llm_headers, json=llm_payload)
         res_data = llm_response.json()
         if isinstance(res_data, dict) and "choices" in res_data:
-            response_content = res_data["choices"][0]["message"]["content"]
-            parse_and_update_metrics(response_content)
-            return response_content
-        return "Server payload processing structural error match failed."
+            return res_data["choices"][0]["message"]["content"]
+        return "Server error parsing AI response configurations."
     except Exception as e:
         return f"Network failure: {str(e)}"
 
@@ -433,16 +384,15 @@ def show_subscription_options():
         
         if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True, key="payment_simulation_trigger"):
             if supabase_client is None:
-                st.error("Database initialization failed. Please set up your secrets parameters.")
+                st.error("Database missing configuration setup parameters.")
             else:
                 success = update_user_plan_db(auth_email, f"{plan_nm} ({plan_dur})")
                 if success:
                     st.success("Successfully activated plan! Reloading layout...")
                     st.session_state.payment_plan_selected = None
-                    st.session_state.iframe_render_idx += 1
                     st.rerun()
                 else:
-                    st.error("Database storage push failed. Verify connectivity parameters.")
+                    st.error("Database storage push failed.")
 
 # =========================================================
 # ROUTED CONTENT INTERFACE SWITCHER VIEWS
@@ -465,35 +415,77 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
     st.markdown("### 🎥 Live Video Interview Feed")
     
-    with st.expander("👁️ System Bridge Channels", expanded=False):
-        # FIXED: Kept key and widget ID uniform and static so query selector matches exactly
-        video_bridge_data = st.text_input("Internal Data Sync Node", key="hidden_video_bridge_input")
-
+    # 1. RENDER INTERACTIVE RECORDING COMPONENTS
     render_webcam_video_recorder()
-    render_cross_domain_bridge_receiver()
 
-    if video_bridge_data and "base64," in video_bridge_data:
+    # 2. SEAMLESS REVERSED EXPERIMENT DATA BRIDGE TERMINAL (STABLE HTML NO-UI INPUT FIELD)
+    # This queries Streamlit's structural component events cleanly using explicit custom HTML bindings.
+    video_string_collector = st.components.v1.html(
+        """
+        <script>
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
+                    // Injecting directly back using window location hooks safely
+                    const bridge_data = event.data.data;
+                    window.parent.postMessage({
+                        type: 'streamlit:setComponentValue',
+                        value: bridge_data
+                    }, '*');
+                }
+            });
+        </script>
+        """,
+        height=0,
+        width=0,
+        key="cross_domain_listener_bridge"
+    )
+
+    # 3. INTERCEPT BROADCASTED DATA FROM IFRAME VALUE INJECTIONS CLEANLY
+    if video_string_collector and "base64," in str(video_string_collector):
         try:
-            base64_clean = video_bridge_data.split("base64,")[1]
+            base64_clean = str(video_string_collector).split("base64,")[1]
             video_bytes = base64.b64decode(base64_clean)
             file_name = f"interview_session_{active_id}.webm"
-            with open(file_name, "wb") as f:
-                f.write(video_bytes)
-            st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
             
-            st.session_state["hidden_video_bridge_input"] = ""
-            st.session_state.iframe_render_idx += 1
+            with open(file_name, "wb") as output_file:
+                output_file.write(video_bytes)
+            
+            st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
             st.rerun()
         except Exception as e:
-            st.error(f"Error compiling video payload: {str(e)}")
+            st.error(f"Error compiling video payload structural matrices: {str(e)}")
 
     st.markdown("---")
 
+    # Display Message Log Stack
     for message in current_chat["history"]:
         avatar_img = USER_AVATAR if message["role"] == "user" else ROBOT_AVATAR
         with st.chat_message(message["role"], avatar=avatar_img):
             st.markdown(message["content"])
 
+    # Conversational Speech Control Buttons
+    st.write("") 
+    ctrl_col1, ctrl_col2, _ = st.columns([1, 1, 2])
+    
+    with ctrl_col1:
+        if st.button("🔊 Speak Out Loud", use_container_width=True, key="speak_out_loud_trigger_btn"):
+            if current_chat["history"]:
+                assist_msgs = [m["content"] for m in current_chat["history"] if m["role"] == "assistant"]
+                if assist_msgs:
+                    st.session_state.autoplay_audio_data = text_to_speech_bytes(assist_msgs[-1])
+                    st.rerun()
+                
+    with ctrl_col2:
+        if st.button("🛑 Stop Audio", use_container_width=True, key="stop_audio_playback_btn"):
+            st.session_state.autoplay_audio_data = None
+            st.rerun()
+
+    # Audio Render Injection Anchor
+    if st.session_state.autoplay_audio_data:
+        st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
+        st.session_state.autoplay_audio_data = None
+
+    # Initialization Matrices Setup View
     if len(current_chat["history"]) == 1 and "Welcome" in current_chat["history"][0]["content"]:
         st.markdown("---")
         with st.expander("🛠️ Initialize Video Assessment Focus Track", expanded=True):
@@ -507,10 +499,7 @@ elif app_mode == "🗣️ Skill Assessment Portal":
                     st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
                     st.rerun()
 
-    if st.session_state.autoplay_audio_data:
-        st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
-        st.session_state.autoplay_audio_data = None
-
+    # Single Unified Chat Input Terminal Field
     text_input = st.chat_input("Type your translation, essay answer, or session text here...", key="chat_input_terminal_field")
     if text_input:
         current_chat["history"].append({"role": "user", "content": text_input})
@@ -539,82 +528,14 @@ elif app_mode == "🌐 Explore Video Learning Engine":
                 "Session 1: Subject-Verb Agreement Principles",
                 "Session 2: Mastering Modal Verbs for Obligation & Permission",
                 "Session 3: Present Perfect vs. Past Simple Tense Transitions",
-                "Session 4: Conditional Clauses (Type 1, 2, and 3 Mechanics)",
-                "Session 5: Prepositions of Place, Time, and Direction",
-                "Session 6: Active vs. Passive Voice in Corporate Reporting",
-                "Session 7: Gerunds and Infinitives Diagnostic Rules",
-                "Session 8: Correcting Common Dangling Modifiers",
-                "Session 9: Relative Clauses and Pronoun Alignment"
+                "Session 4: Conditional Clauses (Type 1, 2, and 3 Mechanics)"
             ]
         },
         "💼 Corporate Accent Modulation & Phonetics": {
             "vid": "https://www.youtube.com/watch?v=M2L76qM2sZ0",
             "sessions": [
                 "Session 10: Professional Intonation & Sentence Stress Pacing",
-                "Session 11: Overcoming Mother Tongue Influence (MTI) Variables",
-                "Session 12: Vowel Sounds: Long vs. Short Monophthongs",
-                "Session 13: Consonant Clusters and Crisp Endings",
-                "Session 14: Connected Speech & Linking Words Seamlessly",
-                "Session 15: Pitch Shifts for Emphasizing Key Business Metrics",
-                "Session 16: Diaphragmatic Breathing for Vocal Clarity",
-                "Session 17: Eliminating Fillers (Um, Ah, Like) via Pausing",
-                "Session 18: Neutralizing Regional Dialect Pitch Drops"
-            ]
-        },
-        "🚀 Advanced Interview Sentence Structures": {
-            "vid": "https://www.youtube.com/watch?v=gaI7vXvSExA",
-            "sessions": [
-                "Session 19: High-Impact Project Pitch Starters",
-                "Session 20: Formulating STAR-Method Behavioral Responses",
-                "Session 21: Diplomatic Redirection Patterns for Difficult Queries",
-                "Session 22: Highlighting Leadership Trajectories Verbally",
-                "Session 23: Expressing Salary Expectations Confidently",
-                "Session 24: Explaining Career Gaps Using Growth Assertions",
-                "Session 25: Vocabulary Filters to Sound Executive and Mature",
-                "Session 26: Constructing Persuasive Value Proposition Hooks",
-                "Session 27: Executive Presence & Concluding Impact Statements"
-            ]
-        },
-        "🤝 Professional Negotiation & Client Communication": {
-            "vid": "https://www.youtube.com/watch?v=3oIAICs8N9I",
-            "sessions": [
-                "Session 28: Softening Assertions using Hedging Language",
-                "Session 29: Handling Objections with Conversational Empathy",
-                "Session 30: Framing Deadlines Positively without Friction",
-                "Session 31: Setting Clear Boundaries on Scope Creep",
-                "Session 32: Conceding Points Strategically in Real-time",
-                "Session 33: Anchoring Price Discussions and Terms",
-                "Session 34: Regaining Control of Derailing Client Meetings",
-                "Session 35: Summarizing Action Items for Alignment Checks",
-                "Session 36: Closing Enterprise Deals with Firm Vocabulary"
-            ]
-        },
-        "📊 Technical Presentation & Data Storytelling": {
-            "vid": "https://www.youtube.com/watch?v=M2L76qM2sZ0",
-            "sessions": [
-                "Session 37: Describing Trends, Graphs, and Market Spikes",
-                "Session 38: Transitioning Between Complex Data Visuals",
-                "Session 39: Translating Technical Metrics for Non-Tech Stakeholders",
-                "Session 40: Simplifying Complex Software Architectures Verbally",
-                "Session 41: Managing Q&A Sessions and Hecklers Gracefully",
-                "Session 42: Narrative Arc Strategies for Technical Case Studies",
-                "Session 43: Engaging Remote Audiences During Slide Runs",
-                "Session 44: Emphasizing Risk Metrics using Comparative Phrases",
-                "Session 45: Converting Static Features into Active Business Value"
-            ]
-        },
-        "☕ Everyday Office Idioms & Socializing Vocabulary": {
-            "vid": "https://www.youtube.com/watch?v=gaI7vXvSExA",
-            "sessions": [
-                "Session 46: Casual English vs. Formal Office Interventions",
-                "Session 47: Watercooler Conversations and Polite Small Talk",
-                "Session 48: Navigating Cross-Cultural Greetings with Care",
-                "Session 49: Correct Use of Common Corporate Idioms",
-                "Session 50: Polite Interruptions During Heated Discussions",
-                "Session 51: Expressing Disagreement Constructively",
-                "Session 52: Pitching Casual Ideas During Brainstorming Rounds",
-                "Session 53: Writing & Verbally Validating Peer Praises",
-                "Session 54: Closing Casual Virtual Sync-Ups Smoothly"
+                "Session 11: Overcoming Mother Tongue Influence (MTI) Variables"
             ]
         }
     }
@@ -625,7 +546,6 @@ elif app_mode == "🌐 Explore Video Learning Engine":
             options=list(curriculum_matrix.keys()),
             key="learning_hub_category_selector"
         )
-        
         selected_session = st.selectbox(
             "📝 Step 2: Choose Specific Focus Topic Session:", 
             options=curriculum_matrix[selected_module]["sessions"],
