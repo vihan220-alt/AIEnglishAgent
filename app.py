@@ -154,8 +154,8 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    # FIXED: Added required dynamic key assignment to isolate component rendering rules
-    components.html(razorpay_html_code, height=160, key=f"rzp_gateway_v{st.session_state.iframe_render_idx}")
+    # FIXED: Key parameter removed to clear component mapping issues
+    components.html(razorpay_html_code, height=160)
 
 # =========================================================
 # HTML5 WEBCAM VIDEO RECORDER NODE
@@ -230,8 +230,8 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    # CRITICAL SECURITY FIX: Key property bound dynamically to clean internal registry crashes
-    components.html(webcam_html, height=340, key=f"webcam_feed_component_v{st.session_state.iframe_render_idx}")
+    # FIXED: Added requested standalone signature parameters without key overrides
+    components.html(webcam_html, height=340)
 
 # =========================================================
 # REVERSED BRIDGE LISTENER RECEIVER COMPONENT
@@ -252,8 +252,8 @@ def render_cross_domain_bridge_receiver():
         });
     </script>
     """
-    # FIXED: Handled implicit signature rules by parsing clear context key tracking
-    components.html(receiver_js, height=0, width=0, key=f"bridge_receiver_node_v{st.session_state.iframe_render_idx}")
+    # FIXED: Key parameter removed to clear backend pipeline conflicts
+    components.html(receiver_js, height=0, width=0)
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
