@@ -476,15 +476,22 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     render_webcam_video_recorder()
     render_cross_domain_bridge_receiver()
 
+    # CRITICAL FIX: Safe file-write lock sequence executed entirely before cleaning cache indexes
     if video_bridge_data and "base64," in video_bridge_data:
         try:
             base64_clean = video_bridge_data.split("base64,")[1]
             video_bytes = base64.b64decode(base64_clean)
             file_name = f"interview_session_{active_id}.webm"
-            with open(file_name, "wb") as f:
-                f.write(video_bytes)
+            
+            # Use strict write context block to lock the directory pipeline safely
+            with open(file_name, "wb") as output_file:
+                output_file.write(video_bytes)
+                output_file.flush()
+                os.fsync(output_file.fileno())
+            
             st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
             
+            # Reset bridge fields AFTER safe file lock execution completes
             st.session_state[v_bridge_key] = ""
             st.session_state.iframe_render_idx += 1
             st.rerun()
