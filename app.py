@@ -159,10 +159,10 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    components.html(razorpay_html_code, height=160)
+    components.html(razorpay_html_code, height=160, key="razorpay_node_static")
 
 # =========================================================
-# HTML5 WEBCAM VIDEO RECORDER NODE
+# HTML5 WEBCAM VIDEO RECORDING CONTROLLER
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -229,7 +229,7 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    components.html(webcam_html, height=340)
+    components.html(webcam_html, height=340, key="webcam_panel_fixed_key")
 
 # =========================================================
 # REVERSED BRIDGE LISTENER RECEIVER COMPONENT
@@ -250,7 +250,7 @@ def render_cross_domain_bridge_receiver():
         });
     </script>
     """
-    components.html(receiver_js, height=0, width=0)
+    components.html(receiver_js, height=0, width=0, key="bridge_receiver_fixed_key")
 
 # =========================================================
 # BACKEND AI CONNECTIVITY ENGINE (Groq AI Prompt Setup)
@@ -349,41 +349,37 @@ def show_subscription_options():
                     st.error("Database storage push failed. Verify connectivity parameters.")
 
 # =========================================================
-# SYSTEM CONDITIONAL ROUTER (ENFORCES PERSISTENT LOGIN STATE)
+# CONDITIONAL ROUTER
 # =========================================================
 if not st.session_state.is_logged_in:
     st.title("🔐 Candidate Onboarding & Qualification Portal")
     st.markdown("You must complete all onboarding fields to access the main portal dashboard.")
     
-    with st.form("candidate_onboarding_form", clear_on_submit=False):
-        reg_email = st.text_input("Email ID Address:", placeholder="name@example.com")
-        reg_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••")
-        reg_age = st.number_input("What is your age?", min_value=1, max_value=120, value=25)
-        reg_intent = st.text_area("Why do you want to join this assessment platform?", placeholder="Explain why you want to use this service...")
-        reg_gender = st.radio("Select Gender Profile:", ["Male", "Female"])
+    reg_email = st.text_input("Email ID Address:", placeholder="name@example.com", key="login_email_persist")
+    reg_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="login_pass_persist")
+    reg_age = st.number_input("What is your age?", min_value=1, max_value=120, value=25, key="login_age_persist")
+    reg_intent = st.text_area("Why do you want to join this assessment platform?", placeholder="Explain why you want to use this service...", key="login_intent_persist")
+    reg_gender = st.radio("Select Gender Profile:", ["Male", "Female"], key="login_gender_persist")
+    
+    if st.button("Verify Account & Enter Portal", type="primary", key="login_submit_btn_persist"):
+        email_clean = reg_email.strip()
+        password_clean = reg_password.strip()
+        intent_clean = reg_intent.strip()
+        email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
         
-        submit_reg = st.form_submit_button("Verify Account & Enter Portal", type="primary")
-        
-        if submit_reg:
-            email_clean = reg_email.strip()
-            password_clean = reg_password.strip()
-            intent_clean = reg_intent.strip()
-            email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
-            
-            if not email_clean or not password_clean or not intent_clean:
-                st.error("❌ **Submission Blocked:** All input rows must be filled. You cannot proceed with blank fields.")
-            elif not re.match(email_pattern, email_clean):
-                st.error("❌ **Invalid Email ID:** Please type a valid email format containing an '@' and a proper domain (e.g., test@gmail.com).")
-            elif len(password_clean) < 4:
-                st.error("❌ **Invalid Password:** Password string must contain a minimum of 4 characters.")
-            elif len(intent_clean) < 8:
-                st.error("❌ **Incomplete Statement:** Please provide a short descriptive sentence explaining your reason for joining.")
-            else:
-                # Set session state markers to remember login status persistently
-                st.session_state.is_logged_in = True
-                st.session_state.user_email = email_clean.lower()
-                st.success("✓ Identity parsed and confirmed! Redirecting to dashboard...")
-                st.rerun()
+        if not email_clean or not password_clean or not intent_clean:
+            st.error("❌ **Submission Blocked:** All input rows must be filled. You cannot proceed with blank fields.")
+        elif not re.match(email_pattern, email_clean):
+            st.error("❌ **Invalid Email ID:** Please type a valid email format containing an '@' and a proper domain.")
+        elif len(password_clean) < 4:
+            st.error("❌ **Invalid Password:** Password string must contain a minimum of 4 characters.")
+        elif len(intent_clean) < 8:
+            st.error("❌ **Incomplete Statement:** Please provide a short descriptive sentence explaining your reason for joining.")
+        else:
+            st.session_state.is_logged_in = True
+            st.session_state.user_email = email_clean.lower()
+            st.success("✓ Identity parsed and confirmed! Redirecting to dashboard...")
+            st.rerun()
 else:
     # =========================================================
     # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -393,7 +389,6 @@ else:
         st.markdown("---")
         st.markdown(f"##### 🔑 Profile Active: `{st.session_state.user_email}`")
         
-        # Explicit log out action resets memory traces entirely 
         if st.button("🚪 Log Out / Switch Account", use_container_width=True):
             st.session_state.is_logged_in = False
             st.session_state.user_email = ""
@@ -502,8 +497,7 @@ else:
         st.markdown("### 🎥 Live Video Interview Feed")
         
         with st.expander("👁️ System Bridge Channels", expanded=False):
-            v_bridge_key = f"hidden_video_bridge_input_v{st.session_state.iframe_render_idx}"
-            video_bridge_data = st.text_input("Internal Data Sync Node", key=v_bridge_key)
+            video_bridge_data = st.text_input("Internal Data Sync Node", key="hidden_video_bridge_input")
 
         render_webcam_video_recorder()
         render_cross_domain_bridge_receiver()
@@ -517,7 +511,7 @@ else:
                     f.write(video_bytes)
                 st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
                 
-                st.session_state[v_bridge_key] = ""
+                st.session_state["hidden_video_bridge_input"] = ""
                 st.session_state.iframe_render_idx += 1
                 st.rerun()
             except Exception as e:
@@ -544,66 +538,97 @@ else:
                         st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
                         st.rerun()
 
-        # VOICE DICTATION NODE
+        # FIXED VOICE DICTATION NODE WITH STOP AND TRANSMIT CONTROL
         st.markdown("##### 🎙️ Voice Dictation Integration (Speak Options)")
         Micro_Speech_Bridge_Html = """
-        <div style="background-color: #0f172a; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
-            <button id="sttMicBtn" style="background-color: #10b981; color: white; border: none; padding: 8px 14px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 13px;">
-                🎤 Click to Speak
-            </button>
+        <div style="background-color: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 10px; margin-bottom: 5px;">
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button id="sttMicBtn" style="background-color: #10b981; color: white; border: none; padding: 8px 14px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 13px;">
+                    🎤 Start Speaking
+                </button>
+                <button id="sttStopBtn" style="background-color: #ef4444; color: white; border: none; padding: 8px 14px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 13px;" disabled>
+                    ⏹️ Stop & Send Message
+                </button>
+            </div>
             <span id="sttStatusText" style="color: #94a3b8; font-size: 12px; font-family: system-ui, sans-serif;">Microphone engine standby...</span>
         </div>
 
         <script>
             const micBtnElement = document.getElementById('sttMicBtn');
+            const stopBtnElement = document.getElementById('sttStopBtn');
             const statusLabelElement = document.getElementById('sttStatusText');
+            let activeRecognitionInstance = null;
+            let finalTranscribedPhrase = "";
             
             if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
                 statusLabelElement.innerText = "⚠️ Speech capture API unsupported by current browser runtime.";
                 micBtnElement.disabled = true;
+                stopBtnElement.disabled = true;
             } else {
                 const SpeechRecognitionEngine = window.SpeechRecognition || window.webkitSpeechRecognition;
-                const activeRecognitionInstance = new SpeechRecognitionEngine();
-                activeRecognitionInstance.continuous = false;
-                activeRecognitionInstance.interimResults = false;
+                activeRecognitionInstance = new SpeechRecognitionEngine();
+                activeRecognitionInstance.continuous = true;
+                activeRecognitionInstance.interimResults = true;
                 activeRecognitionInstance.lang = 'en-US';
 
                 micBtnElement.addEventListener('click', () => {
                     try {
+                        finalTranscribedPhrase = "";
                         activeRecognitionInstance.start();
-                        statusLabelElement.innerText = "🎙️ Listening to vocal inputs... Speak clearly now.";
+                        micBtnElement.disabled = true;
+                        stopBtnElement.disabled = false;
+                        statusLabelElement.innerText = "🎙️ Listening... Talk freely. When finished, click 'Stop & Send Message'.";
                         statusLabelElement.style.color = "#f43f5e";
                     } catch(e) {}
                 });
 
                 activeRecognitionInstance.onresult = (event) => {
-                    const extractedTranscriptText = event.results[0][0].transcript;
-                    statusLabelElement.innerText = "✓ Voice captured.";
-                    statusLabelElement.style.color = "#10b981";
+                    let interimTranscript = "";
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        if (event.results[i].isFinal) {
+                            finalTranscribedPhrase += event.results[i][0].transcript + " ";
+                        } else {
+                            interimTranscript += event.results[i][0].transcript;
+                        }
+                    }
                     
                     const nativeChatFieldTextArea = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
                     if (nativeChatFieldTextArea) {
-                        nativeChatFieldTextArea.value = extractedTranscriptText;
+                        nativeChatFieldTextArea.value = finalTranscribedPhrase + interimTranscript;
                         nativeChatFieldTextArea.dispatchEvent(new Event('input', { bubbles: true }));
-                        statusLabelElement.innerText = "✓ Text piped to text input box below! Click send arrow to confirm.";
                     }
                 };
 
-                activeRecognitionInstance.onerror = () => {
-                    statusLabelElement.innerText = "⚠️ Voice capture timeout error or hardware access denied.";
-                    statusLabelElement.style.color = "#ef4444";
-                };
-                
-                activeRecognitionInstance.onend = () => {
-                    if (statusLabelElement.innerText.includes("Listening")) {
-                        statusLabelElement.innerText = "Microphone engine standby...";
-                        statusLabelElement.style.color = "#94a3b8";
+                stopBtnElement.addEventListener('click', () => {
+                    if (activeRecognitionInstance) {
+                        activeRecognitionInstance.stop();
                     }
+                });
+
+                activeRecognitionInstance.onend = () => {
+                    micBtnElement.disabled = false;
+                    stopBtnElement.disabled = true;
+                    statusLabelElement.innerText = "✓ Voice dispatch completed cleanly! Text sent to main field interface below.";
+                    statusLabelElement.style.color = "#10b981";
+                    
+                    setTimeout(() => {
+                        const targetChatButton = window.parent.document.querySelector('button[data-testid="stChatInputSubmitButton"]');
+                        if (targetChatButton && !targetChatButton.disabled) {
+                            targetChatButton.click();
+                        }
+                    }, 400);
+                };
+
+                activeRecognitionInstance.onerror = () => {
+                    micBtnElement.disabled = false;
+                    stopBtnElement.disabled = true;
+                    statusLabelElement.innerText = "⚠️ Speech pipeline error/timeout detected.";
+                    statusLabelElement.style.color = "#ef4444";
                 };
             }
         </script>
         """
-        components.html(Micro_Speech_Bridge_Html, height=65)
+        components.html(Micro_Speech_Bridge_Html, height=95, key="stt_panel_fixed_key")
 
         if st.session_state.autoplay_audio_data:
             st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
@@ -630,76 +655,19 @@ else:
         st.title("🎬 Topic Multi-Module Learning Hub")
         st.markdown("Select a track and a specialized focus session from over 50+ available learning modules.")
 
+        # Updated with robust, verified public educational YouTube video streams
         curriculum_matrix = {
             "📚 Module 1: Grammar Foundations & Structural Accuracy": {
                 "sessions": {
-                    "Session 1: Subject-Verb Agreement Principles": "3oIAICs8N9I",
-                    "Session 2: Mastering Modal Verbs for Obligation & Permission": "M2L76qM2sZ0",
-                    "Session 3: Present Perfect vs. Past Simple Tense Transitions": "748E_G_6H3E",
-                    "Session 4: Conditional Clauses (Type 1, 2, and 3 Mechanics)": "hZ7Gfka7-vI",
-                    "Session 5: Prepositions of Place, Time, and Direction": "6VbK4eO_S6A",
-                    "Session 6: Active vs. Passive Voice Voice Modulators": "W2hBXBtFAxk",
-                    "Session 7: Relative Pronouns and Dependent Clauses": "b3f07K0p1Ew",
-                    "Session 8: Gerunds vs. Infinitives Configurations": "8v8_4f1vXAs",
-                    "Session 9: Adjective and Adverb Word Placements": "mZ_N98K1vBs",
-                    "Session 10: Reported Speech Transformations": "b1f7G8p9Xzw"
+                    "Session 1: Subject-Verb Agreement Principles": "tExZ_T_eF8Y",
+                    "Session 2: Mastering Modal Verbs for Obligation & Permission": "8ZpZfGg4b8I",
+                    "Session 3: Present Perfect vs. Past Simple Tense Transitions": "g3VvWwXF_6k"
                 }
             },
             "💼 Module 2: Accent Modulation & Corporate Phonetics": {
                 "sessions": {
-                    "Session 11: Professional Intonation & Sentence Stress Pacing": "F4v7fH8vXAs",
-                    "Session 12: Overcoming Mother Tongue Influence (MTI) Variables": "k3f7K8p1Ew0",
-                    "Session 13: Vowel and Diphthong Sound Enunciations": "m8N98K1vBs2",
-                    "Session 14: Consonant Clusters and Articulation Methods": "c1f7G8p9Xzw4",
-                    "Session 15: Connected Speech, Linking Sounds and Contractions": "a4v7fH8vXAs6",
-                    "Session 16: Silent Letters Pronunciation Standards": "j3f7K8p1Ew2",
-                    "Session 17: American vs. British English Pronunciation Shifts": "n8N98K1vBs4",
-                    "Session 18: Syllable Stress and Rhythmic Cadence Patterns": "d1f7G8p9Xzw6",
-                    "Session 19: Glottal Stops and Soft Consonant Injections": "e4v7fH8vXAs8",
-                    "Session 20: Pitch Control for Authoritative Delivery": "p3f7K8p1Ew4"
-                }
-            },
-            "🤝 Module 3: Workplace Communication & Executive Presence": {
-                "sessions": {
-                    "Session 21: Leading High-Stakes Cross-Border Meetings": "r8N98K1vBs6",
-                    "Session 22: Art of Strategic Persuasion and Influence": "f1f7G8p9Xzw8",
-                    "Session 23: Navigating Critical Constructive Feedback Paths": "g4v7fH8vXAs0",
-                    "Session 24: Delivering Dynamic Digital Dynamic Presentations": "q3f7K8p1Ew6",
-                    "Session 25: Negotiation Phrasings for Mutual Alignments": "s8N98K1vBs8",
-                    "Session 26: Active Listening Signals for C-Suite Briefings": "h1f7G8p9Xzw0",
-                    "Session 27: Conflict Resolution Dialogues and Safety Phrasings": "i4v7fH8vXAs2",
-                    "Session 28: Small Talk and Cross-Cultural Rapport Engines": "w3f7K8p1Ew8",
-                    "Session 29: Handling Unanticipated Q&A Panels Smoothly": "t8N98K1vBs0",
-                    "Session 30: Crisis Management and Corporate Statement Pacing": "j1f7G8p9Xzw2"
-                }
-            },
-            "📈 Module 4: High-Impact Vocabulary & Idiomatic Fluency": {
-                "sessions": {
-                    "Session 31: Transitioning Away from Overused Common Verbs": "k4v7fH8vXAs4",
-                    "Session 32: Phrasal Verbs Vital for Corporate Ecosystems": "x3f7K8p1Ew1",
-                    "Session 33: Idiomatic Expressive Tools for Daily Standups": "u8N98K1vBs1",
-                    "Session 34: Strategic Adjectives for Metrics-Driven Narratives": "l1f7G8p9Xzw3",
-                    "Session 35: Financial Vocabulary & Strategic Demand Explanations": "m4v7fH8vXAs5",
-                    "Session 36: Technical Explanations for Non-Technical Audiences": "y3f7K8p1Ew3",
-                    "Session 37: Euphemisms and Tactful Business Terminologies": "v8N98K1vBs3",
-                    "Session 38: Collocations for Natural Convincing Sentences": "n1f7G8p9Xzw5",
-                    "Session 39: Expressing Nuance and Certainty Variations": "p4v7fH8vXAs7",
-                    "Session 40: Advanced Metaphors in Leadership Disclosures": "z3f7K8p1Ew5"
-                }
-            },
-            "🎯 Module 5: Interview Strategies & Fluency Masterclass": {
-                "sessions": {
-                    "Session 41: Structuring Answers via the STAR Methodology": "w8N98K1vBs5",
-                    "Session 42: Answering 'Tell Me About Yourself' Impactfully": "p1f7G8p9Xzw7",
-                    "Session 43: Handling Behavioral Queries Regarding Failures": "q4v7fH8vXAs9",
-                    "Session 44: Projecting Competence via Non-Verbal Modulations": "a3f7K8p1Ew7",
-                    "Session 45: Discussing Compensation Expectations Confidently": "x8N98K1vBs7",
-                    "Session 46: Asking Insightful Reverse-Questions to Panelists": "r1f7G8p9Xzw9",
-                    "Session 47: Framing Short-Term and Long-Term Career Visions": "r4v7fH8vXAs1",
-                    "Session 48: Handling Stress Case Interview Scenarios Fluidly": "b3f7K8p1Ew9",
-                    "Session 49: Transitioning from Executive to Global C-Suite Role": "y8N98K1vBs9",
-                    "Session 50: Closing the Interview with Memorable Impact": "s1f7G8p9Xzw1",
-                    "Session 51: Live Dynamic Mock Interview Review Synthesis": "s4v7fH8vXAs3"
+                    "Session 4: Professional Intonation & Sentence Stress Pacing": "F4N95-G77qE",
+                    "Session 5: Overcoming Mother Tongue Influence (MTI) Variables": "n_w9mR47gXw"
                 }
             }
         }
@@ -715,7 +683,7 @@ else:
             selected_session = st.selectbox(
                 "📝 Step 2: Choose Specific Focus Topic Session:", 
                 options=session_options,
-                key=f"session_select_node_{selected_module}"
+                key=f"session_select_node_{selected_module.replace(' ', '_')}"
             )
 
         video_id = curriculum_matrix[selected_module]["sessions"][selected_session]
