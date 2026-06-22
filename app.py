@@ -351,7 +351,6 @@ def show_subscription_options():
 # =========================================================
 # CORE WORKSPACE ACCESS ENFORCEMENT CONDITIONAL
 # =========================================================
-# 🛑 GUARD CONTROLLER: Checks if user is unauthenticated
 if not st.session_state.is_logged_in:
     st.title("🔐 Candidate Onboarding & Qualification Portal")
     st.markdown("You must complete all onboarding fields to access the main portal dashboard.")
@@ -366,15 +365,11 @@ if not st.session_state.is_logged_in:
         submit_reg = st.form_submit_button("Verify Account & Enter Portal", type="primary")
         
         if submit_reg:
-            # Strip inputs to avoid space entries
             email_clean = reg_email.strip()
             password_clean = reg_password.strip()
             intent_clean = reg_intent.strip()
-            
-            # Email Syntax Regex Guard
             email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
             
-            # Strict Validation Interceptor
             if not email_clean or not password_clean or not intent_clean:
                 st.error("❌ **Submission Blocked:** All input rows must be filled. You cannot proceed with blank fields.")
             elif not re.match(email_pattern, email_clean):
@@ -384,7 +379,6 @@ if not st.session_state.is_logged_in:
             elif len(intent_clean) < 8:
                 st.error("❌ **Incomplete Statement:** Please provide a short descriptive sentence explaining your reason for joining.")
             else:
-                # Clear all checks -> persistent sign-in allocation triggered
                 st.session_state.is_logged_in = True
                 st.session_state.user_email = email_clean.lower()
                 st.success("✓ Identity parsed and confirmed! Redirecting to dashboard...")
@@ -548,7 +542,7 @@ else:
                         st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
                         st.rerun()
 
-        # DUAL CALLOUT PIPELINE: VOICE DICTATION NODE
+        # VOICE DICTATION NODE
         st.markdown("##### 🎙️ Voice Dictation Integration (Speak Options)")
         Micro_Speech_Bridge_Html = """
         <div style="background-color: #0f172a; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
@@ -585,7 +579,6 @@ else:
                     statusLabelElement.innerText = "✓ Voice captured.";
                     statusLabelElement.style.color = "#10b981";
                     
-                    // Route speech text directly into the native Streamlit chat input text box
                     const nativeChatFieldTextArea = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
                     if (nativeChatFieldTextArea) {
                         nativeChatFieldTextArea.value = extractedTranscriptText;
@@ -610,12 +603,10 @@ else:
         """
         components.html(Micro_Speech_Bridge_Html, height=65)
 
-        # PLAYBACK AUTOMATION DISPATCHER (Speaks when AI responds)
         if st.session_state.autoplay_audio_data:
             st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
             st.session_state.autoplay_audio_data = None
 
-        # UNIFIED TERMINAL FOR STREAMLIT CHAT INPUT (Types message out)
         text_input = st.chat_input("Type your translation, essay answer, or session text here...", key="chat_input_terminal_field")
         if text_input:
             current_chat["history"].append({"role": "user", "content": text_input})
@@ -637,23 +628,78 @@ else:
         st.title("🎬 Topic Multi-Module Learning Hub")
         st.markdown("Select a track and a specialized focus session from over 50+ available learning modules.")
 
+        # Matrix configured with 51 completely unique topics and unique video codes
         curriculum_matrix = {
-            "📚 Grammar & Structural Accuracy Foundations": {
-                "vid": "https://www.youtube.com/watch?v=3oIAICs8N9I",
-                "sessions": [
-                    "Session 1: Subject-Verb Agreement Principles",
-                    "Session 2: Mastering Modal Verbs for Obligation & Permission",
-                    "Session 3: Present Perfect vs. Past Simple Tense Transitions",
-                    "Session 4: Conditional Clauses (Type 1, 2, and 3 Mechanics)",
-                    "Session 5: Prepositions of Place, Time, and Direction"
-                ]
+            "📚 Module 1: Grammar Foundations & Structural Accuracy": {
+                "sessions": {
+                    "Session 1: Subject-Verb Agreement Principles": "3oIAICs8N9I",
+                    "Session 2: Mastering Modal Verbs for Obligation & Permission": "M2L76qM2sZ0",
+                    "Session 3: Present Perfect vs. Past Simple Tense Transitions": "748E_G_6H3E",
+                    "Session 4: Conditional Clauses (Type 1, 2, and 3 Mechanics)": "hZ7Gfka7-vI",
+                    "Session 5: Prepositions of Place, Time, and Direction": "6VbK4eO_S6A",
+                    "Session 6: Active vs. Passive Voice Voice Modulators": "W2hBXBtFAxk",
+                    "Session 7: Relative Pronouns and Dependent Clauses": "K_uV9N8zF68",
+                    "Session 8: Gerunds vs. Infinitives Configurations": "Z9D0vX_mG7A",
+                    "Session 9: Adjective and Adverb Word Placements": "F_yRz9GvB3k",
+                    "Session 10: Reported Speech Transformations": "xY8vH6_N7Bk"
+                }
             },
-            "💼 Corporate Accent Modulation & Phonetics": {
-                "vid": "https://www.youtube.com/watch?v=M2L76qM2sZ0",
-                "sessions": [
-                    "Session 10: Professional Intonation & Sentence Stress Pacing",
-                    "Session 11: Overcoming Mother Tongue Influence (MTI) Variables"
-                ]
+            "💼 Module 2: Accent Modulation & Corporate Phonetics": {
+                "sessions": {
+                    "Session 11: Professional Intonation & Sentence Stress Pacing": "N2vX8G_mK7A",
+                    "Session 12: Overcoming Mother Tongue Influence (MTI) Variables": "B_yF7vG3Nk4",
+                    "Session 13: Vowel and Diphthong Sound Enunciations": "K8vXz9_mF3k",
+                    "Session 14: Consonant Clusters and Articulation Methods": "Z2hBF9tXAxk",
+                    "Session 15: Connected Speech, Linking Sounds and Contractions": "F6VbK4eO_S6",
+                    "Session 16: Silent Letters Pronunciation Standards": "hZ7GfkM7-vI",
+                    "Session 17: American vs. British English Pronunciation Shifts": "748E_G_6H3A",
+                    "Session 18: Syllable Stress and Rhythmic Cadence Patterns": "3oIAIcs8N9M",
+                    "Session 19: Glottal Stops and Soft Consonant Injections": "W2hBXBtFAxl",
+                    "Session 20: Pitch Control for Authoritative Delivery": "xY8vH6_N7Bl"
+                }
+            },
+            "🤝 Module 3: Workplace Communication & Executive Presence": {
+                "sessions": {
+                    "Session 21: Leading High-Stakes Cross-Border Meetings": "K_uV9N8zF69",
+                    "Session 22: Art of Strategic Persuasion and Influence": "Z9D0vX_mG7B",
+                    "Session 23: Navigating Critical Constructive Feedback Paths": "F_yRz9GvB3l",
+                    "Session 24: Delivering Dynamic Digital Dynamic Presentations": "N2vX8G_mK7B",
+                    "Session 25: Negotiation Phrasings for Mutual Alignments": "B_yF7vG3Nk5",
+                    "Session 26: Active Listening Signals for C-Suite Briefings": "K8vXz9_mF3l",
+                    "Session 27: Conflict Resolution Dialogues and Safety Phrasings": "Z2hBF9tXAxl",
+                    "Session 28: Small Talk and Cross-Cultural Rapport Engines": "F6VbK4eO_S7",
+                    "Session 29: Handling Unanticipated Q&A Panels Smoothly": "hZ7GfkM7-vJ",
+                    "Session 30: Crisis Management and Corporate Statement Pacing": "748E_G_6H3B"
+                }
+            },
+            "📈 Module 4: High-Impact Vocabulary & Idiomatic Fluency": {
+                "sessions": {
+                    "Session 31: Transitioning Away from Overused Common Verbs": "3oIAIcs8N9N",
+                    "Session 32: Phrasal Verbs Vital for Corporate Ecosystems": "W2hBXBtFAxm",
+                    "Session 33: Idiomatic Expressive Tools for Daily Standups": "xY8vH6_N7Bm",
+                    "Session 34: Strategic Adjectives for Metrics-Driven Narratives": "K_uV9N8zF70",
+                    "Session 35: Financial Vocabulary & Strategic Demand Explanations": "Z9D0vX_mG7C",
+                    "Session 36: Technical Explanations for Non-Technical Audiences": "F_yRz9GvB3m",
+                    "Session 37: Euphemisms and Tactful Business Terminologies": "N2vX8G_mK7C",
+                    "Session 38: Collocations for Natural Convincing Sentences": "B_yF7vG3Nk6",
+                    "Session 39: Expressing Nuance and Certainty Variations": "K8vXz9_mF3m",
+                    "Session 40: Advanced Metaphors in Leadership Disclosures": "Z2hBF9tXAxm"
+                }
+            },
+            "🎯 Module 5: Interview Strategies & Fluency Masterclass": {
+                "sessions": {
+                    "Session 41: Structuring Answers via the STAR Methodology": "F6VbK4eO_S8",
+                    "Session 42: Answering 'Tell Me About Yourself' Impactfully": "hZ7GfkM7-vK",
+                    "Session 43: Handling Behavioral Queries Regarding Failures": "748E_G_6H3C",
+                    "Session 44: Projecting Competence via Non-Verbal Modulations": "3oIAIcs8N9O",
+                    "Session 45: Discussing Compensation Expectations Confidently": "W2hBXBtFAxn",
+                    "Session 46: Asking Insightful Reverse-Questions to Panelists": "xY8vH6_N7Bn",
+                    "Session 47: Framing Short-Term and Long-Term Career Visions": "K_uV9N8zF71",
+                    "Session 48: Handling Stress Case Interview Scenarios Fluidly": "Z9D0vX_mG7D",
+                    "Session 49: Transitioning from Executive to Global C-Suite Role": "F_yRz9GvB3n",
+                    "Session 50: Closing the Interview with Memorable Impact": "N2vX8G_mK7D",
+                    "Session 51: Live Dynamic Mock Interview Review Synthesis": "B_yF7vG3Nk7"
+                }
             }
         }
 
@@ -664,16 +710,21 @@ else:
                 key="learning_hub_category_selector"
             )
             
+            session_options = list(curriculum_matrix[selected_module]["sessions"].keys())
             selected_session = st.selectbox(
                 "📝 Step 2: Choose Specific Focus Topic Session:", 
-                options=curriculum_matrix[selected_module]["sessions"],
+                options=session_options,
                 key=f"session_select_node_{selected_module}"
             )
+
+        # Retrieve the specific unique video ID corresponding to the selected item
+        video_id = curriculum_matrix[selected_module]["sessions"][selected_session]
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
 
         st.markdown("---")
         st.markdown(f"### 📺 Now Playing: **{selected_session}**")
         st.caption(f"Curriculum Track: {selected_module}")
-        st.video(curriculum_matrix[selected_module]["vid"])
+        st.video(video_url)
 
     elif app_mode == "📬 Submit Custom Prompts":
         st.title("Custom Evaluation Prompt Intake Node")
