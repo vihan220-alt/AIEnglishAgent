@@ -64,7 +64,7 @@ if "payment_plan_selected" not in st.session_state:
 if "incoming_video_payload" not in st.session_state:
     st.session_state.incoming_video_payload = None
 
-# New variables to track persistent session authentication states
+# Track persistent session authentication states to skip login if already done
 if "is_logged_in" not in st.session_state:
     st.session_state.is_logged_in = False
 
@@ -351,28 +351,43 @@ def show_subscription_options():
 # =========================================================
 # CORE WORKSPACE ACCESS ENFORCEMENT CONDITIONAL
 # =========================================================
-# If the candidate has not authenticated via the intake loop, trap rendering inside the onboarding portal
+# 🛑 GUARD CONTROLLER: Checks if user is unauthenticated
 if not st.session_state.is_logged_in:
     st.title("🔐 Candidate Onboarding & Qualification Portal")
-    st.markdown("Please provide your background attributes below to initialize your interactive workspace license profiles.")
+    st.markdown("You must complete all onboarding fields to access the main portal dashboard.")
     
     with st.form("candidate_onboarding_form", clear_on_submit=False):
-        reg_email = st.text_input("Email ID Address:", placeholder="example@domain.com")
+        reg_email = st.text_input("Email ID Address:", placeholder="name@example.com")
         reg_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••")
         reg_age = st.number_input("What is your age?", min_value=1, max_value=120, value=25)
-        reg_intent = st.text_area("Why do you want to join this assessment platform?", placeholder="Specify your linguistic learning objectives...")
+        reg_intent = st.text_area("Why do you want to join this assessment platform?", placeholder="Explain why you want to use this service...")
         reg_gender = st.radio("Select Gender Profile:", ["Male", "Female"])
         
         submit_reg = st.form_submit_button("Verify Account & Enter Portal", type="primary")
         
         if submit_reg:
-            if not reg_email.strip() or not reg_password.strip() or not reg_intent.strip():
-                st.error("⚠️ All intake metrics fields must be populated completely to activate structural rules.")
+            # Strip inputs to avoid space entries
+            email_clean = reg_email.strip()
+            password_clean = reg_password.strip()
+            intent_clean = reg_intent.strip()
+            
+            # Email Syntax Regex Guard
+            email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
+            
+            # Strict Validation Interceptor
+            if not email_clean or not password_clean or not intent_clean:
+                st.error("❌ **Submission Blocked:** All input rows must be filled. You cannot proceed with blank fields.")
+            elif not re.match(email_pattern, email_clean):
+                st.error("❌ **Invalid Email ID:** Please type a valid email format containing an '@' and a proper domain (e.g., test@gmail.com).")
+            elif len(password_clean) < 4:
+                st.error("❌ **Invalid Password:** Password string must contain a minimum of 4 characters.")
+            elif len(intent_clean) < 8:
+                st.error("❌ **Incomplete Statement:** Please provide a short descriptive sentence explaining your reason for joining.")
             else:
-                # Successfully logged in. Store email persistently and unlock workspace context.
+                # Clear all checks -> persistent sign-in allocation triggered
                 st.session_state.is_logged_in = True
-                st.session_state.user_email = reg_email.strip().lower()
-                st.success("✓ Profile parsed successfully! Initializing layout matrix...")
+                st.session_state.user_email = email_clean.lower()
+                st.success("✓ Identity parsed and confirmed! Redirecting to dashboard...")
                 st.rerun()
 else:
     # =========================================================
@@ -533,7 +548,7 @@ else:
                         st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
                         st.rerun()
 
-        # DUAL CALLOUT PIPELINE: INJECTING NATIVE BROWSER MICROPHONE DICTATION NODE
+        # DUAL CALLOUT PIPELINE: VOICE DICTATION NODE
         st.markdown("##### 🎙️ Voice Dictation Integration (Speak Options)")
         Micro_Speech_Bridge_Html = """
         <div style="background-color: #0f172a; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
@@ -570,7 +585,7 @@ else:
                     statusLabelElement.innerText = "✓ Voice captured.";
                     statusLabelElement.style.color = "#10b981";
                     
-                    // Route text straight to Streamlit chat terminal DOM nodes
+                    // Route speech text directly into the native Streamlit chat input text box
                     const nativeChatFieldTextArea = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
                     if (nativeChatFieldTextArea) {
                         nativeChatFieldTextArea.value = extractedTranscriptText;
@@ -595,12 +610,12 @@ else:
         """
         components.html(Micro_Speech_Bridge_Html, height=65)
 
-        # PLAYBACK AUTOMATION DISPATCHER
+        # PLAYBACK AUTOMATION DISPATCHER (Speaks when AI responds)
         if st.session_state.autoplay_audio_data:
             st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
             st.session_state.autoplay_audio_data = None
 
-        # UNIFIED TERMINAL FOR STREAMLIT CHAT INPUT
+        # UNIFIED TERMINAL FOR STREAMLIT CHAT INPUT (Types message out)
         text_input = st.chat_input("Type your translation, essay answer, or session text here...", key="chat_input_terminal_field")
         if text_input:
             current_chat["history"].append({"role": "user", "content": text_input})
