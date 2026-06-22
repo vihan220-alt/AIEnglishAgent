@@ -35,6 +35,13 @@ from supabase import create_client, Client
 if "iframe_render_idx" not in st.session_state:
     st.session_state.iframe_render_idx = 0
 
+# Persistent session authentication states (Keeps user logged in on refresh)
+if "is_logged_in" not in st.session_state:
+    st.session_state.is_logged_in = False
+
+if "user_email" not in st.session_state:
+    st.session_state.user_email = ""
+
 if "all_chats" not in st.session_state:
     st.session_state.all_chats = {
         "Chat_1": {
@@ -63,13 +70,6 @@ if "payment_plan_selected" not in st.session_state:
 
 if "incoming_video_payload" not in st.session_state:
     st.session_state.incoming_video_payload = None
-
-# Track persistent session authentication states to skip login if already done
-if "is_logged_in" not in st.session_state:
-    st.session_state.is_logged_in = False
-
-if "user_email" not in st.session_state:
-    st.session_state.user_email = ""
 
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
@@ -349,7 +349,7 @@ def show_subscription_options():
                     st.error("Database storage push failed. Verify connectivity parameters.")
 
 # =========================================================
-# CORE WORKSPACE ACCESS ENFORCEMENT CONDITIONAL
+# SYSTEM CONDITIONAL ROUTER (ENFORCES PERSISTENT LOGIN STATE)
 # =========================================================
 if not st.session_state.is_logged_in:
     st.title("🔐 Candidate Onboarding & Qualification Portal")
@@ -379,6 +379,7 @@ if not st.session_state.is_logged_in:
             elif len(intent_clean) < 8:
                 st.error("❌ **Incomplete Statement:** Please provide a short descriptive sentence explaining your reason for joining.")
             else:
+                # Set session state markers to remember login status persistently
                 st.session_state.is_logged_in = True
                 st.session_state.user_email = email_clean.lower()
                 st.success("✓ Identity parsed and confirmed! Redirecting to dashboard...")
@@ -392,6 +393,7 @@ else:
         st.markdown("---")
         st.markdown(f"##### 🔑 Profile Active: `{st.session_state.user_email}`")
         
+        # Explicit log out action resets memory traces entirely 
         if st.button("🚪 Log Out / Switch Account", use_container_width=True):
             st.session_state.is_logged_in = False
             st.session_state.user_email = ""
@@ -628,7 +630,6 @@ else:
         st.title("🎬 Topic Multi-Module Learning Hub")
         st.markdown("Select a track and a specialized focus session from over 50+ available learning modules.")
 
-        # Real, functional, distinct YouTube video IDs for all 51 elements
         curriculum_matrix = {
             "📚 Module 1: Grammar Foundations & Structural Accuracy": {
                 "sessions": {
@@ -717,7 +718,6 @@ else:
                 key=f"session_select_node_{selected_module}"
             )
 
-        # Retrieve the specific unique video ID corresponding to the selected item
         video_id = curriculum_matrix[selected_module]["sessions"][selected_session]
         video_url = f"https://www.youtube.com/watch?v={video_id}"
 
