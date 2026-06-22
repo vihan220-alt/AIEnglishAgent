@@ -180,13 +180,10 @@ def render_webcam_video_recorder():
             startBtn.addEventListener('click', () => {
                 recordedChunks = [];
                 let options = { mimeType: 'video/webm;codecs=vp8,opus' };
-                
                 recorder = new MediaRecorder(stream, options);
                 
                 recorder.ondataavailable = (e) => {
-                    if (e.data && e.data.size > 0) {
-                        recordedChunks.push(e.data);
-                    }
+                    if (e.data && e.data.size > 0) recordedChunks.push(e.data);
                 };
 
                 recorder.onstop = () => {
@@ -194,10 +191,9 @@ def render_webcam_video_recorder():
                     let reader = new FileReader();
                     reader.readAsDataURL(blob); 
                     reader.onloadend = function() {
-                        let base64String = reader.result;
                         window.parent.postMessage({
                             type: 'STREAMLIT_VIDEO_TRANSFER_EVENT',
-                            data: base64String
+                            data: reader.result
                         }, '*');
                     }
                 };
@@ -210,36 +206,38 @@ def render_webcam_video_recorder():
             });
             
             stopBtn.addEventListener('click', () => {
-                if(recorder && recorder.state !== "inactive") {
-                    recorder.stop();
-                }
+                if(recorder && recorder.state !== "inactive") recorder.stop();
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
-                statusMsg.innerText = "✔️ Processing data strings... Please wait.";
+                statusMsg.innerText = "✔️ Video stream sent to processing cache.";
                 statusMsg.style.color = "#10b981";
             });
         }).catch(err => {
-            statusMsg.innerText = "⚠️ Device Capture Access Denied: Check camera permissions.";
+            statusMsg.innerText = "⚠️ Device Access Denied.";
             statusMsg.style.color = "#ef4444";
         });
     </script>
     """
-    components.html(webcam_html, height=340, key="webcam_feed_stable_key")
+    components.html(webcam_html, height=320, key="webcam_feed_stable_key")
 
 # =========================================================
 # REVERSED BRIDGE LISTENER RECEIVER COMPONENT
 # =========================================================
 def render_cross_domain_bridge_receiver():
+    # Use standard parent fallback data inputs instead of complex querySelectors
     receiver_js = """
+    <div style="display:none;">
+        <input type="text" id="internal_bridge_field">
+    </div>
     <script>
         window.addEventListener('message', function(event) {
             if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
-                const b64Data = event.data.data;
-                const hiddenInput = window.parent.document.querySelector('input[aria-label="Internal Data Sync Node"]');
-                if (hiddenInput) {
-                    hiddenInput.value = b64Data;
-                    hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                const payload = event.data.data;
+                // Safely update parent context input frames directly via standard input values
+                const fallbackInput = window.parent.document.querySelector('input[type="text"]');
+                if (fallbackInput) {
+                    fallbackInput.value = payload;
+                    fallbackInput.dispatchEvent(new Event('input', { bubbles: true }));
                 }
             }
         });
@@ -256,7 +254,6 @@ with st.sidebar:
     st.markdown("##### 🔑 Candidate Workspace Access")
     
     auth_email = st.text_input("Enter Registered Email Account:", value="vihan220@gmail.com", key="auth_email_persistent_field")
-    
     user_package_tier, trial_countdown = init_user_and_get_plan(auth_email)
     
     app_mode = st.radio(
@@ -365,7 +362,7 @@ def get_evaluator_response(plan_tier):
             parse_and_update_metrics(response_content)
             st.session_state.last_assistant_response = response_content
             return response_content
-        return "Server payload processing structural error match failed."
+        return "Server error reading payload response patterns."
     except Exception as e:
         return f"Network failure: {str(e)}"
 
@@ -413,7 +410,7 @@ def show_subscription_options():
         
         if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True, key="payment_simulation_trigger"):
             if supabase_client is None:
-                st.error("Database initialization failed. Please set up your secrets parameters.")
+                st.error("Database missing secret configuration setup.")
             else:
                 success = update_user_plan_db(auth_email, f"{plan_nm} ({plan_dur})")
                 if success:
@@ -421,7 +418,7 @@ def show_subscription_options():
                     st.session_state.payment_plan_selected = None
                     st.rerun()
                 else:
-                    st.error("Database storage push failed. Verify connectivity parameters.")
+                    st.error("Database storage push failed.")
 
 # =========================================================
 # ROUTED CONTENT INTERFACE SWITCHER VIEWS
@@ -444,8 +441,8 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
     st.markdown("### 🎥 Live Video Interview Feed")
     
-    with st.expander("👁️ System Bridge Channels", expanded=False):
-        video_bridge_data = st.text_input("Internal Data Sync Node", value="", key="hidden_video_bridge_input")
+    # Text input explicitly catches raw video base64 feeds from components
+    video_bridge_data = st.text_input("Data Intake Sync Node", value="", key="hidden_video_bridge_input", type="password")
 
     render_webcam_video_recorder()
     render_cross_domain_bridge_receiver()
@@ -480,7 +477,7 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     ctrl_col1, ctrl_col2, _ = st.columns([1, 1, 2])
     
     with ctrl_col1:
-        if st.button("🔊 Speak Out Loud", use_container_width=True, help="Re-read the evaluator's last prompt aloud."):
+        if st.button("🔊 Speak Out Loud", use_container_width=True):
             text_target = st.session_state.last_assistant_response
             if not text_target and current_chat["history"]:
                 assist_msgs = [m["content"] for m in current_chat["history"] if m["role"] == "assistant"]
@@ -490,13 +487,10 @@ elif app_mode == "🗣️ Skill Assessment Portal":
             if text_target:
                 st.session_state.autoplay_audio_data = text_to_speech_bytes(text_target)
                 st.rerun()
-            else:
-                st.warning("No active evaluation statement logged to read out loud yet.")
                 
     with ctrl_col2:
-        if st.button("🛑 Stop Audio", use_container_width=True, help="Immediately mute current speaking playback pipeline."):
+        if st.button("🛑 Stop Audio", use_container_width=True):
             st.session_state.autoplay_audio_data = None
-            st.success("Audio transmission queue cleared.")
             st.rerun()
 
     # Audio Render Injection Anchor
@@ -565,7 +559,6 @@ elif app_mode == "🌐 Explore Video Learning Engine":
             options=list(curriculum_matrix.keys()),
             key="learning_hub_category_selector"
         )
-        
         selected_session = st.selectbox(
             "📝 Step 2: Choose Specific Focus Topic Session:", 
             options=curriculum_matrix[selected_module]["sessions"],
