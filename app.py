@@ -32,7 +32,6 @@ from supabase import create_client, Client
 # =========================================================
 # INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
 # =========================================================
-# CRITICAL FIX: Initialize global engine iframe render tracker
 if "iframe_render_idx" not in st.session_state:
     st.session_state.iframe_render_idx = 0
 
@@ -51,6 +50,10 @@ if "active_chat_id" not in st.session_state:
 if "autoplay_audio_data" not in st.session_state:
     st.session_state.autoplay_audio_data = None
 
+# New state to persist text payload explicitly for manual "Speak" requests
+if "last_assistant_response" not in st.session_state:
+    st.session_state.last_assistant_response = ""
+
 if "performance_metrics" not in st.session_state:
     st.session_state.performance_metrics = {
         "fluency_score": 0.0,
@@ -65,7 +68,6 @@ if "payment_plan_selected" not in st.session_state:
 if "incoming_video_payload" not in st.session_state:
     st.session_state.incoming_video_payload = None
 
-# Fallback structure validation to prevent empty state drops
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
         st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
@@ -154,8 +156,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    # FIXED: Key parameter removed to clear component mapping issues
-    components.html(razorpay_html_code, height=160)
+    components.html(razorpay_html_code, height=160, key=f"rzp_gateway_v{st.session_state.iframe_render_idx}")
 
 # =========================================================
 # HTML5 WEBCAM VIDEO RECORDER NODE
@@ -230,8 +231,7 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    # FIXED: Added requested standalone signature parameters without key overrides
-    components.html(webcam_html, height=340)
+    components.html(webcam_html, height=340, key=f"webcam_feed_component_v{st.session_state.iframe_render_idx}")
 
 # =========================================================
 # REVERSED BRIDGE LISTENER RECEIVER COMPONENT
@@ -252,8 +252,7 @@ def render_cross_domain_bridge_receiver():
         });
     </script>
     """
-    # FIXED: Key parameter removed to clear backend pipeline conflicts
-    components.html(receiver_js, height=0, width=0)
+    components.html(receiver_js, height=0, width=0, key=f"bridge_receiver_node_v{st.session_state.iframe_render_idx}")
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -267,7 +266,6 @@ with st.sidebar:
     
     user_package_tier, trial_countdown = init_user_and_get_plan(auth_email)
     
-    # Track the active app mode before rendering the navigation radio button
     if "active_nav_mode" not in st.session_state:
         st.session_state.active_nav_mode = "🗣️ Skill Assessment Portal"
 
@@ -277,7 +275,6 @@ with st.sidebar:
         key="app_navigation_rail_index"
     )
     
-    # If user switches workspaces, increment the counter to clean old iframe DOM states
     if app_mode != st.session_state.active_nav_mode:
         st.session_state.active_nav_mode = app_mode
         st.session_state.iframe_render_idx += 1
@@ -296,8 +293,9 @@ with st.sidebar:
             }
             st.session_state.active_chat_id = new_id
             st.session_state.autoplay_audio_data = None
+            st.session_state.last_assistant_response = ""
             st.session_state.incoming_video_payload = None
-            st.session_state.iframe_render_idx += 1 # Cycle tracking frames
+            st.session_state.iframe_render_idx += 1 
             st.rerun()
 
         st.markdown("##### Active Logs Matrix:")
@@ -314,8 +312,9 @@ with st.sidebar:
             if st.button(btn_label, key=f"select_row_{c_id}", use_container_width=True, type="secondary" if not is_active else "primary"):
                 st.session_state.active_chat_id = c_id
                 st.session_state.autoplay_audio_data = None
+                st.session_state.last_assistant_response = ""
                 st.session_state.incoming_video_payload = None
-                st.session_state.iframe_render_idx += 1 # Reset iframes on context shifts
+                st.session_state.iframe_render_idx += 1 
                 st.rerun()
                 
             if is_active:
@@ -334,6 +333,7 @@ with st.sidebar:
                             del st.session_state.all_chats[c_id]
                             st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
                             st.session_state.autoplay_audio_data = None
+                            st.session_state.last_assistant_response = ""
                             st.session_state.incoming_video_payload = None
                             st.session_state.iframe_render_idx += 1
                             st.rerun()
@@ -349,7 +349,7 @@ with st.sidebar:
                             st.rerun()
 
 # =========================================================
-# BACKEND AI CONNECTIVITY ENGINE (Groq AI Prompt Setup)
+# BACKEND AI CONNECTIVITY ENGINE
 # =========================================================
 def parse_and_update_metrics(ai_text):
     st.session_state.performance_metrics["total_turns_completed"] += 1
@@ -384,6 +384,8 @@ def get_evaluator_response(plan_tier):
         if isinstance(res_data, dict) and "choices" in res_data:
             response_content = res_data["choices"][0]["message"]["content"]
             parse_and_update_metrics(response_content)
+            # Track the text payload for speech accessors
+            st.session_state.last_assistant_response = response_content
             return response_content
         return "Server payload processing structural error match failed."
     except Exception as e:
@@ -489,11 +491,49 @@ elif app_mode == "🗣️ Skill Assessment Portal":
 
     st.markdown("---")
 
+    # Display Message Log Stack
     for message in current_chat["history"]:
         avatar_img = USER_AVATAR if message["role"] == "user" else ROBOT_AVATAR
         with st.chat_message(message["role"], avatar=avatar_img):
             st.markdown(message["content"])
 
+    # =========================================================
+    # ADDED: DEDICATED CONVERSATIONAL SPEECH CONTROL BUTTONS
+    # =========================================================
+    st.write("") 
+    ctrl_col1, ctrl_col2, _ = st.columns([1, 1, 2])
+    
+    with ctrl_col1:
+        if st.button("🔊 Speak Out Loud", use_container_width=True, help="Re-read the evaluator's last prompt aloud."):
+            # Fallback initialization check if a chat field has structural text
+            text_target = st.session_state.last_assistant_response
+            if not text_target and current_chat["history"]:
+                # Grab the latest assistant response from background log sequence instead
+                assist_msgs = [m["content"] for m in current_chat["history"] if m["role"] == "assistant"]
+                if assist_msgs:
+                    text_target = assist_msgs[-1]
+            
+            if text_target:
+                st.session_state.autoplay_audio_data = text_to_speech_bytes(text_target)
+                st.rerun()
+            else:
+                st.warning("No active evaluation statement logged to read out loud yet.")
+                
+    with ctrl_col2:
+        if st.button("🛑 Stop Audio", use_container_width=True, help="Immediately mute current speaking playback pipeline."):
+            st.session_state.autoplay_audio_data = None
+            st.success("Audio transmission queue cleared.")
+            st.rerun()
+
+    # Audio Render Injection Anchor
+    if st.session_state.autoplay_audio_data:
+        st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
+        # Clear out data after automatic execution cycle to avoid loops on raw page interaction
+        st.session_state.autoplay_audio_data = None
+
+    # =========================================================
+    # INITIALIZATION MATRICES & BASIC CHAT INTAKE
+    # =========================================================
     if len(current_chat["history"]) == 1 and "Welcome" in current_chat["history"][0]["content"]:
         st.markdown("---")
         with st.expander("🛠️ Initialize Video Assessment Focus Track", expanded=True):
@@ -506,10 +546,6 @@ elif app_mode == "🗣️ Skill Assessment Portal":
                     current_chat["history"].append({"role": "assistant", "content": eval_reply})
                     st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
                     st.rerun()
-
-    if st.session_state.autoplay_audio_data:
-        st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
-        st.session_state.autoplay_audio_data = None
 
     text_input = st.chat_input("Type your translation, essay answer, or session text here...", key="chat_input_terminal_field")
     if text_input:
@@ -539,82 +575,14 @@ elif app_mode == "🌐 Explore Video Learning Engine":
                 "Session 1: Subject-Verb Agreement Principles",
                 "Session 2: Mastering Modal Verbs for Obligation & Permission",
                 "Session 3: Present Perfect vs. Past Simple Tense Transitions",
-                "Session 4: Conditional Clauses (Type 1, 2, and 3 Mechanics)",
-                "Session 5: Prepositions of Place, Time, and Direction",
-                "Session 6: Active vs. Passive Voice in Corporate Reporting",
-                "Session 7: Gerunds and Infinitives Diagnostic Rules",
-                "Session 8: Correcting Common Dangling Modifiers",
-                "Session 9: Relative Clauses and Pronoun Alignment"
+                "Session 4: Conditional Clauses (Type 1, 2, and 3 Mechanics)"
             ]
         },
         "💼 Corporate Accent Modulation & Phonetics": {
             "vid": "https://www.youtube.com/watch?v=M2L76qM2sZ0",
             "sessions": [
                 "Session 10: Professional Intonation & Sentence Stress Pacing",
-                "Session 11: Overcoming Mother Tongue Influence (MTI) Variables",
-                "Session 12: Vowel Sounds: Long vs. Short Monophthongs",
-                "Session 13: Consonant Clusters and Crisp Endings",
-                "Session 14: Connected Speech & Linking Words Seamlessly",
-                "Session 15: Pitch Shifts for Emphasizing Key Business Metrics",
-                "Session 16: Diaphragmatic Breathing for Vocal Clarity",
-                "Session 17: Eliminating Fillers (Um, Ah, Like) via Pausing",
-                "Session 18: Neutralizing Regional Dialect Pitch Drops"
-            ]
-        },
-        "🚀 Advanced Interview Sentence Structures": {
-            "vid": "https://www.youtube.com/watch?v=gaI7vXvSExA",
-            "sessions": [
-                "Session 19: High-Impact Project Pitch Starters",
-                "Session 20: Formulating STAR-Method Behavioral Responses",
-                "Session 21: Diplomatic Redirection Patterns for Difficult Queries",
-                "Session 22: Highlighting Leadership Trajectories Verbally",
-                "Session 23: Expressing Salary Expectations Confidently",
-                "Session 24: Explaining Career Gaps Using Growth Assertions",
-                "Session 25: Vocabulary Filters to Sound Executive and Mature",
-                "Session 26: Constructing Persuasive Value Proposition Hooks",
-                "Session 27: Executive Presence & Concluding Impact Statements"
-            ]
-        },
-        "🤝 Professional Negotiation & Client Communication": {
-            "vid": "https://www.youtube.com/watch?v=3oIAICs8N9I",
-            "sessions": [
-                "Session 28: Softening Assertions using Hedging Language",
-                "Session 29: Handling Objections with Conversational Empathy",
-                "Session 30: Framing Deadlines Positively without Friction",
-                "Session 31: Setting Clear Boundaries on Scope Creep",
-                "Session 32: Conceding Points Strategically in Real-time",
-                "Session 33: Anchoring Price Discussions and Terms",
-                "Session 34: Regaining Control of Derailing Client Meetings",
-                "Session 35: Summarizing Action Items for Alignment Checks",
-                "Session 36: Closing Enterprise Deals with Firm Vocabulary"
-            ]
-        },
-        "📊 Technical Presentation & Data Storytelling": {
-            "vid": "https://www.youtube.com/watch?v=M2L76qM2sZ0",
-            "sessions": [
-                "Session 37: Describing Trends, Graphs, and Market Spikes",
-                "Session 38: Transitioning Between Complex Data Visuals",
-                "Session 39: Translating Technical Metrics for Non-Tech Stakeholders",
-                "Session 40: Simplifying Complex Software Architectures Verbally",
-                "Session 41: Managing Q&A Sessions and Hecklers Gracefully",
-                "Session 42: Narrative Arc Strategies for Technical Case Studies",
-                "Session 43: Engaging Remote Audiences During Slide Runs",
-                "Session 44: Emphasizing Risk Metrics using Comparative Phrases",
-                "Session 45: Converting Static Features into Active Business Value"
-            ]
-        },
-        "☕ Everyday Office Idioms & Socializing Vocabulary": {
-            "vid": "https://www.youtube.com/watch?v=gaI7vXvSExA",
-            "sessions": [
-                "Session 46: Casual English vs. Formal Office Interventions",
-                "Session 47: Watercooler Conversations and Polite Small Talk",
-                "Session 48: Navigating Cross-Cultural Greetings with Care",
-                "Session 49: Correct Use of Common Corporate Idioms",
-                "Session 50: Polite Interruptions During Heated Discussions",
-                "Session 51: Expressing Disagreement Constructively",
-                "Session 52: Pitching Casual Ideas During Brainstorming Rounds",
-                "Session 53: Writing & Verbally Validating Peer Praises",
-                "Session 54: Closing Casual Virtual Sync-Ups Smoothly"
+                "Session 11: Overcoming Mother Tongue Influence (MTI) Variables"
             ]
         }
     }
