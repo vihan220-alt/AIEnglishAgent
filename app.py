@@ -29,12 +29,13 @@ from gtts import gTTS
 from datetime import datetime, date
 from supabase import create_client, Client
 
-# NATIVE SECURE STREAMLIT WEBRTC COMPONENT ENGINE
-from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
-
 # =========================================================
 # INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
 # =========================================================
+# CRITICAL FIX: Initialize global engine iframe render tracker
+if "iframe_render_idx" not in st.session_state:
+    st.session_state.iframe_render_idx = 0
+
 if "all_chats" not in st.session_state:
     st.session_state.all_chats = {
         "Chat_1": {
@@ -60,6 +61,9 @@ if "performance_metrics" not in st.session_state:
 
 if "payment_plan_selected" not in st.session_state:
     st.session_state.payment_plan_selected = None
+
+if "incoming_video_payload" not in st.session_state:
+    st.session_state.incoming_video_payload = None
 
 # Fallback structure validation to prevent empty state drops
 if st.session_state.active_chat_id not in st.session_state.all_chats:
@@ -150,8 +154,106 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    razorpay_key = f"razorpay_frame_{hashlib.md5(email_recipient.encode()).hexdigest()}"
-    components.html(razorpay_html_code, height=160, key=razorpay_key)
+    # FIXED: Key parameter removed to clear component mapping issues
+    components.html(razorpay_html_code, height=160)
+
+# =========================================================
+# HTML5 WEBCAM VIDEO RECORDER NODE
+# =========================================================
+def render_webcam_video_recorder():
+    webcam_html = """
+    <div style="background-color: #0f172a; padding: 15px; border-radius: 10px; color: #ffffff; font-family: system-ui, sans-serif; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
+        <video id="preview" width="100%" height="240" autoplay muted style="background: #000; border-radius: 6px; transform: scaleX(-1);"></video>
+        <div style="margin-top: 10px;">
+            <button id="startBtn" style="background-color: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-right: 5px;">🔴 Start Recording Session</button>
+            <button id="stopBtn" style="background-color: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 5px; font-weight: bold; cursor: pointer;" disabled>⏹️ Stop & Submit</button>
+        </div>
+        <p id="statusMsg" style="font-size: 12px; color: #94a3b8; margin-top: 8px; margin-bottom: 0;">Webcam device active & waiting...</p>
+    </div>
+
+    <script>
+        let preview = document.getElementById('preview');
+        let startBtn = document.getElementById('startBtn');
+        let stopBtn = document.getElementById('stopBtn');
+        let statusMsg = document.getElementById('statusMsg');
+        let recorder;
+        let recordedChunks = [];
+
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(stream => {
+            preview.srcObject = stream;
+            
+            startBtn.addEventListener('click', () => {
+                recordedChunks = [];
+                let options = { mimeType: 'video/webm;codecs=vp8,opus' };
+                
+                recorder = new MediaRecorder(stream, options);
+                
+                recorder.ondataavailable = (e) => {
+                    if (e.data && e.data.size > 0) {
+                        recordedChunks.push(e.data);
+                    }
+                };
+
+                recorder.onstop = () => {
+                    let blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    let reader = new FileReader();
+                    reader.readAsDataURL(blob); 
+                    reader.onloadend = function() {
+                        let base64String = reader.result;
+                        window.parent.postMessage({
+                            type: 'STREAMLIT_VIDEO_TRANSFER_EVENT',
+                            data: base64String
+                        }, '*');
+                    }
+                };
+
+                recorder.start(1000);
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                statusMsg.innerText = "📺 Session Recording Live (Video + Audio Capturing)...";
+                statusMsg.style.color = "#f43f5e";
+            });
+            
+            stopBtn.addEventListener('click', () => {
+                if(recorder && recorder.state !== "inactive") {
+                    recorder.stop();
+                }
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                statusMsg.innerText = "✔️ Processing data strings...";
+                statusMsg.style.color = "#10b981";
+            });
+        }).catch(err => {
+            statusMsg.innerText = "⚠️ Device Capture Access Denied: Check camera permissions.";
+            statusMsg.style.color = "#ef4444";
+        });
+    </script>
+    """
+    # FIXED: Added requested standalone signature parameters without key overrides
+    components.html(webcam_html, height=340)
+
+# =========================================================
+# REVERSED BRIDGE LISTENER RECEIVER COMPONENT
+# =========================================================
+def render_cross_domain_bridge_receiver():
+    receiver_js = """
+    <script>
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
+                const b64Data = event.data.data;
+                const hiddenInput = window.parent.document.getElementById("hidden_video_bridge_input");
+                if (hiddenInput) {
+                    hiddenInput.value = b64Data;
+                    hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+        });
+    </script>
+    """
+    # FIXED: Key parameter removed to clear backend pipeline conflicts
+    components.html(receiver_js, height=0, width=0)
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -165,11 +267,21 @@ with st.sidebar:
     
     user_package_tier, trial_countdown = init_user_and_get_plan(auth_email)
     
+    # Track the active app mode before rendering the navigation radio button
+    if "active_nav_mode" not in st.session_state:
+        st.session_state.active_nav_mode = "🗣️ Skill Assessment Portal"
+
     app_mode = st.radio(
         "Select Portal Workspace:",
         ["🗣️ Skill Assessment Portal", "📊 Analytics Dashboard", "🌐 Explore Video Learning Engine", "📬 Submit Custom Prompts"],
         key="app_navigation_rail_index"
     )
+    
+    # If user switches workspaces, increment the counter to clean old iframe DOM states
+    if app_mode != st.session_state.active_nav_mode:
+        st.session_state.active_nav_mode = app_mode
+        st.session_state.iframe_render_idx += 1
+        st.rerun()
     
     if app_mode == "🗣️ Skill Assessment Portal" and user_package_tier != "Expired":
         st.markdown("---")
@@ -184,6 +296,8 @@ with st.sidebar:
             }
             st.session_state.active_chat_id = new_id
             st.session_state.autoplay_audio_data = None
+            st.session_state.incoming_video_payload = None
+            st.session_state.iframe_render_idx += 1 # Cycle tracking frames
             st.rerun()
 
         st.markdown("##### Active Logs Matrix:")
@@ -200,6 +314,8 @@ with st.sidebar:
             if st.button(btn_label, key=f"select_row_{c_id}", use_container_width=True, type="secondary" if not is_active else "primary"):
                 st.session_state.active_chat_id = c_id
                 st.session_state.autoplay_audio_data = None
+                st.session_state.incoming_video_payload = None
+                st.session_state.iframe_render_idx += 1 # Reset iframes on context shifts
                 st.rerun()
                 
             if is_active:
@@ -218,6 +334,8 @@ with st.sidebar:
                             del st.session_state.all_chats[c_id]
                             st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
                             st.session_state.autoplay_audio_data = None
+                            st.session_state.incoming_video_payload = None
+                            st.session_state.iframe_render_idx += 1
                             st.rerun()
                         else:
                             st.error("Cannot delete your last active session trace!")
@@ -321,6 +439,7 @@ def show_subscription_options():
                 if success:
                     st.success("Successfully activated plan! Reloading layout...")
                     st.session_state.payment_plan_selected = None
+                    st.session_state.iframe_render_idx += 1
                     st.rerun()
                 else:
                     st.error("Database storage push failed. Verify connectivity parameters.")
@@ -344,24 +463,29 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     else:
         st.success(f"👑 Active License Verified — **{user_package_tier}**")
 
-    # =========================================================
-    # NATIVE SECURE WEBCAM MODULE (FIXED ERROR-FREE INJECTION)
-    # =========================================================
     st.markdown("### 🎥 Live Video Interview Feed")
     
-    # Clean Google public STUN connectivity context
-    rtc_configuration = RTCConfiguration(
-        {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-    )
-    
-    # Replaces the buggy document listeners with secure, native layouts
-    webrtc_streamer(
-        key=f"interview_webcam_instance_{active_id}",
-        mode=WebRtcMode.SENDRECV,
-        rtc_configuration=rtc_configuration,
-        media_stream_constraints={"video": True, "audio": True},
-        async_processing=True
-    )
+    with st.expander("👁️ System Bridge Channels", expanded=False):
+        v_bridge_key = f"hidden_video_bridge_input_v{st.session_state.iframe_render_idx}"
+        video_bridge_data = st.text_input("Internal Data Sync Node", key=v_bridge_key)
+
+    render_webcam_video_recorder()
+    render_cross_domain_bridge_receiver()
+
+    if video_bridge_data and "base64," in video_bridge_data:
+        try:
+            base64_clean = video_bridge_data.split("base64,")[1]
+            video_bytes = base64.b64decode(base64_clean)
+            file_name = f"interview_session_{active_id}.webm"
+            with open(file_name, "wb") as f:
+                f.write(video_bytes)
+            st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
+            
+            st.session_state[v_bridge_key] = ""
+            st.session_state.iframe_render_idx += 1
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error compiling video payload: {str(e)}")
 
     st.markdown("---")
 
