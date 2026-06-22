@@ -32,9 +32,6 @@ from supabase import create_client, Client
 # =========================================================
 # INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
 # =========================================================
-if "iframe_render_idx" not in st.session_state:
-    st.session_state.iframe_render_idx = 0
-
 if "all_chats" not in st.session_state:
     st.session_state.all_chats = {
         "Chat_1": {
@@ -63,9 +60,6 @@ if "performance_metrics" not in st.session_state:
 
 if "payment_plan_selected" not in st.session_state:
     st.session_state.payment_plan_selected = None
-
-if "incoming_video_payload" not in st.session_state:
-    st.session_state.incoming_video_payload = None
 
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
@@ -140,7 +134,6 @@ USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
 # INTEGRATED PAYMENT GATEWAY COMPONENT NODE
 # =========================================================
 def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_duration="Month"):
-    render_idx = st.session_state.get("iframe_render_idx", 0)
     razorpay_html_code = f"""
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #1e1b4b; padding: 20px; border-radius: 12px; border: 1px solid rgba(99,102,241,0.3); margin-top: 15px; color: white;">
         <h4 style="font-family: system-ui, sans-serif; margin-bottom: 5px; margin-top:0;">Secure Premium Activation Node</h4>
@@ -156,7 +149,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    components.html(razorpay_html_code, height=160, key=f"rzp_gateway_v{render_idx}")
+    components.html(razorpay_html_code, height=160, key="rzp_gateway_stable_key")
 
 # =========================================================
 # HTML5 WEBCAM VIDEO RECORDER NODE
@@ -222,7 +215,7 @@ def render_webcam_video_recorder():
                 }
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
-                statusMsg.innerText = "✔️ Processing data strings...";
+                statusMsg.innerText = "✔️ Processing data strings... Please wait.";
                 statusMsg.style.color = "#10b981";
             });
         }).catch(err => {
@@ -231,8 +224,7 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    current_idx = st.session_state.get("iframe_render_idx", 0)
-    components.html(webcam_html, height=340, key=f"webcam_feed_component_v{current_idx}")
+    components.html(webcam_html, height=340, key="webcam_feed_stable_key")
 
 # =========================================================
 # REVERSED BRIDGE LISTENER RECEIVER COMPONENT
@@ -243,7 +235,7 @@ def render_cross_domain_bridge_receiver():
         window.addEventListener('message', function(event) {
             if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
                 const b64Data = event.data.data;
-                const hiddenInput = window.parent.document.getElementById("hidden_video_bridge_input");
+                const hiddenInput = window.parent.document.querySelector('input[aria-label="Internal Data Sync Node"]');
                 if (hiddenInput) {
                     hiddenInput.value = b64Data;
                     hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -253,8 +245,7 @@ def render_cross_domain_bridge_receiver():
         });
     </script>
     """
-    current_idx = st.session_state.get("iframe_render_idx", 0)
-    components.html(receiver_js, height=0, width=0, key=f"bridge_receiver_node_v{current_idx}")
+    components.html(receiver_js, height=0, width=0, key="bridge_receiver_stable_key")
 
 # =========================================================
 # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -268,19 +259,11 @@ with st.sidebar:
     
     user_package_tier, trial_countdown = init_user_and_get_plan(auth_email)
     
-    if "active_nav_mode" not in st.session_state:
-        st.session_state.active_nav_mode = "🗣️ Skill Assessment Portal"
-
     app_mode = st.radio(
         "Select Portal Workspace:",
         ["🗣️ Skill Assessment Portal", "📊 Analytics Dashboard", "🌐 Explore Video Learning Engine", "📬 Submit Custom Prompts"],
         key="app_navigation_rail_index"
     )
-    
-    if app_mode != st.session_state.active_nav_mode:
-        st.session_state.active_nav_mode = app_mode
-        st.session_state.iframe_render_idx += 1
-        st.rerun()
     
     if app_mode == "🗣️ Skill Assessment Portal" and user_package_tier != "Expired":
         st.markdown("---")
@@ -296,8 +279,6 @@ with st.sidebar:
             st.session_state.active_chat_id = new_id
             st.session_state.autoplay_audio_data = None
             st.session_state.last_assistant_response = ""
-            st.session_state.incoming_video_payload = None
-            st.session_state.iframe_render_idx += 1 
             st.rerun()
 
         st.markdown("##### Active Logs Matrix:")
@@ -315,8 +296,6 @@ with st.sidebar:
                 st.session_state.active_chat_id = c_id
                 st.session_state.autoplay_audio_data = None
                 st.session_state.last_assistant_response = ""
-                st.session_state.incoming_video_payload = None
-                st.session_state.iframe_render_idx += 1 
                 st.rerun()
                 
             if is_active:
@@ -336,8 +315,6 @@ with st.sidebar:
                             st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
                             st.session_state.autoplay_audio_data = None
                             st.session_state.last_assistant_response = ""
-                            st.session_state.incoming_video_payload = None
-                            st.session_state.iframe_render_idx += 1
                             st.rerun()
                         else:
                             st.error("Cannot delete your last active session trace!")
@@ -442,7 +419,6 @@ def show_subscription_options():
                 if success:
                     st.success("Successfully activated plan! Reloading layout...")
                     st.session_state.payment_plan_selected = None
-                    st.session_state.iframe_render_idx += 1
                     st.rerun()
                 else:
                     st.error("Database storage push failed. Verify connectivity parameters.")
@@ -469,31 +445,24 @@ elif app_mode == "🗣️ Skill Assessment Portal":
     st.markdown("### 🎥 Live Video Interview Feed")
     
     with st.expander("👁️ System Bridge Channels", expanded=False):
-        current_idx = st.session_state.get("iframe_render_idx", 0)
-        v_bridge_key = f"hidden_video_bridge_input_v{current_idx}"
-        video_bridge_data = st.text_input("Internal Data Sync Node", key=v_bridge_key)
+        video_bridge_data = st.text_input("Internal Data Sync Node", value="", key="hidden_video_bridge_input")
 
     render_webcam_video_recorder()
     render_cross_domain_bridge_receiver()
 
-    # CRITICAL FIX: Safe file-write lock sequence executed entirely before cleaning cache indexes
     if video_bridge_data and "base64," in video_bridge_data:
         try:
             base64_clean = video_bridge_data.split("base64,")[1]
             video_bytes = base64.b64decode(base64_clean)
             file_name = f"interview_session_{active_id}.webm"
             
-            # Use strict write context block to lock the directory pipeline safely
             with open(file_name, "wb") as output_file:
                 output_file.write(video_bytes)
                 output_file.flush()
                 os.fsync(output_file.fileno())
             
             st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
-            
-            # Reset bridge fields AFTER safe file lock execution completes
-            st.session_state[v_bridge_key] = ""
-            st.session_state.iframe_render_idx += 1
+            st.session_state.hidden_video_bridge_input = ""
             st.rerun()
         except Exception as e:
             st.error(f"Error compiling video payload: {str(e)}")
