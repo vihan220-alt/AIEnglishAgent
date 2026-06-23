@@ -51,7 +51,6 @@ storage_bridge_html = """
     }
 </script>
 """
-# FIX: Removed static 'key' to prevent internal metric gathering TypeErrors
 components.html(storage_bridge_html, height=0, width=0)
 
 # Integrated Cross-Domain Receiver for LocalStorage Recovery
@@ -79,7 +78,6 @@ receiver_js = """
     });
 </script>
 """
-# FIX: Removed static 'key' to prevent internal metric gathering TypeErrors
 components.html(receiver_js, height=0, width=0)
 
 # Hidden inputs used to capture asynchronous JavaScript events cleanly
@@ -215,7 +213,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    components.html(razorpay_html_code, height=160, key="razorpay_node_static")
+    components.html(razorpay_html_code, height=160)
 
 # =========================================================
 # HTML5 WEBCAM VIDEO RECORDING CONTROLLER
@@ -285,7 +283,7 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    components.html(webcam_html, height=340, key="webcam_panel_fixed_key")
+    components.html(webcam_html, height=340)
 
 # =========================================================
 # BACKEND AI CONNECTIVITY ENGINE (Groq AI Prompt Setup)
@@ -391,7 +389,10 @@ if not st.session_state.is_logged_in:
     st.markdown("You must complete all onboarding fields to access the main portal dashboard.")
     
     # 🕵️‍♂️ Check the URL parameters safely for your developer tag
-    is_developer = st.query_params.get("dev") == "true"
+    try:
+        is_developer = "dev" in st.query_params and st.query_params["dev"] == "true"
+    except Exception:
+        is_developer = False
     
     # Wrap form targets inside a secure container to prevent frame state evaluation delays
     with st.form("onboarding_credential_form"):
@@ -707,7 +708,7 @@ else:
             }
         </script>
         """
-        components.html(Micro_Speech_Bridge_Html, height=95, key="stt_panel_fixed_key")
+        components.html(Micro_Speech_Bridge_Html, height=95)
 
         if st.session_state.autoplay_audio_data:
             st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
