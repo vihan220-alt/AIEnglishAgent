@@ -384,13 +384,16 @@ def show_subscription_options():
                     st.error("Database storage push failed. Verify connectivity parameters.")
 
 # =========================================================
-# CONDITIONAL ROUTER (ONBOARDING LOGIC WITH BYPASS & FORMS)
+# CONDITIONAL ROUTER (ONBOARDING LOGIC WITH HIDDEN DEV BYPASS)
 # =========================================================
 if not st.session_state.is_logged_in:
     st.title("🔐 Candidate Onboarding & Qualification Portal")
-    st.markdown("You must complete all onboarding fields or use the quick bypass option to access your AI environment.")
+    st.markdown("You must complete all onboarding fields to access the main portal dashboard.")
     
-    # Wrap user inputs inside a clean Streamlit form block to prevent data-sync delays
+    # 🕵️‍♂️ Check the URL parameters safely for your developer tag
+    is_developer = st.query_params.get("dev") == "true"[cite: 3]
+    
+    # Wrap form targets inside a secure container to prevent frame state evaluation delays
     with st.form("onboarding_credential_form"):
         reg_email = st.text_input("Email ID Address:", placeholder="name@example.com", key="login_email_persist")
         reg_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="login_pass_persist")
@@ -398,18 +401,21 @@ if not st.session_state.is_logged_in:
         reg_intent = st.text_area("Why do you want to join this assessment platform?", placeholder="Explain why you want to use this service...", key="login_intent_persist")
         reg_gender = st.radio("Select Gender Profile:", ["Male", "Female"], key="login_gender_persist")
         
-        # Display validation and bypass controls side-by-side inside the form grid
-        btn_col1, btn_col2 = st.columns([1, 1])
-        with btn_col1:
+        # Grid execution logic layout changes strictly based on URL configuration parameters
+        if is_developer:[cite: 3]
+            btn_col1, btn_col2 = st.columns([1, 1])
+            with btn_col1:
+                submit_clicked = st.form_submit_button("Verify Account & Enter Portal", type="primary", use_container_width=True)
+            with btn_col2:
+                lucky_clicked = st.form_submit_button("✨ I'm Feeling Lucky (Bypass)", use_container_width=True)[cite: 3]
+        else:
             submit_clicked = st.form_submit_button("Verify Account & Enter Portal", type="primary", use_container_width=True)
-        with btn_col2:
-            lucky_clicked = st.form_submit_button("✨ I'm Feeling Lucky (Bypass & Enter)", use_container_width=True)
+            lucky_clicked = False[cite: 3]
 
-    # Temporary parameters used to sequence the authentication stage
     proceed_to_login = False
     target_email = ""
 
-    # Sequence A: Standard Validation Routine
+    # Process Standard Strict Validation Login
     if submit_clicked:
         email_clean = reg_email.strip()
         password_clean = reg_password.strip()
@@ -425,20 +431,20 @@ if not st.session_state.is_logged_in:
         elif len(password_clean) < 4:
             st.error("❌ **Invalid Password:** Password string must contain a minimum of 4 characters.")
         elif not is_meaningful or len(intent_clean) < 12:
-            st.error("❌ **Validation Failed:** Please write a valid sentence explaining your intent. Random characters or short gibberish lines are blocked.")
+            st.error("❌ **Validation Failed:** Please write a valid sentence explaining your intent. Random characters or gibberish lines are blocked.")
         else:
             proceed_to_login = True
             target_email = email_clean.lower()
 
-    # Sequence B: Quick Dev Bypass Routine
-    elif lucky_clicked:
-        proceed_to_login = True
-        target_email = reg_email.strip().lower() if reg_email.strip() else "developer_sandbox@skillverify.ai"
+    # Process "I'm Feeling Lucky" Bypass (Only evaluated if the secret dev parameter allows rendering)
+    elif lucky_clicked and is_developer:[cite: 3]
+        proceed_to_login = True[cite: 3]
+        target_email = reg_email.strip().lower() if reg_email.strip() else "developer_sandbox@skillverify.ai"[cite: 3]
 
-    # Save Session Attributes & Inject localStorage Script tags
-    if proceed_to_login:
-        st.session_state.is_logged_in = True
-        st.session_state.user_email = target_email
+    # Sync Attributes and Inject Persistence Scripts
+    if proceed_to_login:[cite: 3]
+        st.session_state.is_logged_in = True[cite: 3]
+        st.session_state.user_email = target_email[cite: 3]
         
         persistence_js = f"""
         <script>
@@ -446,9 +452,9 @@ if not st.session_state.is_logged_in:
             localStorage.setItem("skillverify_is_logged_in", "true");
         </script>
         """
-        components.html(persistence_js, height=0, width=0)
-        st.success("✓ Identity validated! Redirecting to dashboard...")
-        st.rerun()
+        components.html(persistence_js, height=0, width=0)[cite: 3]
+        st.success("✓ Identity validated! Redirecting to dashboard...")[cite: 3]
+        st.rerun()[cite: 3]
 else:
     # =========================================================
     # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
