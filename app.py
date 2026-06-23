@@ -384,19 +384,33 @@ def show_subscription_options():
                     st.error("Database storage push failed. Verify connectivity parameters.")
 
 # =========================================================
-# CONDITIONAL ROUTER (ONBOARDING LOGIC WITH LOCALSTORAGE WRITER)
+# CONDITIONAL ROUTER (ONBOARDING LOGIC WITH BYPASS & FORMS)
 # =========================================================
 if not st.session_state.is_logged_in:
     st.title("🔐 Candidate Onboarding & Qualification Portal")
-    st.markdown("You must complete all onboarding fields to access the main portal dashboard.")
+    st.markdown("You must complete all onboarding fields or use the quick bypass option to access your AI environment.")
     
-    reg_email = st.text_input("Email ID Address:", placeholder="name@example.com", key="login_email_persist")
-    reg_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="login_pass_persist")
-    reg_age = st.number_input("What is your age?", min_value=1, max_value=120, value=25, key="login_age_persist")
-    reg_intent = st.text_area("Why do you want to join this assessment platform?", placeholder="Explain why you want to use this service...", key="login_intent_persist")
-    reg_gender = st.radio("Select Gender Profile:", ["Male", "Female"], key="login_gender_persist")
-    
-    if st.button("Verify Account & Enter Portal", type="primary", key="login_submit_btn_persist"):
+    # Wrap user inputs inside a clean Streamlit form block to prevent data-sync delays
+    with st.form("onboarding_credential_form"):
+        reg_email = st.text_input("Email ID Address:", placeholder="name@example.com", key="login_email_persist")
+        reg_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="login_pass_persist")
+        reg_age = st.number_input("What is your age?", min_value=1, max_value=120, value=25, key="login_age_persist")
+        reg_intent = st.text_area("Why do you want to join this assessment platform?", placeholder="Explain why you want to use this service...", key="login_intent_persist")
+        reg_gender = st.radio("Select Gender Profile:", ["Male", "Female"], key="login_gender_persist")
+        
+        # Display validation and bypass controls side-by-side inside the form grid
+        btn_col1, btn_col2 = st.columns([1, 1])
+        with btn_col1:
+            submit_clicked = st.form_submit_button("Verify Account & Enter Portal", type="primary", use_container_width=True)
+        with btn_col2:
+            lucky_clicked = st.form_submit_button("✨ I'm Feeling Lucky (Bypass & Enter)", use_container_width=True)
+
+    # Temporary parameters used to sequence the authentication stage
+    proceed_to_login = False
+    target_email = ""
+
+    # Sequence A: Standard Validation Routine
+    if submit_clicked:
         email_clean = reg_email.strip()
         password_clean = reg_password.strip()
         intent_clean = reg_intent.strip()
@@ -411,20 +425,30 @@ if not st.session_state.is_logged_in:
         elif len(password_clean) < 4:
             st.error("❌ **Invalid Password:** Password string must contain a minimum of 4 characters.")
         elif not is_meaningful or len(intent_clean) < 12:
-            st.error("❌ **Validation Failed:** Please write a valid sentence explaining your intent. Random characters or gibberish lines are blocked.")
+            st.error("❌ **Validation Failed:** Please write a valid sentence explaining your intent. Random characters or short gibberish lines are blocked.")
         else:
-            st.session_state.is_logged_in = True
-            st.session_state.user_email = email_clean.lower()
-            
-            persistence_js = f"""
-            <script>
-                localStorage.setItem("skillverify_user_email", "{email_clean.lower()}");
-                localStorage.setItem("skillverify_is_logged_in", "true");
-            </script>
-            """
-            components.html(persistence_js, height=0, width=0)
-            st.success("✓ Identity validated! Redirecting to dashboard...")
-            st.rerun()
+            proceed_to_login = True
+            target_email = email_clean.lower()
+
+    # Sequence B: Quick Dev Bypass Routine
+    elif lucky_clicked:
+        proceed_to_login = True
+        target_email = reg_email.strip().lower() if reg_email.strip() else "developer_sandbox@skillverify.ai"
+
+    # Save Session Attributes & Inject localStorage Script tags
+    if proceed_to_login:
+        st.session_state.is_logged_in = True
+        st.session_state.user_email = target_email
+        
+        persistence_js = f"""
+        <script>
+            localStorage.setItem("skillverify_user_email", "{target_email}");
+            localStorage.setItem("skillverify_is_logged_in", "true");
+        </script>
+        """
+        components.html(persistence_js, height=0, width=0)
+        st.success("✓ Identity validated! Redirecting to dashboard...")
+        st.rerun()
 else:
     # =========================================================
     # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -704,7 +728,6 @@ else:
         st.title("🎬 Topic Multi-Module Learning Hub")
         st.markdown("Select a track and a specialized focus session from over 50+ available learning modules.")
 
-        # FIX: Swapped out broken IDs with embed-permissive, working public YouTube tutorial IDs
         curriculum_matrix = {
             "📚 Module 1: Grammar Foundations & Structural Accuracy": {
                 "sessions": {
