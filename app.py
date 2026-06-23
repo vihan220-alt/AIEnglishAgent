@@ -391,7 +391,8 @@ if not st.session_state.is_logged_in:
     st.markdown("You must complete all onboarding fields to access the main portal dashboard.")
     
     # 🕵️‍♂️ Check the URL parameters safely for your developer tag
-    is_developer = st.query_params.get("dev") == "true"[cite: 3]
+    # FIX: Removed invalid[cite: 3] syntax token
+    is_developer = st.query_params.get("dev") == "true"
     
     # Wrap form targets inside a secure container to prevent frame state evaluation delays
     with st.form("onboarding_credential_form"):
@@ -402,15 +403,18 @@ if not st.session_state.is_logged_in:
         reg_gender = st.radio("Select Gender Profile:", ["Male", "Female"], key="login_gender_persist")
         
         # Grid execution logic layout changes strictly based on URL configuration parameters
-        if is_developer:[cite: 3]
+        # FIX: Removed invalid[cite: 3] syntax token
+        if is_developer:
             btn_col1, btn_col2 = st.columns([1, 1])
             with btn_col1:
                 submit_clicked = st.form_submit_button("Verify Account & Enter Portal", type="primary", use_container_width=True)
             with btn_col2:
-                lucky_clicked = st.form_submit_button("✨ I'm Feeling Lucky (Bypass)", use_container_width=True)[cite: 3]
+                # FIX: Removed invalid[cite: 3] syntax token
+                lucky_clicked = st.form_submit_button("✨ I'm Feeling Lucky (Bypass)", use_container_width=True)
         else:
             submit_clicked = st.form_submit_button("Verify Account & Enter Portal", type="primary", use_container_width=True)
-            lucky_clicked = False[cite: 3]
+            # FIX: Removed invalid[cite: 3] syntax token
+            lucky_clicked = False
 
     proceed_to_login = False
     target_email = ""
@@ -437,14 +441,16 @@ if not st.session_state.is_logged_in:
             target_email = email_clean.lower()
 
     # Process "I'm Feeling Lucky" Bypass (Only evaluated if the secret dev parameter allows rendering)
-    elif lucky_clicked and is_developer:[cite: 3]
-        proceed_to_login = True[cite: 3]
-        target_email = reg_email.strip().lower() if reg_email.strip() else "developer_sandbox@skillverify.ai"[cite: 3]
+    # FIX: Removed invalid[cite: 3] syntax tokens across this block
+    elif lucky_clicked and is_developer:
+        proceed_to_login = True
+        target_email = reg_email.strip().lower() if reg_email.strip() else "developer_sandbox@skillverify.ai"
 
     # Sync Attributes and Inject Persistence Scripts
-    if proceed_to_login:[cite: 3]
-        st.session_state.is_logged_in = True[cite: 3]
-        st.session_state.user_email = target_email[cite: 3]
+    # FIX: Removed invalid[cite: 3] syntax tokens across this block
+    if proceed_to_login:
+        st.session_state.is_logged_in = True
+        st.session_state.user_email = target_email
         
         persistence_js = f"""
         <script>
@@ -452,9 +458,9 @@ if not st.session_state.is_logged_in:
             localStorage.setItem("skillverify_is_logged_in", "true");
         </script>
         """
-        components.html(persistence_js, height=0, width=0)[cite: 3]
-        st.success("✓ Identity validated! Redirecting to dashboard...")[cite: 3]
-        st.rerun()[cite: 3]
+        components.html(persistence_js, height=0, width=0)
+        st.success("✓ Identity validated! Redirecting to dashboard...")
+        st.rerun()
 else:
     # =========================================================
     # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
