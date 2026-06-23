@@ -16,7 +16,6 @@ try:
 except ImportError:
     pass
 
-# Core library imports follow below...
 import requests
 import hashlib
 import re
@@ -30,17 +29,72 @@ from datetime import datetime, date
 from supabase import create_client, Client
 
 # =========================================================
+# BROWSER LOCALSTORAGE PERSISTENCE ENGINE (ANTI-REFRESH)
+# =========================================================
+if "is_logged_in" not in st.session_state:
+    st.session_state.is_logged_in = False
+if "user_email" not in st.session_state:
+    st.session_state.user_email = ""
+
+# JavaScript to bridge the browser's localStorage back into Streamlit seamlessly
+storage_bridge_html = """
+<script>
+    const savedEmail = localStorage.getItem("skillverify_user_email");
+    const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
+    
+    if (savedLoggedIn === "true" && savedEmail) {
+        // Send the credentials back to Streamlit app via a postMessage event
+        window.parent.postMessage({
+            type: 'LOCAL_STORAGE_RECOVERY_EVENT',
+            email: savedEmail
+        }, '*');
+    }
+</script>
+"""
+components.html(storage_bridge_html, height=0, width=0, key="local_storage_sync_node")
+
+# Integrated Cross-Domain Receiver for LocalStorage Recovery
+receiver_js = """
+<script>
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'LOCAL_STORAGE_RECOVERY_EVENT') {
+            const recoveredEmail = event.data.email;
+            const hiddenRecoveryInput = window.parent.document.getElementById("hidden_storage_recovery_input");
+            if (hiddenRecoveryInput && hiddenRecoveryInput.value !== recoveredEmail) {
+                hiddenRecoveryInput.value = recoveredEmail;
+                hiddenRecoveryInput.dispatchEvent(new Event('input', { bubbles: true }));
+                hiddenRecoveryInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+        if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
+            const b64Data = event.data.data;
+            const hiddenVideoInput = window.parent.document.getElementById("hidden_video_bridge_input");
+            if (hiddenVideoInput) {
+                hiddenVideoInput.value = b64Data;
+                hiddenVideoInput.dispatchEvent(new Event('input', { bubbles: true }));
+                hiddenVideoInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+    });
+</script>
+"""
+components.html(receiver_js, height=0, width=0, key="global_bridge_receiver_node")
+
+# Hidden inputs used to capture asynchronous JavaScript events cleanly
+with st.expander("👁️ System Bridge Channels", expanded=False):
+    recovery_data = st.text_input("Storage Recovery Node", key="hidden_storage_recovery_input")
+    video_bridge_data = st.text_input("Internal Video Sync Node", key="hidden_video_bridge_input")
+
+if recovery_data and not st.session_state.is_logged_in:
+    st.session_state.is_logged_in = True
+    st.session_state.user_email = recovery_data.strip().lower()
+    st.rerun()
+
+# =========================================================
 # INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
 # =========================================================
 if "iframe_render_idx" not in st.session_state:
     st.session_state.iframe_render_idx = 0
-
-# Persistent session authentication states (Keeps user logged in on refresh)
-if "is_logged_in" not in st.session_state:
-    st.session_state.is_logged_in = False
-
-if "user_email" not in st.session_state:
-    st.session_state.user_email = ""
 
 if "all_chats" not in st.session_state:
     st.session_state.all_chats = {
@@ -229,28 +283,8 @@ def render_webcam_video_recorder():
         });
     </script>
     """
+    # Note: Removed volatile conditional key references to completely prevent the TypeError crash
     components.html(webcam_html, height=340, key="webcam_panel_fixed_key")
-
-# =========================================================
-# REVERSED BRIDGE LISTENER RECEIVER COMPONENT
-# =========================================================
-def render_cross_domain_bridge_receiver():
-    receiver_js = """
-    <script>
-        window.addEventListener('message', function(event) {
-            if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
-                const b64Data = event.data.data;
-                const hiddenInput = window.parent.document.getElementById("hidden_video_bridge_input");
-                if (hiddenInput) {
-                    hiddenInput.value = b64Data;
-                    hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            }
-        });
-    </script>
-    """
-    components.html(receiver_js, height=0, width=0, key="bridge_receiver_fixed_key")
 
 # =========================================================
 # BACKEND AI CONNECTIVITY ENGINE (Groq AI Prompt Setup)
@@ -349,7 +383,7 @@ def show_subscription_options():
                     st.error("Database storage push failed. Verify connectivity parameters.")
 
 # =========================================================
-# CONDITIONAL ROUTER
+# CONDITIONAL ROUTER (ONBOARDING LOGIC WITH LOCALSTORAGE WRITER)
 # =========================================================
 if not st.session_state.is_logged_in:
     st.title("🔐 Candidate Onboarding & Qualification Portal")
@@ -367,18 +401,30 @@ if not st.session_state.is_logged_in:
         intent_clean = reg_intent.strip()
         email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
         
+        # Enhanced Smart Text validation regex: Requires at least 2 real structural spaces between words to block pure gibberish keys
+        is_meaningful = bool(re.search(r'[a-zA-Z]{2,}\s+[a-zA-Z]{2,}\s+[a-zA-Z]{2,}', intent_clean))
+        
         if not email_clean or not password_clean or not intent_clean:
             st.error("❌ **Submission Blocked:** All input rows must be filled. You cannot proceed with blank fields.")
         elif not re.match(email_pattern, email_clean):
             st.error("❌ **Invalid Email ID:** Please type a valid email format containing an '@' and a proper domain.")
         elif len(password_clean) < 4:
             st.error("❌ **Invalid Password:** Password string must contain a minimum of 4 characters.")
-        elif len(intent_clean) < 8:
-            st.error("❌ **Incomplete Statement:** Please provide a short descriptive sentence explaining your reason for joining.")
+        elif not is_meaningful or len(intent_clean) < 12:
+            st.error("❌ **Validation Failed:** Please write a valid sentence explaining your intent. Random characters or gibberish lines are blocked.")
         else:
             st.session_state.is_logged_in = True
             st.session_state.user_email = email_clean.lower()
-            st.success("✓ Identity parsed and confirmed! Redirecting to dashboard...")
+            
+            # Write persistence tags directly into browser storage before rerun
+            persistence_js = f"""
+            <script>
+                localStorage.setItem("skillverify_user_email", "{email_clean.lower()}");
+                localStorage.setItem("skillverify_is_logged_in", "true");
+            </script>
+            """
+            components.html(persistence_js, height=0, width=0)
+            st.success("✓ Identity validated! Redirecting to dashboard...")
             st.rerun()
 else:
     # =========================================================
@@ -392,6 +438,15 @@ else:
         if st.button("🚪 Log Out / Switch Account", use_container_width=True):
             st.session_state.is_logged_in = False
             st.session_state.user_email = ""
+            
+            # Clear storage keys upon logging out
+            logout_js = """
+            <script>
+                localStorage.removeItem("skillverify_user_email");
+                localStorage.removeItem("skillverify_is_logged_in");
+            </script>
+            """
+            components.html(logout_js, height=0, width=0)
             st.rerun()
         
         user_package_tier, trial_countdown = init_user_and_get_plan(st.session_state.user_email)
@@ -495,12 +550,8 @@ else:
             st.success(f"👑 Active License Verified — **{user_package_tier}**")
 
         st.markdown("### 🎥 Live Video Interview Feed")
-        
-        with st.expander("👁️ System Bridge Channels", expanded=False):
-            video_bridge_data = st.text_input("Internal Data Sync Node", key="hidden_video_bridge_input")
 
         render_webcam_video_recorder()
-        render_cross_domain_bridge_receiver()
 
         if video_bridge_data and "base64," in video_bridge_data:
             try:
@@ -655,12 +706,11 @@ else:
         st.title("🎬 Topic Multi-Module Learning Hub")
         st.markdown("Select a track and a specialized focus session from over 50+ available learning modules.")
 
-        # Updated with robust, verified public educational YouTube video streams
         curriculum_matrix = {
             "📚 Module 1: Grammar Foundations & Structural Accuracy": {
                 "sessions": {
                     "Session 1: Subject-Verb Agreement Principles": "tExZ_T_eF8Y",
-                    "Session 2: Mastering Modal Verbs for Obligation & Permission": "8ZpZfGg4b8I",
+                    "Session 2: Mastering Modal Verbs for Obligation & Permission": "8ZpZpGg4b8I",
                     "Session 3: Present Perfect vs. Past Simple Tense Transitions": "g3VvWwXF_6k"
                 }
             },
