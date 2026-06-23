@@ -29,66 +29,17 @@ from datetime import datetime, date
 from supabase import create_client, Client
 
 # =========================================================
-# BROWSER LOCALSTORAGE PERSISTENCE ENGINE (ANTI-REFRESH)
+# BROWSER PERSISTENCE ENGINE (QUERY-PARAMS BACKED)
 # =========================================================
 if "is_logged_in" not in st.session_state:
     st.session_state.is_logged_in = False
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
 
-# JavaScript to bridge the browser's localStorage back into Streamlit seamlessly
-storage_bridge_html = """
-<script>
-    const savedEmail = localStorage.getItem("skillverify_user_email");
-    const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
-    
-    if (savedLoggedIn === "true" && savedEmail) {
-        // Send the credentials back to Streamlit app via a postMessage event
-        window.parent.postMessage({
-            type: 'LOCAL_STORAGE_RECOVERY_EVENT',
-            email: savedEmail
-        }, '*');
-    }
-</script>
-"""
-components.html(storage_bridge_html, height=0, width=0, key="local_storage_sync_node")
-
-# Integrated Cross-Domain Receiver for LocalStorage Recovery
-receiver_js = """
-<script>
-    window.addEventListener('message', function(event) {
-        if (event.data && event.data.type === 'LOCAL_STORAGE_RECOVERY_EVENT') {
-            const recoveredEmail = event.data.email;
-            const hiddenRecoveryInput = window.parent.document.getElementById("hidden_storage_recovery_input");
-            if (hiddenRecoveryInput && hiddenRecoveryInput.value !== recoveredEmail) {
-                hiddenRecoveryInput.value = recoveredEmail;
-                hiddenRecoveryInput.dispatchEvent(new Event('input', { bubbles: true }));
-                hiddenRecoveryInput.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
-        if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
-            const b64Data = event.data.data;
-            const hiddenVideoInput = window.parent.document.getElementById("hidden_video_bridge_input");
-            if (hiddenVideoInput) {
-                hiddenVideoInput.value = b64Data;
-                hiddenVideoInput.dispatchEvent(new Event('input', { bubbles: true }));
-                hiddenVideoInput.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
-    });
-</script>
-"""
-components.html(receiver_js, height=0, width=0, key="global_bridge_receiver_node")
-
-# Hidden inputs used to capture asynchronous JavaScript events cleanly
-with st.expander("👁️ System Bridge Channels", expanded=False):
-    recovery_data = st.text_input("Storage Recovery Node", key="hidden_storage_recovery_input")
-    video_bridge_data = st.text_input("Internal Video Sync Node", key="hidden_video_bridge_input")
-
-if recovery_data and not st.session_state.is_logged_in:
+# Recovery from URL query parameters to keep the user logged in seamlessly across browser refreshes
+if not st.session_state.is_logged_in and "saved_email" in st.query_params:
+    st.session_state.user_email = st.query_params["saved_email"]
     st.session_state.is_logged_in = True
-    st.session_state.user_email = recovery_data.strip().lower()
-    st.rerun()
 
 # =========================================================
 # INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
@@ -216,75 +167,104 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
     components.html(razorpay_html_code, height=160, key="razorpay_node_static")
 
 # =========================================================
-# HTML5 WEBCAM VIDEO RECORDING CONTROLLER
+# HTML5 WEBCAM VIDEO RECORDING & VOICE DISPATCH CONTROL
 # =========================================================
-def render_webcam_video_recorder():
-    webcam_html = """
-    <div style="background-color: #0f172a; padding: 15px; border-radius: 10px; color: #ffffff; font-family: system-ui, sans-serif; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
-        <video id="preview" width="100%" height="240" autoplay muted style="background: #000; border-radius: 6px; transform: scaleX(-1);"></video>
-        <div style="margin-top: 10px;">
-            <button id="startBtn" style="background-color: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-right: 5px;">🔴 Start Recording Session</button>
-            <button id="stopBtn" style="background-color: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 5px; font-weight: bold; cursor: pointer;" disabled>⏹️ Stop & Submit</button>
+def render_unified_media_studio():
+    studio_html = """
+    <div style="background-color: #0f172a; padding: 15px; border-radius: 10px; color: #ffffff; font-family: system-ui, sans-serif; border: 1px solid rgba(255,255,255,0.1);">
+        <video id="preview" width="100%" height="230" autoplay muted style="background: #000; border-radius: 6px; transform: scaleX(-1);"></video>
+        <div style="margin-top: 12px; display:flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+            <button id="startBtn" style="background-color: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-weight: bold; cursor: pointer;">🔴 Record Video</button>
+            <button id="stopBtn" style="background-color: #3b82f6; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-weight: bold; cursor: pointer;" disabled>⏹️ Save Video</button>
+            <button id="micBtn" style="background-color: #10b981; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-weight: bold; cursor: pointer;">🎤 Start Speaking</button>
+            <button id="stopMicBtn" style="background-color: #f59e0b; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-weight: bold; cursor: pointer;" disabled>🛑 Transmit Voice</button>
         </div>
-        <p id="statusMsg" style="font-size: 12px; color: #94a3b8; margin-top: 8px; margin-bottom: 0;">Webcam device active & waiting...</p>
+        <p id="statusMsg" style="font-size: 12px; color: #94a3b8; margin-top: 10px; margin-bottom: 0; text-align:center;">Media hardware devices ready.</p>
     </div>
 
     <script>
         let preview = document.getElementById('preview');
         let startBtn = document.getElementById('startBtn');
         let stopBtn = document.getElementById('stopBtn');
+        let micBtn = document.getElementById('micBtn');
+        let stopMicBtn = document.getElementById('stopMicBtn');
         let statusMsg = document.getElementById('statusMsg');
-        let recorder;
-        let recordedChunks = [];
+        
+        let recorder, recordedChunks = [];
+        let recognition, finalTranscript = "";
 
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        .then(stream => {
-            preview.srcObject = stream;
-            
-            startBtn.addEventListener('click', () => {
-                recordedChunks = [];
-                let options = { mimeType: 'video/webm;codecs=vp8,opus' };
-                recorder = new MediaRecorder(stream, options);
-                
-                recorder.ondataavailable = (e) => {
-                    if (e.data && e.data.size > 0) recordedChunks.push(e.data);
-                };
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                preview.srcObject = stream;
+                startBtn.addEventListener('click', () => {
+                    recordedChunks = [];
+                    recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8,opus' });
+                    recorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+                    recorder.onstop = () => {
+                        let blob = new Blob(recordedChunks, { type: 'video/webm' });
+                        let reader = new FileReader();
+                        reader.readAsDataURL(blob);
+                        reader.onloadend = function() {
+                            window.parent.postMessage({ type: 'STREAMLIT_VIDEO_TRANSFER_EVENT', data: reader.result }, '*');
+                        };
+                        statusMsg.innerText = "✓ Video captured successfully!";
+                        statusMsg.style.color = "#10b981";
+                    };
+                    recorder.start(1000);
+                    startBtn.disabled = true; stopBtn.disabled = false;
+                    statusMsg.innerText = "📺 Session Recording Live...";
+                    statusMsg.style.color = "#f43f5e";
+                });
+                stopBtn.addEventListener('click', () => {
+                    if(recorder && recorder.state !== "inactive") recorder.stop();
+                    startBtn.disabled = false; stopBtn.disabled = true;
+                });
+            }).catch(() => { statusMsg.innerText = "Camera/Mic access not granted or blocked."; });
+        }
 
-                recorder.onstop = () => {
-                    let blob = new Blob(recordedChunks, { type: 'video/webm' });
-                    let reader = new FileReader();
-                    reader.readAsDataURL(blob); 
-                    reader.onloadend = function() {
-                        let base64String = reader.result;
-                        window.parent.postMessage({
-                            type: 'STREAMLIT_VIDEO_TRANSFER_EVENT',
-                            data: base64String
-                        }, '*');
-                    }
-                };
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechEngine = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechEngine();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
 
-                recorder.start(1000);
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-                statusMsg.innerText = "📺 Session Recording Live (Video + Audio Capturing)...";
+            recognition.onresult = event => {
+                let interim = "";
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript + " ";
+                    else interim += event.results[i][0].transcript;
+                }
+                const area = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
+                if (area) {
+                    area.value = finalTranscript + interim;
+                    area.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            };
+
+            micBtn.addEventListener('click', () => {
+                finalTranscript = "";
+                recognition.start();
+                micBtn.disabled = true; stopMicBtn.disabled = false;
+                statusMsg.innerText = "🎙️ Listening to vocal answers...";
                 statusMsg.style.color = "#f43f5e";
             });
-            
-            stopBtn.addEventListener('click', () => {
-                if(recorder && recorder.state !== "inactive") recorder.stop();
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-                statusMsg.innerText = "✔️ Processing data strings...";
+
+            stopMicBtn.addEventListener('click', () => {
+                recognition.stop();
+                micBtn.disabled = false; stopMicBtn.disabled = true;
+                statusMsg.innerText = "✓ Voice captured. Processing...";
                 statusMsg.style.color = "#10b981";
+                setTimeout(() => {
+                    const submit = window.parent.document.querySelector('button[data-testid="stChatInputSubmitButton"]');
+                    if (submit && !submit.disabled) submit.click();
+                }, 500);
             });
-        }).catch(err => {
-            statusMsg.innerText = "⚠️ Device Capture Access Denied: Check camera permissions.";
-            statusMsg.style.color = "#ef4444";
-        });
+        }
     </script>
     """
-    # Note: Removed volatile conditional key references to completely prevent the TypeError crash
-    components.html(webcam_html, height=340, key="webcam_panel_fixed_key")
+    components.html(studio_html, height=320, key="unified_studio_panel_v4")
 
 # =========================================================
 # BACKEND AI CONNECTIVITY ENGINE (Groq AI Prompt Setup)
@@ -383,7 +363,7 @@ def show_subscription_options():
                     st.error("Database storage push failed. Verify connectivity parameters.")
 
 # =========================================================
-# CONDITIONAL ROUTER (ONBOARDING LOGIC WITH LOCALSTORAGE WRITER)
+# APPLICATION WORKSPACE CORE ROUTER
 # =========================================================
 if not st.session_state.is_logged_in:
     st.title("🔐 Candidate Onboarding & Qualification Portal")
@@ -401,34 +381,25 @@ if not st.session_state.is_logged_in:
         intent_clean = reg_intent.strip()
         email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
         
-        # Enhanced Smart Text validation regex: Requires at least 2 real structural spaces between words to block pure gibberish keys
         is_meaningful = bool(re.search(r'[a-zA-Z]{2,}\s+[a-zA-Z]{2,}\s+[a-zA-Z]{2,}', intent_clean))
         
         if not email_clean or not password_clean or not intent_clean:
-            st.error("❌ **Submission Blocked:** All input rows must be filled. You cannot proceed with blank fields.")
+            st.error("❌ **Submission Blocked:** All input rows must be filled.")
         elif not re.match(email_pattern, email_clean):
-            st.error("❌ **Invalid Email ID:** Please type a valid email format containing an '@' and a proper domain.")
+            st.error("❌ **Invalid Email ID:** Please type a valid email format.")
         elif len(password_clean) < 4:
-            st.error("❌ **Invalid Password:** Password string must contain a minimum of 4 characters.")
+            st.error("❌ **Invalid Password:** Password must contain at least 4 characters.")
         elif not is_meaningful or len(intent_clean) < 12:
-            st.error("❌ **Validation Failed:** Please write a valid sentence explaining your intent. Random characters or gibberish lines are blocked.")
+            st.error("❌ **Validation Failed:** Please write a valid descriptive context sentence.")
         else:
             st.session_state.is_logged_in = True
             st.session_state.user_email = email_clean.lower()
-            
-            # Write persistence tags directly into browser storage before rerun
-            persistence_js = f"""
-            <script>
-                localStorage.setItem("skillverify_user_email", "{email_clean.lower()}");
-                localStorage.setItem("skillverify_is_logged_in", "true");
-            </script>
-            """
-            components.html(persistence_js, height=0, width=0)
+            st.query_params["saved_email"] = email_clean.lower()
             st.success("✓ Identity validated! Redirecting to dashboard...")
             st.rerun()
 else:
     # =========================================================
-    # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
+    # SIDEBAR CONTROL WORKSPACE PLATFORM
     # =========================================================
     with st.sidebar:
         st.markdown("### 🏢 Enterprise Training Hub")
@@ -438,15 +409,7 @@ else:
         if st.button("🚪 Log Out / Switch Account", use_container_width=True):
             st.session_state.is_logged_in = False
             st.session_state.user_email = ""
-            
-            # Clear storage keys upon logging out
-            logout_js = """
-            <script>
-                localStorage.removeItem("skillverify_user_email");
-                localStorage.removeItem("skillverify_is_logged_in");
-            </script>
-            """
-            components.html(logout_js, height=0, width=0)
+            st.query_params.clear()
             st.rerun()
         
         user_package_tier, trial_countdown = init_user_and_get_plan(st.session_state.user_email)
@@ -482,18 +445,12 @@ else:
                 st.session_state.iframe_render_idx += 1 
                 st.rerun()
 
-            st.markdown("##### Active Logs Matrix:")
-            sorted_chat_ids = sorted(st.session_state.all_chats.keys(), key=lambda k: st.session_state.all_chats[k]["pinned"], reverse=True)
-            
-            for c_id in list(sorted_chat_ids):
-                if c_id not in st.session_state.all_chats:
-                    continue
+            for c_id in list(st.session_state.all_chats.keys()):
                 chat_obj = st.session_state.all_chats[c_id]
                 pin_indicator = "📌 " if chat_obj["pinned"] else "💬 "
                 is_active = (c_id == st.session_state.active_chat_id)
-                btn_label = f"{pin_indicator}{chat_obj['title']}"
                 
-                if st.button(btn_label, key=f"select_row_{c_id}", use_container_width=True, type="secondary" if not is_active else "primary"):
+                if st.button(f"{pin_indicator}{chat_obj['title']}", key=f"select_row_{c_id}", use_container_width=True, type="secondary" if not is_active else "primary"):
                     st.session_state.active_chat_id = c_id
                     st.session_state.autoplay_audio_data = None
                     st.session_state.incoming_video_payload = None
@@ -515,13 +472,9 @@ else:
                             if len(st.session_state.all_chats) > 1:
                                 del st.session_state.all_chats[c_id]
                                 st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
-                                st.session_state.autoplay_audio_data = None
-                                st.session_state.incoming_video_payload = None
                                 st.session_state.iframe_render_idx += 1
                                 st.rerun()
-                            else:
-                                st.error("Cannot delete your last active session trace!")
-                    
+
                     if st.session_state.get(f"show_rename_field_{c_id}", False):
                         new_title_input = st.text_input("Enter New Session Name:", value=chat_obj["title"], key=f"title_input_field_{c_id}")
                         if st.button("Save Name", key=f"btn_save_name_action_{c_id}"):
@@ -531,7 +484,7 @@ else:
                                 st.rerun()
 
     # =========================================================
-    # ROUTED CONTENT INTERFACE SWITCHER VIEWS
+    # DISPLAY ROUTED CONTROLLER WORKSPACE VIEWS
     # =========================================================
     if user_package_tier == "Expired":
         st.title("SkillVerify English Assessment Portal 🚀")
@@ -543,34 +496,16 @@ else:
         st.title(f"{st.session_state.all_chats[active_id]['title'] if active_id in st.session_state.all_chats else 'English Assessment Portal'}")
         
         if "Premium" not in user_package_tier:
-            st.warning(f"⏳ Free Trial Active Account Profile — **{trial_countdown} days left**")
+            st.warning(f"⏳ Free Trial Active Profile — **{trial_countdown} days left**")
             with st.expander("👑 Upgrade to Premium Instantly", expanded=False):
                 show_subscription_options()
         else:
             st.success(f"👑 Active License Verified — **{user_package_tier}**")
 
         st.markdown("### 🎥 Live Video Interview Feed")
-
-        render_webcam_video_recorder()
-
-        if video_bridge_data and "base64," in video_bridge_data:
-            try:
-                base64_clean = video_bridge_data.split("base64,")[1]
-                video_bytes = base64.b64decode(base64_clean)
-                file_name = f"interview_session_{active_id}.webm"
-                with open(file_name, "wb") as f:
-                    f.write(video_bytes)
-                st.success(f"💾 Video session captured and saved safely as `{file_name}`!")
-                
-                st.session_state["hidden_video_bridge_input"] = ""
-                st.session_state.iframe_render_idx += 1
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error compiling video payload: {str(e)}")
-
+        render_unified_media_studio()
         st.markdown("---")
 
-        # RENDER CONVERSATION HISTORY
         for message in current_chat["history"]:
             avatar_img = USER_AVATAR if message["role"] == "user" else ROBOT_AVATAR
             with st.chat_message(message["role"], avatar=avatar_img):
@@ -582,104 +517,12 @@ else:
                 with st.form("assessment_setup_form"):
                     target_skill = st.selectbox("Primary Video Assessment Track:", ["Spoken English & Fluency", "Corporate/Business Communication"], key="setup_target_skill")
                     experience_tier = st.selectbox("Target Competency Level:", ["Beginner / Elementary", "Advanced / Native Proficiency"], key="setup_experience_tier")
-                    if st.form_submit_button("🔥 Launch Language Assessment Matrix", type="primary"):
+                    if st.form_submit_button("Launch Language Assessment Matrix", type="primary"):
                         current_chat["history"].append({"role": "user", "content": f"🎯 Profile setup for {target_skill} targeting {experience_tier} benchmarks."})
                         eval_reply = get_evaluator_response(user_package_tier)
                         current_chat["history"].append({"role": "assistant", "content": eval_reply})
                         st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
                         st.rerun()
-
-        # FIXED VOICE DICTATION NODE WITH STOP AND TRANSMIT CONTROL
-        st.markdown("##### 🎙️ Voice Dictation Integration (Speak Options)")
-        Micro_Speech_Bridge_Html = """
-        <div style="background-color: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 10px; margin-bottom: 5px;">
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <button id="sttMicBtn" style="background-color: #10b981; color: white; border: none; padding: 8px 14px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 13px;">
-                    🎤 Start Speaking
-                </button>
-                <button id="sttStopBtn" style="background-color: #ef4444; color: white; border: none; padding: 8px 14px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 13px;" disabled>
-                    ⏹️ Stop & Send Message
-                </button>
-            </div>
-            <span id="sttStatusText" style="color: #94a3b8; font-size: 12px; font-family: system-ui, sans-serif;">Microphone engine standby...</span>
-        </div>
-
-        <script>
-            const micBtnElement = document.getElementById('sttMicBtn');
-            const stopBtnElement = document.getElementById('sttStopBtn');
-            const statusLabelElement = document.getElementById('sttStatusText');
-            let activeRecognitionInstance = null;
-            let finalTranscribedPhrase = "";
-            
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                statusLabelElement.innerText = "⚠️ Speech capture API unsupported by current browser runtime.";
-                micBtnElement.disabled = true;
-                stopBtnElement.disabled = true;
-            } else {
-                const SpeechRecognitionEngine = window.SpeechRecognition || window.webkitSpeechRecognition;
-                activeRecognitionInstance = new SpeechRecognitionEngine();
-                activeRecognitionInstance.continuous = true;
-                activeRecognitionInstance.interimResults = true;
-                activeRecognitionInstance.lang = 'en-US';
-
-                micBtnElement.addEventListener('click', () => {
-                    try {
-                        finalTranscribedPhrase = "";
-                        activeRecognitionInstance.start();
-                        micBtnElement.disabled = true;
-                        stopBtnElement.disabled = false;
-                        statusLabelElement.innerText = "🎙️ Listening... Talk freely. When finished, click 'Stop & Send Message'.";
-                        statusLabelElement.style.color = "#f43f5e";
-                    } catch(e) {}
-                });
-
-                activeRecognitionInstance.onresult = (event) => {
-                    let interimTranscript = "";
-                    for (let i = event.resultIndex; i < event.results.length; ++i) {
-                        if (event.results[i].isFinal) {
-                            finalTranscribedPhrase += event.results[i][0].transcript + " ";
-                        } else {
-                            interimTranscript += event.results[i][0].transcript;
-                        }
-                    }
-                    
-                    const nativeChatFieldTextArea = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
-                    if (nativeChatFieldTextArea) {
-                        nativeChatFieldTextArea.value = finalTranscribedPhrase + interimTranscript;
-                        nativeChatFieldTextArea.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                };
-
-                stopBtnElement.addEventListener('click', () => {
-                    if (activeRecognitionInstance) {
-                        activeRecognitionInstance.stop();
-                    }
-                });
-
-                activeRecognitionInstance.onend = () => {
-                    micBtnElement.disabled = false;
-                    stopBtnElement.disabled = true;
-                    statusLabelElement.innerText = "✓ Voice dispatch completed cleanly! Text sent to main field interface below.";
-                    statusLabelElement.style.color = "#10b981";
-                    
-                    setTimeout(() => {
-                        const targetChatButton = window.parent.document.querySelector('button[data-testid="stChatInputSubmitButton"]');
-                        if (targetChatButton && !targetChatButton.disabled) {
-                            targetChatButton.click();
-                        }
-                    }, 400);
-                };
-
-                activeRecognitionInstance.onerror = () => {
-                    micBtnElement.disabled = false;
-                    stopBtnElement.disabled = true;
-                    statusLabelElement.innerText = "⚠️ Speech pipeline error/timeout detected.";
-                    statusLabelElement.style.color = "#ef4444";
-                };
-            }
-        </script>
-        """
-        components.html(Micro_Speech_Bridge_Html, height=95, key="stt_panel_fixed_key")
 
         if st.session_state.autoplay_audio_data:
             st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
@@ -737,12 +580,23 @@ else:
             )
 
         video_id = curriculum_matrix[selected_module]["sessions"][selected_session]
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
 
         st.markdown("---")
         st.markdown(f"### 📺 Now Playing: **{selected_session}**")
         st.caption(f"Curriculum Track: {selected_module}")
-        st.video(video_url)
+        
+        # Clean responsive HTML5 sandbox iframe to embed YouTube video seamlessly without player restrictions
+        video_iframe = f"""
+        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
+            <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
+                src="https://www.youtube.com/embed/{video_id}" 
+                title="YouTube video player" frameborder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                allowfullscreen>
+            </iframe>
+        </div>
+        """
+        components.html(video_iframe, height=360, key=f"yt_player_{video_id}")
 
     elif app_mode == "📬 Submit Custom Prompts":
         st.title("Custom Evaluation Prompt Intake Node")
