@@ -9,7 +9,6 @@ st.set_page_config(
     layout="centered"
 )
 
-# 🎨 IMPORT AND APPLY THE NEW DESIGN SKIN FROM STYLE.PY
 try:
     from style import apply_custom_css
     apply_custom_css()
