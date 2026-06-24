@@ -1,5 +1,4 @@
 import streamlit as st
-import time
 
 # =========================================================
 # CONFIGURATION & SYSTEM THEME INTEGRATION (MUST BE FIRST)
@@ -30,16 +29,82 @@ from datetime import datetime, date
 from supabase import create_client, Client
 
 # =========================================================
-# GLOBAL SESSION STATE INITIALIZATION (CRITICAL FOR MEMORY)
+# BROWSER LOCALSTORAGE PERSISTENCE ENGINE (ANTI-REFRESH)
 # =========================================================
 if "is_logged_in" not in st.session_state:
     st.session_state.is_logged_in = False
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
+
+# JavaScript to bridge the browser's localStorage back into Streamlit seamlessly
+storage_bridge_html = """
+<script>
+    const savedEmail = localStorage.getItem("skillverify_user_email");
+    const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
+    
+    if (savedLoggedIn === "true" && savedEmail) {
+        // Send the credentials back to Streamlit app via a postMessage event
+        window.parent.postMessage({
+            type: 'LOCAL_STORAGE_RECOVERY_EVENT',
+            email: savedEmail
+        }, '*');
+    }
+</script>
+"""
+components.html(storage_bridge_html, height=0, width=0)
+
+# Integrated Cross-Domain Receiver for LocalStorage, Video, and Voice Actions
+receiver_js = """
+<script>
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'LOCAL_STORAGE_RECOVERY_EVENT') {
+            const recoveredEmail = event.data.email;
+            const hiddenRecoveryInput = window.parent.document.getElementById("hidden_storage_recovery_input");
+            if (hiddenRecoveryInput && hiddenRecoveryInput.value !== recoveredEmail) {
+                hiddenRecoveryInput.value = recoveredEmail;
+                hiddenRecoveryInput.dispatchEvent(new Event('input', { bubbles: true }));
+                hiddenRecoveryInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+        if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
+            const b64Data = event.data.data;
+            const hiddenVideoInput = window.parent.document.getElementById("hidden_video_bridge_input");
+            if (hiddenVideoInput) {
+                hiddenVideoInput.value = b64Data;
+                hiddenVideoInput.dispatchEvent(new Event('input', { bubbles: true }));
+                hiddenVideoInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+        if (event.data && event.data.type === 'SPEECH_SUBMIT_EVENT') {
+            const textData = event.data.text;
+            const hiddenSpeechInput = window.parent.document.getElementById("hidden_speech_transfer_node");
+            if (hiddenSpeechInput) {
+                hiddenSpeechInput.value = textData;
+                hiddenSpeechInput.dispatchEvent(new Event('input', { bubbles: true }));
+                hiddenSpeechInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+    });
+</script>
+"""
+components.html(receiver_js, height=0, width=0)
+
+# Hidden inputs used to capture asynchronous JavaScript events cleanly
+with st.expander("👁️ System Bridge Channels", expanded=False):
+    recovery_data = st.text_input("Storage Recovery Node", key="hidden_storage_recovery_input")
+    video_bridge_data = st.text_input("Internal Video Sync Node", key="hidden_video_bridge_input")
+    speech_bridge_data = st.text_input("Internal Speech Sync Node", key="hidden_speech_transfer_node")
+
+if recovery_data and not st.session_state.is_logged_in:
+    st.session_state.is_logged_in = True
+    st.session_state.user_email = recovery_data.strip().lower()
+    st.rerun()
+
+# =========================================================
+# INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
+# =========================================================
 if "iframe_render_idx" not in st.session_state:
     st.session_state.iframe_render_idx = 0
-if "initialized_run" not in st.session_state:
-    st.session_state.initialized_run = False
 
 if "all_chats" not in st.session_state:
     st.session_state.all_chats = {
@@ -84,154 +149,6 @@ if st.session_state.active_chat_id not in st.session_state.all_chats:
         st.session_state.active_chat_id = "Chat_1"
 
 current_chat = st.session_state.all_chats[st.session_state.active_chat_id]
-
-# =========================================================
-# BROWSER LOCALSTORAGE PERSISTENCE ENGINE (ANTI-REFRESH)
-# =========================================================
-storage_bridge_html = """
-<script>
-    const savedEmail = localStorage.getItem("skillverify_user_email");
-    const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
-    
-    if (savedLoggedIn === "true" && savedEmail) {
-        window.parent.postMessage({
-            type: 'LOCAL_STORAGE_RECOVERY_EVENT',
-            email: savedEmail
-        }, '*');
-    } else {
-        window.parent.postMessage({
-            type: 'LOCAL_STORAGE_EMPTY_EVENT'
-        }, '*');
-    }
-</script>
-"""
-components.html(storage_bridge_html, height=0, width=0)
-
-receiver_js = """
-<script>
-    window.addEventListener('message', function(event) {
-        if (event.data && event.data.type === 'LOCAL_STORAGE_RECOVERY_EVENT') {
-            const recoveredEmail = event.data.email;
-            const hiddenRecoveryInput = window.parent.document.getElementById("hidden_storage_recovery_input");
-            if (hiddenRecoveryInput && hiddenRecoveryInput.value !== recoveredEmail) {
-                hiddenRecoveryInput.value = recoveredEmail;
-                hiddenRecoveryInput.dispatchEvent(new Event('input', { bubbles: true }));
-                hiddenRecoveryInput.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
-        if (event.data && event.data.type === 'LOCAL_STORAGE_EMPTY_EVENT') {
-            const hiddenRecoveryInput = window.parent.document.getElementById("hidden_storage_recovery_input");
-            if (hiddenRecoveryInput && hiddenRecoveryInput.value === "") {
-                hiddenRecoveryInput.value = "GUEST_NO_SESSION";
-                hiddenRecoveryInput.dispatchEvent(new Event('input', { bubbles: true }));
-                hiddenRecoveryInput.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
-        if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
-            const b64Data = event.data.data;
-            const hiddenVideoInput = window.parent.document.getElementById("hidden_video_bridge_input");
-            if (hiddenVideoInput) {
-                hiddenVideoInput.value = b64Data;
-                hiddenVideoInput.dispatchEvent(new Event('input', { bubbles: true }));
-                hiddenVideoInput.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
-        if (event.data && event.data.type === 'SPEECH_SUBMIT_EVENT') {
-            const textData = event.data.text;
-            const hiddenSpeechInput = window.parent.document.getElementById("hidden_speech_transfer_node");
-            if (hiddenSpeechInput) {
-                hiddenSpeechInput.value = textData;
-                hiddenSpeechInput.dispatchEvent(new Event('input', { bubbles: true }));
-                hiddenSpeechInput.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
-    });
-</script>
-"""
-components.html(receiver_js, height=0, width=0)
-
-with st.expander("👁️ System Bridge Channels", expanded=False):
-    recovery_data = st.text_input("Storage Recovery Node", key="hidden_storage_recovery_input")
-    video_bridge_data = st.text_input("Internal Video Sync Node", key="hidden_video_bridge_input")
-    speech_bridge_data = st.text_input("Internal Speech Sync Node", key="hidden_speech_transfer_node")
-
-# Handle incoming recovery information state changes safely
-if recovery_data:
-    if recovery_data == "GUEST_NO_SESSION":
-        st.session_state.initialized_run = True
-    elif not st.session_state.is_logged_in:
-        st.session_state.is_logged_in = True
-        st.session_state.user_email = recovery_data.strip().lower()
-        st.session_state.initialized_run = True
-        st.rerun()
-
-def parse_and_update_metrics(ai_text):
-    st.session_state.performance_metrics["total_turns_completed"] += 1
-    if "vocabulary upgrade" in ai_text.lower() or "alternative" in ai_text.lower():
-        st.session_state.performance_metrics["vocabulary_upgrades_suggested"] += 2
-    if "grammar" in ai_text.lower() or "slip" in ai_text.lower() or "mistake" in ai_text.lower():
-        st.session_state.performance_metrics["grammar_errors_logged"] += 1
-    score_search = re.search(r'(?:Fluency Score|Score\s*:\s*)(\d+(?:\.\d+)?)\s*/\s*10', ai_text, re.IGNORECASE)
-    if score_search:
-        st.session_state.performance_metrics["fluency_score"] = float(score_search.group(1))
-
-def get_evaluator_response(plan_tier):
-    if "GROQ_API_KEY" not in st.secrets:
-        return "Configuration Key Error: Please register GROQ_API_KEY in secrets."
-
-    system_rules = (
-        "You are a friendly, conversational English Language Assessor evaluating a video interview submission. "
-        "Keep your responses extremely concise, short, and natural (maximum 2 sentences). "
-        "Always respond with exactly ONE clear, short conversational question at the end to keep the video chat interactive."
-    )
-    
-    messages_payload = [{"role": "system", "content": system_rules}]
-    for msg in current_chat["history"]:
-        messages_payload.append({"role": "user" if msg["role"] == "user" else "assistant", "content": msg["content"]})
-        
-    llm_payload = {"model": "llama-3.3-70b-versatile", "messages": messages_payload}
-    llm_headers = {"Content-Type": "application/json", "Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}"}
-    
-    try:
-        llm_response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=llm_headers, json=llm_payload)
-        res_data = llm_response.json()
-        if isinstance(res_data, dict) and "choices" in res_data:
-            response_content = res_data["choices"][0]["message"]["content"]
-            parse_and_update_metrics(response_content)
-            return response_content
-        return "Server payload processing structural error match failed."
-    except Exception as e:
-        return f"Network failure: {str(e)}"
-
-def text_to_speech_bytes(text_payload):
-    try:
-        cleaned_text = re.sub(r'[*_#`\-]+', ' ', text_payload)
-        tts = gTTS(text=cleaned_text[:200], lang='en', slow=False)
-        chunk_fp = BytesIO()
-        tts.write_to_fp(chunk_fp)
-        chunk_fp.seek(0)
-        return chunk_fp.read()
-    except Exception:
-        return None
-
-# Handle speech processing pipeline
-if speech_bridge_data and speech_bridge_data.strip():
-    captured_speech_text = speech_bridge_data.strip()
-    st.session_state["hidden_speech_transfer_node"] = ""
-    current_chat["history"].append({"role": "user", "content": captured_speech_text})
-    user_package_tier = "Trial"
-    if "user_email" in st.session_state and st.session_state.user_email:
-        user_package_tier = "Trial" 
-    eval_reply = get_evaluator_response(user_package_tier)
-    current_chat["history"].append({"role": "assistant", "content": eval_reply})
-    st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
-    st.rerun()
-
-if not st.session_state.is_logged_in and not st.session_state.initialized_run:
-    with st.spinner("Synchronizing security keys... Please wait..."):
-        time.sleep(0.4)
-    st.session_state.initialized_run = True
-    st.rerun()
 
 # =========================================================
 # SUPABASE DATABASE STORAGE ENGINE
@@ -287,6 +204,9 @@ def update_user_plan_db(email_str, target_plan):
 ROBOT_AVATAR = "https://img.icons8.com/fluent/96/artificial-intelligence.png"
 USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
 
+# =========================================================
+# INTEGRATED PAYMENT GATEWAY COMPONENT NODE
+# =========================================================
 def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_duration="Month"):
     razorpay_html_code = f"""
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #1e1b4b; padding: 20px; border-radius: 12px; border: 1px solid rgba(99,102,241,0.3); margin-top: 15px; color: white;">
@@ -303,8 +223,11 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    components.html(razorpay_html_code, height=160)
+    components.html(razorpay_html_code, height=160, key="razorpay_node_static")
 
+# =========================================================
+# HTML5 WEBCAM VIDEO RECORDING CONTROLLER
+# =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
     <div style="background-color: #0f172a; padding: 15px; border-radius: 10px; color: #ffffff; font-family: system-ui, sans-serif; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
@@ -370,7 +293,69 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    components.html(webcam_html, height=340)
+    components.html(webcam_html, height=340, key="webcam_panel_fixed_key")
+
+# =========================================================
+# BACKEND AI CONNECTIVITY ENGINE (Groq AI Prompt Setup)
+# =========================================================
+def parse_and_update_metrics(ai_text):
+    st.session_state.performance_metrics["total_turns_completed"] += 1
+    if "vocabulary upgrade" in ai_text.lower() or "alternative" in ai_text.lower():
+        st.session_state.performance_metrics["vocabulary_upgrades_suggested"] += 2
+    if "grammar" in ai_text.lower() or "slip" in ai_text.lower() or "mistake" in ai_text.lower():
+        st.session_state.performance_metrics["grammar_errors_logged"] += 1
+    score_search = re.search(r'(?:Fluency Score|Score\s*:\s*)(\d+(?:\.\d+)?)\s*/\s*10', ai_text, re.IGNORECASE)
+    if score_search:
+        st.session_state.performance_metrics["fluency_score"] = float(score_search.group(1))
+
+def get_evaluator_response(plan_tier):
+    if "GROQ_API_KEY" not in st.secrets:
+        return "Configuration Key Error: Please register GROQ_API_KEY in secrets."
+
+    system_rules = (
+        "You are a friendly, conversational English Language Assessor evaluating a video interview submission. "
+        "Keep your responses extremely concise, short, and natural (maximum 2 sentences). "
+        "Always respond with exactly ONE clear, short conversational question at the end to keep the video chat interactive."
+    )
+    
+    messages_payload = [{"role": "system", "content": system_rules}]
+    for msg in current_chat["history"]:
+        messages_payload.append({"role": "user" if msg["role"] == "user" else "assistant", "content": msg["content"]})
+        
+    llm_payload = {"model": "llama-3.3-70b-versatile", "messages": messages_payload}
+    llm_headers = {"Content-Type": "application/json", "Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}"}
+    
+    try:
+        llm_response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=llm_headers, json=llm_payload)
+        res_data = llm_response.json()
+        if isinstance(res_data, dict) and "choices" in res_data:
+            response_content = res_data["choices"][0]["message"]["content"]
+            parse_and_update_metrics(response_content)
+            return response_content
+        return "Server payload processing structural error match failed."
+    except Exception as e:
+        return f"Network failure: {str(e)}"
+
+def text_to_speech_bytes(text_payload):
+    try:
+        cleaned_text = re.sub(r'[*_#`\-]+', ' ', text_payload)
+        tts = gTTS(text=cleaned_text[:200], lang='en', slow=False)
+        chunk_fp = BytesIO()
+        tts.write_to_fp(chunk_fp)
+        chunk_fp.seek(0)
+        return chunk_fp.read()
+    except Exception:
+        return None
+
+# Voice dictation pipeline router
+if speech_bridge_data and speech_bridge_data.strip():
+    captured_speech_text = speech_bridge_data.strip()
+    st.session_state["hidden_speech_transfer_node"] = ""
+    current_chat["history"].append({"role": "user", "content": captured_speech_text})
+    eval_reply = get_evaluator_response(user_package_tier if 'user_package_tier' in locals() else "Trial")
+    current_chat["history"].append({"role": "assistant", "content": eval_reply})
+    st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
+    st.rerun()
 
 def show_subscription_options():
     st.subheader("Select a Subscription Tier to Continue:")
@@ -423,10 +408,7 @@ if not st.session_state.is_logged_in:
     st.title("🔐 Candidate Onboarding & Qualification Portal")
     st.markdown("You must complete all onboarding fields to access the main portal dashboard.")
     
-    try:
-        is_developer = "dev" in st.query_params and st.query_params["dev"] == "true"
-    except Exception:
-        is_developer = False
+    is_developer = st.query_params.get("dev") == "true"
     
     with st.form("onboarding_credential_form"):
         reg_email = st.text_input("Email ID Address:", placeholder="name@example.com", key="login_email_persist")
@@ -497,7 +479,6 @@ else:
         if st.button("🚪 Log Out / Switch Account", use_container_width=True):
             st.session_state.is_logged_in = False
             st.session_state.user_email = ""
-            st.session_state.initialized_run = False
             
             logout_js = """
             <script>
@@ -648,7 +629,7 @@ else:
                         st.rerun()
 
         # =========================================================
-        # 🎙️ HIGH PERFORMANCE VOICE CONTROLLER COMPONENT
+        # 🎙️ PREMIUM VOICE CONTROLLER DECK DEPLOYMENT VIEW
         # =========================================================
         st.markdown("### 🎙️ Voice Dictation Integration")
         
@@ -657,9 +638,9 @@ else:
             .voice-deck-container {
                 background: linear-gradient(135deg, #111827 0%, #0f172a 100%);
                 border: 1px solid rgba(255, 255, 255, 0.08);
-                padding: 20px;
+                padding: 18px;
                 border-radius: 12px;
-                font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+                font-family: system-ui, -apple-system, sans-serif;
                 box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
             }
             .action-row {
@@ -670,10 +651,10 @@ else:
             }
             .deck-btn {
                 border: none;
-                padding: 12px 20px;
+                padding: 10px 18px;
                 border-radius: 8px;
                 font-weight: 600;
-                font-size: 14px;
+                font-size: 13px;
                 cursor: pointer;
                 transition: all 0.2s ease-in-out;
                 display: inline-flex;
@@ -708,18 +689,17 @@ else:
                 color: #9ca3af !important;
                 cursor: not-allowed;
                 box-shadow: none !important;
-                opacity: 0.6;
+                opacity: 0.5;
             }
             .status-container {
-                margin-top: 14px;
+                margin-top: 12px;
                 display: flex;
                 align-items: center;
-                gap: 10px;
+                gap: 8px;
             }
             .status-txt {
                 color: #94a3b8;
                 font-size: 13px;
-                font-weight: 400;
             }
             .live-pulse {
                 width: 8px;
@@ -742,15 +722,9 @@ else:
 
         <div class="voice-deck-container">
             <div class="action-row">
-                <button id="btnSpeak" class="deck-btn">
-                    <span>🎤</span> Speak
-                </button>
-                <button id="btnStopSpeaking" class="deck-btn" disabled>
-                    <span>⏹️</span> Stop Speaking
-                </button>
-                <button id="btnStopVoice" class="deck-btn">
-                    <span>🔇</span> Stop Voice
-                </button>
+                <button id="btnSpeak" class="deck-btn"><span>🎤</span> Speak</button>
+                <button id="btnStopSpeaking" class="deck-btn" disabled><span>⏹️</span> Stop Speaking</button>
+                <button id="btnStopVoice" class="deck-btn"><span>🔇</span> Stop Voice</button>
             </div>
             <div class="status-container">
                 <div id="pulseLight" class="live-pulse"></div>
@@ -849,13 +823,13 @@ else:
             }
         </script>
         """
-        components.html(Enhanced_Voice_Deck_HTML, height=125)
+        components.html(Enhanced_Voice_Deck_HTML, height=120, key="voice_deck_premium_key")
 
         if st.session_state.autoplay_audio_data:
             st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
             st.session_state.autoplay_audio_data = None
 
-        text_input = st.chat_input("Or type your message manually here...", key="chat_input_terminal_field")
+        text_input = st.chat_input("Type your translation, essay answer, or session text here...", key="chat_input_terminal_field")
         if text_input:
             current_chat["history"].append({"role": "user", "content": text_input})
             eval_reply = get_evaluator_response(user_package_tier)
