@@ -29,73 +29,16 @@ from datetime import datetime, date
 from supabase import create_client, Client
 
 # =========================================================
-# BROWSER LOCALSTORAGE PERSISTENCE ENGINE (ANTI-REFRESH)
+# GLOBAL SESSION STATE INITIALIZATION (CRITICAL FOR MEMORY)
 # =========================================================
 if "is_logged_in" not in st.session_state:
     st.session_state.is_logged_in = False
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
-
-# JavaScript to bridge the browser's localStorage back into Streamlit seamlessly
-storage_bridge_html = """
-<script>
-    const savedEmail = localStorage.getItem("skillverify_user_email");
-    const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
-    
-    if (savedLoggedIn === "true" && savedEmail) {
-        // Send the credentials back to Streamlit app via a postMessage event
-        window.parent.postMessage({
-            type: 'LOCAL_STORAGE_RECOVERY_EVENT',
-            email: savedEmail
-        }, '*');
-    }
-</script>
-"""
-components.html(storage_bridge_html, height=0, width=0)
-
-# Integrated Cross-Domain Receiver for LocalStorage Recovery
-receiver_js = """
-<script>
-    window.addEventListener('message', function(event) {
-        if (event.data && event.data.type === 'LOCAL_STORAGE_RECOVERY_EVENT') {
-            const recoveredEmail = event.data.email;
-            const hiddenRecoveryInput = window.parent.document.getElementById("hidden_storage_recovery_input");
-            if (hiddenRecoveryInput && hiddenRecoveryInput.value !== recoveredEmail) {
-                hiddenRecoveryInput.value = recoveredEmail;
-                hiddenRecoveryInput.dispatchEvent(new Event('input', { bubbles: true }));
-                hiddenRecoveryInput.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
-        if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
-            const b64Data = event.data.data;
-            const hiddenVideoInput = window.parent.document.getElementById("hidden_video_bridge_input");
-            if (hiddenVideoInput) {
-                hiddenVideoInput.value = b64Data;
-                hiddenVideoInput.dispatchEvent(new Event('input', { bubbles: true }));
-                hiddenVideoInput.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
-    });
-</script>
-"""
-components.html(receiver_js, height=0, width=0)
-
-# Hidden inputs used to capture asynchronous JavaScript events cleanly
-with st.expander("👁️ System Bridge Channels", expanded=False):
-    recovery_data = st.text_input("Storage Recovery Node", key="hidden_storage_recovery_input")
-    video_bridge_data = st.text_input("Internal Video Sync Node", key="hidden_video_bridge_input")
-
-if recovery_data and not st.session_state.is_logged_in:
-    st.session_state.is_logged_in = True
-    st.session_state.user_email = recovery_data.strip().lower()
-    st.rerun()
-
-# =========================================================
-# INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
-# =========================================================
 if "iframe_render_idx" not in st.session_state:
     st.session_state.iframe_render_idx = 0
 
+# ALWAYS initialize chats right at the top so it survives cross-frame refreshes cleanly
 if "all_chats" not in st.session_state:
     st.session_state.all_chats = {
         "Chat_1": {
@@ -125,6 +68,7 @@ if "payment_plan_selected" not in st.session_state:
 if "incoming_video_payload" not in st.session_state:
     st.session_state.incoming_video_payload = None
 
+# Safety validation check to keep pointers completely valid
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
         st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
@@ -139,6 +83,59 @@ if st.session_state.active_chat_id not in st.session_state.all_chats:
         st.session_state.active_chat_id = "Chat_1"
 
 current_chat = st.session_state.all_chats[st.session_state.active_chat_id]
+
+# =========================================================
+# BROWSER LOCALSTORAGE PERSISTENCE ENGINE (ANTI-REFRESH)
+# =========================================================
+storage_bridge_html = """
+<script>
+    const savedEmail = localStorage.getItem("skillverify_user_email");
+    const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
+    
+    if (savedLoggedIn === "true" && savedEmail) {
+        window.parent.postMessage({
+            type: 'LOCAL_STORAGE_RECOVERY_EVENT',
+            email: savedEmail
+        }, '*');
+    }
+</script>
+"""
+components.html(storage_bridge_html, height=0, width=0)
+
+receiver_js = """
+<script>
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'LOCAL_STORAGE_RECOVERY_EVENT') {
+            const recoveredEmail = event.data.email;
+            const hiddenRecoveryInput = window.parent.document.getElementById("hidden_storage_recovery_input");
+            if (hiddenRecoveryInput && hiddenRecoveryInput.value !== recoveredEmail) {
+                hiddenRecoveryInput.value = recoveredEmail;
+                hiddenRecoveryInput.dispatchEvent(new Event('input', { bubbles: true }));
+                hiddenRecoveryInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+        if (event.data && event.data.type === 'STREAMLIT_VIDEO_TRANSFER_EVENT') {
+            const b64Data = event.data.data;
+            const hiddenVideoInput = window.parent.document.getElementById("hidden_video_bridge_input");
+            if (hiddenVideoInput) {
+                hiddenVideoInput.value = b64Data;
+                hiddenVideoInput.dispatchEvent(new Event('input', { bubbles: true }));
+                hiddenVideoInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+    });
+</script>
+"""
+components.html(receiver_js, height=0, width=0)
+
+with st.expander("👁️ System Bridge Channels", expanded=False):
+    recovery_data = st.text_input("Storage Recovery Node", key="hidden_storage_recovery_input")
+    video_bridge_data = st.text_input("Internal Video Sync Node", key="hidden_video_bridge_input")
+
+if recovery_data and not st.session_state.is_logged_in:
+    st.session_state.is_logged_in = True
+    st.session_state.user_email = recovery_data.strip().lower()
+    st.rerun()
 
 # =========================================================
 # SUPABASE DATABASE STORAGE ENGINE
@@ -388,13 +385,11 @@ if not st.session_state.is_logged_in:
     st.title("🔐 Candidate Onboarding & Qualification Portal")
     st.markdown("You must complete all onboarding fields to access the main portal dashboard.")
     
-    # 🕵️‍♂️ Check the URL parameters safely for your developer tag
     try:
         is_developer = "dev" in st.query_params and st.query_params["dev"] == "true"
     except Exception:
         is_developer = False
     
-    # Wrap form targets inside a secure container to prevent frame state evaluation delays
     with st.form("onboarding_credential_form"):
         reg_email = st.text_input("Email ID Address:", placeholder="name@example.com", key="login_email_persist")
         reg_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="login_pass_persist")
@@ -402,7 +397,6 @@ if not st.session_state.is_logged_in:
         reg_intent = st.text_area("Why do you want to join this assessment platform?", placeholder="Explain why you want to use this service...", key="login_intent_persist")
         reg_gender = st.radio("Select Gender Profile:", ["Male", "Female"], key="login_gender_persist")
         
-        # Grid execution logic layout changes strictly based on URL configuration parameters
         if is_developer:
             btn_col1, btn_col2 = st.columns([1, 1])
             with btn_col1:
@@ -416,7 +410,6 @@ if not st.session_state.is_logged_in:
     proceed_to_login = False
     target_email = ""
 
-    # Process Standard Strict Validation Login
     if submit_clicked:
         email_clean = reg_email.strip()
         password_clean = reg_password.strip()
@@ -437,12 +430,10 @@ if not st.session_state.is_logged_in:
             proceed_to_login = True
             target_email = email_clean.lower()
 
-    # Process "I'm Feeling Lucky" Bypass (Only evaluated if the secret dev parameter allows rendering)
     elif lucky_clicked and is_developer:
         proceed_to_login = True
         target_email = reg_email.strip().lower() if reg_email.strip() else "developer_sandbox@skillverify.ai"
 
-    # Sync Attributes and Inject Persistence Scripts
     if proceed_to_login:
         st.session_state.is_logged_in = True
         st.session_state.user_email = target_email
@@ -579,7 +570,6 @@ else:
             st.success(f"👑 Active License Verified — **{user_package_tier}**")
 
         st.markdown("### 🎥 Live Video Interview Feed")
-
         render_webcam_video_recorder()
 
         if video_bridge_data and "base64," in video_bridge_data:
@@ -618,7 +608,6 @@ else:
                         st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
                         st.rerun()
 
-        # FIXED VOICE DICTATION NODE WITH STOP AND TRANSMIT CONTROL
         st.markdown("##### 🎙️ Voice Dictation Integration (Speak Options)")
         Micro_Speech_Bridge_Html = """
         <div style="background-color: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 10px; margin-bottom: 5px;">
