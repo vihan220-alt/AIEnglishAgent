@@ -9,11 +9,6 @@ st.set_page_config(
     layout="centered"
 )
 
-try:
-    from style import apply_custom_css
-    apply_custom_css()
-except ImportError:
-    pass
 
 import requests
 import hashlib
