@@ -639,12 +639,12 @@ else:
         st.markdown("##### 🎙️ Voice Dictation Integration (Speak Options)")
         Micro_Speech_Bridge_Html = """
         <div style="background-color: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 10px; margin-bottom: 5px;">
-            <div style="display: flex; gap: 10px; align-items: center;">
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <button id="sttMicBtn" style="background-color: #10b981; color: white; border: none; padding: 8px 14px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 13px;">
                     🎤 Start Speaking
                 </button>
                 <button id="sttStopBtn" style="background-color: #ef4444; color: white; border: none; padding: 8px 14px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 13px;" disabled>
-                    ⏹️ Stop & Send Message
+                    ⏹️ Stop Dictation
                 </button>
             </div>
             <span id="sttStatusText" style="color: #94a3b8; font-size: 12px; font-family: system-ui, sans-serif;">Microphone engine standby...</span>
@@ -674,7 +674,7 @@ else:
                         activeRecognitionInstance.start();
                         micBtnElement.disabled = true;
                         stopBtnElement.disabled = false;
-                        statusLabelElement.innerText = "🎙️ Listening... Talk freely. When finished, click 'Stop & Send Message'.";
+                        statusLabelElement.innerText = "🎙️ Listening... Talk freely. When finished, click 'Stop Dictation'.";
                         statusLabelElement.style.color = "#f43f5e";
                     } catch(e) {}
                 });
@@ -705,15 +705,8 @@ else:
                 activeRecognitionInstance.onend = () => {
                     micBtnElement.disabled = false;
                     stopBtnElement.disabled = true;
-                    statusLabelElement.innerText = "✓ Voice dispatch completed cleanly! Text sent to main field interface below.";
+                    statusLabelElement.innerText = "✓ Transcription complete! Review your text in the chat bar below before sending.";
                     statusLabelElement.style.color = "#10b981";
-                    
-                    setTimeout(() => {
-                        const targetChatButton = window.parent.document.querySelector('button[data-testid="stChatInputSubmitButton"]');
-                        if (targetChatButton && !targetChatButton.disabled) {
-                            targetChatButton.click();
-                        }
-                    }, 400);
                 };
 
                 activeRecognitionInstance.onerror = () => {
@@ -725,7 +718,7 @@ else:
             }
         </script>
         """
-        components.html(Micro_Speech_Bridge_Html, height=95)
+        components.html(Micro_Speech_Bridge_Html, height=140)
 
         if st.session_state.autoplay_audio_data:
             st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
