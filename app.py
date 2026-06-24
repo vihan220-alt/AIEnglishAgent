@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 
 # =========================================================
 # CONFIGURATION & SYSTEM THEME INTEGRATION (MUST BE FIRST)
@@ -9,6 +10,12 @@ st.set_page_config(
     layout="centered"
 )
 
+# 🎨 IMPORT AND APPLY THE NEW DESIGN SKIN FROM STYLE.PY
+try:
+    from style import apply_custom_css
+    apply_custom_css()
+except ImportError:
+    pass
 
 import requests
 import hashlib
@@ -31,6 +38,8 @@ if "user_email" not in st.session_state:
     st.session_state.user_email = ""
 if "iframe_render_idx" not in st.session_state:
     st.session_state.iframe_render_idx = 0
+if "initialized_run" not in st.session_state:
+    st.session_state.initialized_run = False
 
 # ALWAYS initialize chats right at the top so it survives cross-frame refreshes cleanly
 if "all_chats" not in st.session_state:
@@ -91,6 +100,10 @@ storage_bridge_html = """
             type: 'LOCAL_STORAGE_RECOVERY_EVENT',
             email: savedEmail
         }, '*');
+    } else {
+        window.parent.postMessage({
+            type: 'LOCAL_STORAGE_EMPTY_EVENT'
+        }, '*');
     }
 </script>
 """
@@ -104,6 +117,14 @@ receiver_js = """
             const hiddenRecoveryInput = window.parent.document.getElementById("hidden_storage_recovery_input");
             if (hiddenRecoveryInput && hiddenRecoveryInput.value !== recoveredEmail) {
                 hiddenRecoveryInput.value = recoveredEmail;
+                hiddenRecoveryInput.dispatchEvent(new Event('input', { bubbles: true }));
+                hiddenRecoveryInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+        if (event.data && event.data.type === 'LOCAL_STORAGE_EMPTY_EVENT') {
+            const hiddenRecoveryInput = window.parent.document.getElementById("hidden_storage_recovery_input");
+            if (hiddenRecoveryInput && hiddenRecoveryInput.value === "") {
+                hiddenRecoveryInput.value = "GUEST_NO_SESSION";
                 hiddenRecoveryInput.dispatchEvent(new Event('input', { bubbles: true }));
                 hiddenRecoveryInput.dispatchEvent(new Event('change', { bubbles: true }));
             }
@@ -126,9 +147,21 @@ with st.expander("👁️ System Bridge Channels", expanded=False):
     recovery_data = st.text_input("Storage Recovery Node", key="hidden_storage_recovery_input")
     video_bridge_data = st.text_input("Internal Video Sync Node", key="hidden_video_bridge_input")
 
-if recovery_data and not st.session_state.is_logged_in:
-    st.session_state.is_logged_in = True
-    st.session_state.user_email = recovery_data.strip().lower()
+# Handle incoming recovery information state changes safely
+if recovery_data:
+    if recovery_data == "GUEST_NO_SESSION":
+        st.session_state.initialized_run = True
+    elif not st.session_state.is_logged_in:
+        st.session_state.is_logged_in = True
+        st.session_state.user_email = recovery_data.strip().lower()
+        st.session_state.initialized_run = True
+        st.rerun()
+
+# ANTI-FLASH LOADING GATE: Wait half a heartbeat for JS to communicate storage records
+if not st.session_state.is_logged_in and not st.session_state.initialized_run:
+    with st.spinner("Synchronizing security keys... Please wait..."):
+        time.sleep(0.4)
+    st.session_state.initialized_run = True
     st.rerun()
 
 # =========================================================
@@ -453,6 +486,7 @@ else:
         if st.button("🚪 Log Out / Switch Account", use_container_width=True):
             st.session_state.is_logged_in = False
             st.session_state.user_email = ""
+            st.session_state.initialized_run = False
             
             logout_js = """
             <script>
