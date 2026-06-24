@@ -226,7 +226,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
     components.html(razorpay_html_code, height=160, key="razorpay_node_static")
 
 # =========================================================
-# HTML5 WEBCAM VIDEO RECORDING CONTROLLER
+# HTML5 WEBCAM VIDEO RECORDING CONTROLLER (FIXED EXPLICIT KEY)
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -293,7 +293,8 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    components.html(webcam_html, height=340, key="webcam_panel_fixed_key")
+    # Fix implemented: Append dynamically tracked state index integer to release iframe instances smoothly
+    components.html(webcam_html, height=340, key=f"webcam_panel_fixed_key_{st.session_state.get('iframe_render_idx', 0)}")
 
 # =========================================================
 # BACKEND AI CONNECTIVITY ENGINE (Groq AI Prompt Setup)
@@ -823,7 +824,7 @@ else:
             }
         </script>
         """
-        components.html(Enhanced_Voice_Deck_HTML, height=120, key="voice_deck_premium_key")
+        components.html(Enhanced_Voice_Deck_HTML, height=120, key=f"voice_deck_premium_key_{st.session_state.get('iframe_render_idx', 0)}")
 
         if st.session_state.autoplay_audio_data:
             st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
