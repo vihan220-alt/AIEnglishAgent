@@ -40,10 +40,7 @@ if "iframe_render_idx" not in st.session_state:
     st.session_state.iframe_render_idx = 0
 if "initialized_run" not in st.session_state:
     st.session_state.initialized_run = False
-if "speech_transcript_capture" not in st.session_state:
-    st.session_state.speech_transcript_capture = ""
 
-# ALWAYS initialize chats right at the top so it survives cross-frame refreshes cleanly
 if "all_chats" not in st.session_state:
     st.session_state.all_chats = {
         "Chat_1": {
@@ -73,7 +70,6 @@ if "payment_plan_selected" not in st.session_state:
 if "incoming_video_payload" not in st.session_state:
     st.session_state.incoming_video_payload = None
 
-# Safety validation check to keep pointers completely valid
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
         st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
@@ -140,7 +136,7 @@ receiver_js = """
                 hiddenVideoInput.dispatchEvent(new Event('change', { bubbles: true }));
             }
         }
-        if (event.data && event.data.type === 'SPEECH_TRANSCRIPTION_TRANSFER_EVENT') {
+        if (event.data && event.data.type === 'SPEECH_SUBMIT_EVENT') {
             const textData = event.data.text;
             const hiddenSpeechInput = window.parent.document.getElementById("hidden_speech_transfer_node");
             if (hiddenSpeechInput) {
@@ -169,13 +165,68 @@ if recovery_data:
         st.session_state.initialized_run = True
         st.rerun()
 
-# Handle voice transcript routing directly through native Streamlit session pipelines
+def parse_and_update_metrics(ai_text):
+    st.session_state.performance_metrics["total_turns_completed"] += 1
+    if "vocabulary upgrade" in ai_text.lower() or "alternative" in ai_text.lower():
+        st.session_state.performance_metrics["vocabulary_upgrades_suggested"] += 2
+    if "grammar" in ai_text.lower() or "slip" in ai_text.lower() or "mistake" in ai_text.lower():
+        st.session_state.performance_metrics["grammar_errors_logged"] += 1
+    score_search = re.search(r'(?:Fluency Score|Score\s*:\s*)(\d+(?:\.\d+)?)\s*/\s*10', ai_text, re.IGNORECASE)
+    if score_search:
+        st.session_state.performance_metrics["fluency_score"] = float(score_search.group(1))
+
+def get_evaluator_response(plan_tier):
+    if "GROQ_API_KEY" not in st.secrets:
+        return "Configuration Key Error: Please register GROQ_API_KEY in secrets."
+
+    system_rules = (
+        "You are a friendly, conversational English Language Assessor evaluating a video interview submission. "
+        "Keep your responses extremely concise, short, and natural (maximum 2 sentences). "
+        "Always respond with exactly ONE clear, short conversational question at the end to keep the video chat interactive."
+    )
+    
+    messages_payload = [{"role": "system", "content": system_rules}]
+    for msg in current_chat["history"]:
+        messages_payload.append({"role": "user" if msg["role"] == "user" else "assistant", "content": msg["content"]})
+        
+    llm_payload = {"model": "llama-3.3-70b-versatile", "messages": messages_payload}
+    llm_headers = {"Content-Type": "application/json", "Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}"}
+    
+    try:
+        llm_response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=llm_headers, json=llm_payload)
+        res_data = llm_response.json()
+        if isinstance(res_data, dict) and "choices" in res_data:
+            response_content = res_data["choices"][0]["message"]["content"]
+            parse_and_update_metrics(response_content)
+            return response_content
+        return "Server payload processing structural error match failed."
+    except Exception as e:
+        return f"Network failure: {str(e)}"
+
+def text_to_speech_bytes(text_payload):
+    try:
+        cleaned_text = re.sub(r'[*_#`\-]+', ' ', text_payload)
+        tts = gTTS(text=cleaned_text[:200], lang='en', slow=False)
+        chunk_fp = BytesIO()
+        tts.write_to_fp(chunk_fp)
+        chunk_fp.seek(0)
+        return chunk_fp.read()
+    except Exception:
+        return None
+
+# Handle speech processing pipeline
 if speech_bridge_data and speech_bridge_data.strip():
-    st.session_state.speech_transcript_capture = speech_bridge_data.strip()
+    captured_speech_text = speech_bridge_data.strip()
     st.session_state["hidden_speech_transfer_node"] = ""
+    current_chat["history"].append({"role": "user", "content": captured_speech_text})
+    user_package_tier = "Trial"
+    if "user_email" in st.session_state and st.session_state.user_email:
+        user_package_tier = "Trial" 
+    eval_reply = get_evaluator_response(user_package_tier)
+    current_chat["history"].append({"role": "assistant", "content": eval_reply})
+    st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
     st.rerun()
 
-# ANTI-FLASH LOADING GATE: Wait half a heartbeat for JS to communicate storage records
 if not st.session_state.is_logged_in and not st.session_state.initialized_run:
     with st.spinner("Synchronizing security keys... Please wait..."):
         time.sleep(0.4)
@@ -236,9 +287,6 @@ def update_user_plan_db(email_str, target_plan):
 ROBOT_AVATAR = "https://img.icons8.com/fluent/96/artificial-intelligence.png"
 USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
 
-# =========================================================
-# INTEGRATED PAYMENT GATEWAY COMPONENT NODE
-# =========================================================
 def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_duration="Month"):
     razorpay_html_code = f"""
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #1e1b4b; padding: 20px; border-radius: 12px; border: 1px solid rgba(99,102,241,0.3); margin-top: 15px; color: white;">
@@ -257,9 +305,6 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
     """
     components.html(razorpay_html_code, height=160)
 
-# =========================================================
-# HTML5 WEBCAM VIDEO RECORDING CONTROLLER
-# =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
     <div style="background-color: #0f172a; padding: 15px; border-radius: 10px; color: #ffffff; font-family: system-ui, sans-serif; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
@@ -326,58 +371,6 @@ def render_webcam_video_recorder():
     </script>
     """
     components.html(webcam_html, height=340)
-
-# =========================================================
-# BACKEND AI CONNECTIVITY ENGINE (Groq AI Prompt Setup)
-# =========================================================
-def parse_and_update_metrics(ai_text):
-    st.session_state.performance_metrics["total_turns_completed"] += 1
-    if "vocabulary upgrade" in ai_text.lower() or "alternative" in ai_text.lower():
-        st.session_state.performance_metrics["vocabulary_upgrades_suggested"] += 2
-    if "grammar" in ai_text.lower() or "slip" in ai_text.lower() or "mistake" in ai_text.lower():
-        st.session_state.performance_metrics["grammar_errors_logged"] += 1
-    score_search = re.search(r'(?:Fluency Score|Score\s*:\s*)(\d+(?:\.\d+)?)\s*/\s*10', ai_text, re.IGNORECASE)
-    if score_search:
-        st.session_state.performance_metrics["fluency_score"] = float(score_search.group(1))
-
-def get_evaluator_response(plan_tier):
-    if "GROQ_API_KEY" not in st.secrets:
-        return "Configuration Key Error: Please register GROQ_API_KEY in secrets."
-
-    system_rules = (
-        "You are a friendly, conversational English Language Assessor evaluating a video interview submission. "
-        "Keep your responses extremely concise, short, and natural (maximum 2 sentences). "
-        "Always respond with exactly ONE clear, short conversational question at the end to keep the video chat interactive."
-    )
-    
-    messages_payload = [{"role": "system", "content": system_rules}]
-    for msg in current_chat["history"]:
-        messages_payload.append({"role": "user" if msg["role"] == "user" else "assistant", "content": msg["content"]})
-        
-    llm_payload = {"model": "llama-3.3-70b-versatile", "messages": messages_payload}
-    llm_headers = {"Content-Type": "application/json", "Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}"}
-    
-    try:
-        llm_response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=llm_headers, json=llm_payload)
-        res_data = llm_response.json()
-        if isinstance(res_data, dict) and "choices" in res_data:
-            response_content = res_data["choices"][0]["message"]["content"]
-            parse_and_update_metrics(response_content)
-            return response_content
-        return "Server payload processing structural error match failed."
-    except Exception as e:
-        return f"Network failure: {str(e)}"
-
-def text_to_speech_bytes(text_payload):
-    try:
-        cleaned_text = re.sub(r'[*_#`\-]+', ' ', text_payload)
-        tts = gTTS(text=cleaned_text[:200], lang='en', slow=False)
-        chunk_fp = BytesIO()
-        tts.write_to_fp(chunk_fp)
-        chunk_fp.seek(0)
-        return chunk_fp.read()
-    except Exception:
-        return None
 
 def show_subscription_options():
     st.subheader("Select a Subscription Tier to Continue:")
@@ -655,114 +648,208 @@ else:
                         st.rerun()
 
         # =========================================================
-        # DEDICATED VOICE TRANSCRIPT INPUT CONTAINER
+        # 🎙️ HIGH PERFORMANCE VOICE CONTROLLER COMPONENT
         # =========================================================
-        st.markdown("##### 🎙️ Voice Dictation Integration (Speak Options)")
+        st.markdown("### 🎙️ Voice Dictation Integration")
         
-        # Streamlit-native input editor for captured microphone strings
-        speech_text_editor = st.text_area(
-            "Captured Voice Text Window (Edit before dispatching):", 
-            value=st.session_state.speech_transcript_capture,
-            key="voice_text_editor_window"
-        )
-        
-        col_send_voice, col_clear_voice = st.columns([1, 4])
-        with col_send_voice:
-            if st.button("🚀 Send Voice", type="primary", use_container_width=True):
-                if speech_text_editor.strip():
-                    current_chat["history"].append({"role": "user", "content": speech_text_editor.strip()})
-                    st.session_state.speech_transcript_capture = ""
-                    eval_reply = get_evaluator_response(user_package_tier)
-                    current_chat["history"].append({"role": "assistant", "content": eval_reply})
-                    st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
-                    st.rerun()
-        with col_clear_voice:
-            if st.button("🗑️ Clear Text", use_container_width=False):
-                st.session_state.speech_transcript_capture = ""
-                st.rerun()
+        Enhanced_Voice_Deck_HTML = """
+        <style>
+            .voice-deck-container {
+                background: linear-gradient(135deg, #111827 0%, #0f172a 100%);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                padding: 20px;
+                border-radius: 12px;
+                font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+            }
+            .action-row {
+                display: flex;
+                gap: 12px;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+            .deck-btn {
+                border: none;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-weight: 600;
+                font-size: 14px;
+                cursor: pointer;
+                transition: all 0.2s ease-in-out;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+            }
+            #btnSpeak {
+                background-color: #10b981;
+                color: #ffffff;
+            }
+            #btnSpeak:hover {
+                background-color: #059669;
+                box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+            }
+            #btnStopSpeaking {
+                background-color: #ef4444;
+                color: #ffffff;
+            }
+            #btnStopSpeaking:hover {
+                background-color: #dc2626;
+                box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+            }
+            #btnStopVoice {
+                background-color: #4b5563;
+                color: #f3f4f6;
+            }
+            #btnStopVoice:hover {
+                background-color: #374151;
+            }
+            .deck-btn:disabled {
+                background-color: #374151 !important;
+                color: #9ca3af !important;
+                cursor: not-allowed;
+                box-shadow: none !important;
+                opacity: 0.6;
+            }
+            .status-container {
+                margin-top: 14px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .status-txt {
+                color: #94a3b8;
+                font-size: 13px;
+                font-weight: 400;
+            }
+            .live-pulse {
+                width: 8px;
+                height: 8px;
+                background-color: #ef4444;
+                border-radius: 50%;
+                display: none;
+            }
+            @keyframes pulseGlow {
+                0% { transform: scale(0.95); opacity: 0.5; }
+                50% { transform: scale(1.2); opacity: 1; }
+                100% { transform: scale(0.95); opacity: 0.5; }
+            }
+            .pulsing {
+                display: inline-block;
+                animation: pulseGlow 1.4s infinite ease-in-out;
+                box-shadow: 0 0 8px #ef4444;
+            }
+        </style>
 
-        Micro_Speech_Bridge_Html = """
-        <div style="background-color: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 10px; margin-bottom: 5px;">
-            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <button id="sttMicBtn" style="background-color: #10b981; color: white; border: none; padding: 8px 14px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 13px;">
-                    🎤 Start Speaking
+        <div class="voice-deck-container">
+            <div class="action-row">
+                <button id="btnSpeak" class="deck-btn">
+                    <span>🎤</span> Speak
                 </button>
-                <button id="sttStopBtn" style="background-color: #ef4444; color: white; border: none; padding: 8px 14px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 13px;" disabled>
-                    ⏹️ Stop Dictation
+                <button id="btnStopSpeaking" class="deck-btn" disabled>
+                    <span>⏹️</span> Stop Speaking
+                </button>
+                <button id="btnStopVoice" class="deck-btn">
+                    <span>🔇</span> Stop Voice
                 </button>
             </div>
-            <span id="sttStatusText" style="color: #94a3b8; font-size: 12px; font-family: system-ui, sans-serif;">Microphone engine standby...</span>
+            <div class="status-container">
+                <div id="pulseLight" class="live-pulse"></div>
+                <span id="deckStatusMsg" class="status-txt">Audio capture standby engine ready...</span>
+            </div>
         </div>
 
         <script>
-            const micBtnElement = document.getElementById('sttMicBtn');
-            const stopBtnElement = document.getElementById('sttStopBtn');
-            const statusLabelElement = document.getElementById('sttStatusText');
-            let activeRecognitionInstance = null;
-            let finalTranscribedPhrase = "";
+            const speakBtn = document.getElementById('btnSpeak');
+            const stopSpeakingBtn = document.getElementById('btnStopSpeaking');
+            const stopVoiceBtn = document.getElementById('btnStopVoice');
+            const statusMsg = document.getElementById('deckStatusMsg');
+            const pulseLight = document.getElementById('pulseLight');
             
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                statusLabelElement.innerText = "⚠️ Speech capture API unsupported by current browser runtime.";
-                micBtnElement.disabled = true;
-                stopBtnElement.disabled = true;
-            } else {
-                const SpeechRecognitionEngine = window.SpeechRecognition || window.webkitSpeechRecognition;
-                activeRecognitionInstance = new SpeechRecognitionEngine();
-                activeRecognitionInstance.continuous = true;
-                activeRecognitionInstance.interimResults = true;
-                activeRecognitionInstance.lang = 'en-US';
+            let speechEngine = null;
+            let fullTranscriptAccumulator = "";
 
-                micBtnElement.addEventListener('click', () => {
+            stopVoiceBtn.addEventListener('click', () => {
+                const nativeAudioElements = window.parent.document.querySelectorAll('audio');
+                nativeAudioElements.forEach(audio => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                });
+                statusMsg.innerText = "🔇 System output response voice muted.";
+                statusMsg.style.color = "#94a3b8";
+            });
+
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                statusMsg.innerText = "⚠️ Speech Web API not supported by this browser. Try Chrome/Edge.";
+                speakBtn.disabled = true;
+                stopSpeakingBtn.disabled = true;
+            } else {
+                const SpeechInstance = window.SpeechRecognition || window.webkitSpeechRecognition;
+                speechEngine = new SpeechInstance();
+                speechEngine.continuous = true;
+                speechEngine.interimResults = true;
+                speechEngine.lang = 'en-US';
+
+                speakBtn.addEventListener('click', () => {
                     try {
-                        finalTranscribedPhrase = "";
-                        activeRecognitionInstance.start();
-                        micBtnElement.disabled = true;
-                        stopBtnElement.disabled = false;
-                        statusLabelElement.innerText = "🎙️ Listening... Talk freely. When finished, click 'Stop Dictation'.";
-                        statusLabelElement.style.color = "#f43f5e";
-                    } catch(e) {}
+                        fullTranscriptAccumulator = "";
+                        speechEngine.start();
+                        speakBtn.disabled = true;
+                        stopSpeakingBtn.disabled = false;
+                        pulseLight.classList.add('pulsing');
+                        statusMsg.innerText = "🎙️ Listening... Speak into your microphone now.";
+                        statusMsg.style.color = "#34d399";
+                    } catch(err) {}
                 });
 
-                activeRecognitionInstance.onresult = (event) => {
-                    let interimTranscript = "";
+                speechEngine.onresult = (event) => {
+                    let temporaryStreamText = "";
                     for (let i = event.resultIndex; i < event.results.length; ++i) {
                         if (event.results[i].isFinal) {
-                            finalTranscribedPhrase += event.results[i][0].transcript + " ";
+                            fullTranscriptAccumulator += event.results[i][0].transcript + " ";
                         } else {
-                            interimTranscript += event.results[i][0].transcript;
+                            temporaryStreamText += event.results[i][0].transcript;
                         }
                     }
-                    
-                    // Route back to parent window cleanly via custom bridge events
-                    window.parent.postMessage({
-                        type: 'SPEECH_TRANSCRIPTION_TRANSFER_EVENT',
-                        text: finalTranscribedPhrase + interimTranscript
-                    }, '*');
+                    statusMsg.innerText = "✍️ " + (fullTranscriptAccumulator + temporaryStreamText);
+                    statusMsg.style.color = "#60a5fa";
                 };
 
-                stopBtnElement.addEventListener('click', () => {
-                    if (activeRecognitionInstance) {
-                        activeRecognitionInstance.stop();
+                stopSpeakingBtn.addEventListener('click', () => {
+                    if (speechEngine) {
+                        speechEngine.stop();
                     }
                 });
 
-                activeRecognitionInstance.onend = () => {
-                    micBtnElement.disabled = false;
-                    stopBtnElement.disabled = true;
-                    statusLabelElement.innerText = "✓ Transcription complete! Review text in the area box above.";
-                    statusLabelElement.style.color = "#10b981";
+                speechEngine.onend = () => {
+                    speakBtn.disabled = false;
+                    stopSpeakingBtn.disabled = true;
+                    pulseLight.classList.remove('pulsing');
+                    
+                    if (fullTranscriptAccumulator.trim() !== "") {
+                        statusMsg.innerText = "🚀 Transmission complete. Processing request pipeline...";
+                        statusMsg.style.color = "#10b981";
+                        
+                        window.parent.postMessage({
+                            type: 'SPEECH_SUBMIT_EVENT',
+                            text: fullTranscriptAccumulator.trim()
+                        }, '*');
+                    } else {
+                        statusMsg.innerText = "⚠️ No active speech detected. Please try again.";
+                        statusMsg.style.color = "#f87171";
+                    }
                 };
 
-                activeRecognitionInstance.onerror = () => {
-                    micBtnElement.disabled = false;
-                    stopBtnElement.disabled = true;
-                    statusLabelElement.innerText = "⚠️ Speech pipeline error/timeout detected.";
-                    statusLabelElement.style.color = "#ef4444";
+                speechEngine.onerror = (e) => {
+                    speakBtn.disabled = false;
+                    stopSpeakingBtn.disabled = true;
+                    pulseLight.classList.remove('pulsing');
+                    statusMsg.innerText = "⚠️ Device transmission dropped or timed out.";
+                    statusMsg.style.color = "#f87171";
                 };
             }
         </script>
         """
-        components.html(Micro_Speech_Bridge_Html, height=75)
+        components.html(Enhanced_Voice_Deck_HTML, height=125)
 
         if st.session_state.autoplay_audio_data:
             st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
