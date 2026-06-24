@@ -40,6 +40,8 @@ if "iframe_render_idx" not in st.session_state:
     st.session_state.iframe_render_idx = 0
 if "initialized_run" not in st.session_state:
     st.session_state.initialized_run = False
+if "speech_transcript_capture" not in st.session_state:
+    st.session_state.speech_transcript_capture = ""
 
 # ALWAYS initialize chats right at the top so it survives cross-frame refreshes cleanly
 if "all_chats" not in st.session_state:
@@ -138,6 +140,15 @@ receiver_js = """
                 hiddenVideoInput.dispatchEvent(new Event('change', { bubbles: true }));
             }
         }
+        if (event.data && event.data.type === 'SPEECH_TRANSCRIPTION_TRANSFER_EVENT') {
+            const textData = event.data.text;
+            const hiddenSpeechInput = window.parent.document.getElementById("hidden_speech_transfer_node");
+            if (hiddenSpeechInput) {
+                hiddenSpeechInput.value = textData;
+                hiddenSpeechInput.dispatchEvent(new Event('input', { bubbles: true }));
+                hiddenSpeechInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
     });
 </script>
 """
@@ -146,6 +157,7 @@ components.html(receiver_js, height=0, width=0)
 with st.expander("👁️ System Bridge Channels", expanded=False):
     recovery_data = st.text_input("Storage Recovery Node", key="hidden_storage_recovery_input")
     video_bridge_data = st.text_input("Internal Video Sync Node", key="hidden_video_bridge_input")
+    speech_bridge_data = st.text_input("Internal Speech Sync Node", key="hidden_speech_transfer_node")
 
 # Handle incoming recovery information state changes safely
 if recovery_data:
@@ -156,6 +168,12 @@ if recovery_data:
         st.session_state.user_email = recovery_data.strip().lower()
         st.session_state.initialized_run = True
         st.rerun()
+
+# Handle voice transcript routing directly through native Streamlit session pipelines
+if speech_bridge_data and speech_bridge_data.strip():
+    st.session_state.speech_transcript_capture = speech_bridge_data.strip()
+    st.session_state["hidden_speech_transfer_node"] = ""
+    st.rerun()
 
 # ANTI-FLASH LOADING GATE: Wait half a heartbeat for JS to communicate storage records
 if not st.session_state.is_logged_in and not st.session_state.initialized_run:
@@ -636,7 +654,33 @@ else:
                         st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
                         st.rerun()
 
+        # =========================================================
+        # DEDICATED VOICE TRANSCRIPT INPUT CONTAINER
+        # =========================================================
         st.markdown("##### 🎙️ Voice Dictation Integration (Speak Options)")
+        
+        # Streamlit-native input editor for captured microphone strings
+        speech_text_editor = st.text_area(
+            "Captured Voice Text Window (Edit before dispatching):", 
+            value=st.session_state.speech_transcript_capture,
+            key="voice_text_editor_window"
+        )
+        
+        col_send_voice, col_clear_voice = st.columns([1, 4])
+        with col_send_voice:
+            if st.button("🚀 Send Voice", type="primary", use_container_width=True):
+                if speech_text_editor.strip():
+                    current_chat["history"].append({"role": "user", "content": speech_text_editor.strip()})
+                    st.session_state.speech_transcript_capture = ""
+                    eval_reply = get_evaluator_response(user_package_tier)
+                    current_chat["history"].append({"role": "assistant", "content": eval_reply})
+                    st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
+                    st.rerun()
+        with col_clear_voice:
+            if st.button("🗑️ Clear Text", use_container_width=False):
+                st.session_state.speech_transcript_capture = ""
+                st.rerun()
+
         Micro_Speech_Bridge_Html = """
         <div style="background-color: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 10px; margin-bottom: 5px;">
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
@@ -689,11 +733,11 @@ else:
                         }
                     }
                     
-                    const nativeChatFieldTextArea = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
-                    if (nativeChatFieldTextArea) {
-                        nativeChatFieldTextArea.value = finalTranscribedPhrase + interimTranscript;
-                        nativeChatFieldTextArea.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
+                    // Route back to parent window cleanly via custom bridge events
+                    window.parent.postMessage({
+                        type: 'SPEECH_TRANSCRIPTION_TRANSFER_EVENT',
+                        text: finalTranscribedPhrase + interimTranscript
+                    }, '*');
                 };
 
                 stopBtnElement.addEventListener('click', () => {
@@ -705,7 +749,7 @@ else:
                 activeRecognitionInstance.onend = () => {
                     micBtnElement.disabled = false;
                     stopBtnElement.disabled = true;
-                    statusLabelElement.innerText = "✓ Transcription complete! Review your text in the chat bar below before sending.";
+                    statusLabelElement.innerText = "✓ Transcription complete! Review text in the area box above.";
                     statusLabelElement.style.color = "#10b981";
                 };
 
@@ -718,13 +762,13 @@ else:
             }
         </script>
         """
-        components.html(Micro_Speech_Bridge_Html, height=140)
+        components.html(Micro_Speech_Bridge_Html, height=75)
 
         if st.session_state.autoplay_audio_data:
             st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
             st.session_state.autoplay_audio_data = None
 
-        text_input = st.chat_input("Type your translation, essay answer, or session text here...", key="chat_input_terminal_field")
+        text_input = st.chat_input("Or type your message manually here...", key="chat_input_terminal_field")
         if text_input:
             current_chat["history"].append({"role": "user", "content": text_input})
             eval_reply = get_evaluator_response(user_package_tier)
