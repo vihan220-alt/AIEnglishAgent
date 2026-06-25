@@ -43,7 +43,6 @@ storage_bridge_html = """
     const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
     
     if (savedLoggedIn === "true" && savedEmail) {
-        // Send the credentials back to Streamlit app via a postMessage event
         window.parent.postMessage({
             type: 'LOCAL_STORAGE_RECOVERY_EVENT',
             email: savedEmail
@@ -53,7 +52,7 @@ storage_bridge_html = """
 """
 components.html(storage_bridge_html, height=0, width=0)
 
-# Integrated Cross-Domain Receiver for LocalStorage, Video, and Voice Actions
+# Integrated Cross-Domain Receiver for LocalStorage and Asynchronous Video Handling
 receiver_js = """
 <script>
     window.addEventListener('message', function(event) {
@@ -75,25 +74,15 @@ receiver_js = """
                 hiddenVideoInput.dispatchEvent(new Event('change', { bubbles: true }));
             }
         }
-        if (event.data && event.data.type === 'SPEECH_SUBMIT_EVENT') {
-            const textData = event.data.text;
-            const hiddenSpeechInput = window.parent.document.getElementById("hidden_speech_transfer_node");
-            if (hiddenSpeechInput) {
-                hiddenSpeechInput.value = textData;
-                hiddenSpeechInput.dispatchEvent(new Event('input', { bubbles: true }));
-                hiddenSpeechInput.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
     });
 </script>
 """
 components.html(receiver_js, height=0, width=0)
 
-# Hidden inputs used to capture asynchronous JavaScript events cleanly
+# System inputs used to capture background infrastructure events securely
 with st.expander("👁️ System Bridge Channels", expanded=False):
     recovery_data = st.text_input("Storage Recovery Node", key="hidden_storage_recovery_input")
     video_bridge_data = st.text_input("Internal Video Sync Node", key="hidden_video_bridge_input")
-    speech_bridge_data = st.text_input("Internal Speech Sync Node", key="hidden_speech_transfer_node")
 
 if recovery_data and not st.session_state.is_logged_in:
     st.session_state.is_logged_in = True
@@ -229,7 +218,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
     components.html(razorpay_html_code, height=160, key="razorpay_node_static")
 
 # =========================================================
-# HTML5 WEBCAM VIDEO RECORDING CONTROLLER (FIXED: NO KEY BUG)
+# HTML5 WEBCAM VIDEO RECORDING CONTROLLER
 # =========================================================
 def render_webcam_video_recorder():
     webcam_html = """
@@ -312,7 +301,6 @@ def parse_and_update_metrics(ai_text):
         st.session_state.performance_metrics["fluency_score"] = float(score_search.group(1))
 
 def get_evaluator_response(plan_tier):
-    # Dynamic production fallback system rules if API Key config isn't registered yet
     fallback_responses = [
         "That is a wonderful perspective on your career growth path. What do you consider your greatest structural strength when communicating in high-pressure team meetings?",
         "Thank you for sharing that clear detail. In business settings, clarity is absolutely vital. Can you describe a complex task you successfully simplified for others?",
@@ -362,16 +350,20 @@ def text_to_speech_bytes(text_payload):
     except Exception:
         return None
 
-# Voice dictation pipeline router
-if speech_bridge_data and speech_bridge_data.strip():
-    captured_speech_text = speech_bridge_data.strip()
-    st.session_state["hidden_speech_transfer_node"] = ""
-    st.session_state.last_speech_transcript = captured_speech_text  # Keep memory intact
-    current_chat["history"].append({"role": "user", "content": captured_speech_text})
-    eval_reply = get_evaluator_response(user_package_tier if 'user_package_tier' in locals() else "Trial")
-    current_chat["history"].append({"role": "assistant", "content": eval_reply})
-    st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
-    st.rerun()
+# =========================================================
+# URL QUERY PARAMETER ROUTER ENGINE (High-Stability Voice Processing)
+# =========================================================
+if "speech_transit_param" in st.query_params:
+    captured_speech_text = st.query_params.get("speech_transit_param").strip()
+    if captured_speech_text:
+        st.session_state.last_speech_transcript = captured_speech_text
+        current_chat["history"].append({"role": "user", "content": captured_speech_text})
+        user_package_tier, _ = init_user_and_get_plan(st.session_state.user_email)
+        eval_reply = get_evaluator_response(user_package_tier)
+        current_chat["history"].append({"role": "assistant", "content": eval_reply})
+        st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
+        st.query_params.clear()
+        st.rerun()
 
 def show_subscription_options():
     st.subheader("Select a Subscription Tier to Continue:")
@@ -645,7 +637,7 @@ else:
                         st.rerun()
 
         # =========================================================
-        # 🎙️ PREMIUM VOICE CONTROLLER DECK DEPLOYMENT VIEW
+        # 🎙️ VOICE CONTROLLER DECK DEPLOYMENT (RE-ENGINEERED MECHANISM)
         # =========================================================
         st.markdown("### 🎙️ Voice Dictation Integration")
         
@@ -816,13 +808,13 @@ else:
                     pulseLight.classList.remove('pulsing');
                     
                     if (fullTranscriptAccumulator.trim() !== "") {
-                        statusMsg.innerText = "🚀 Transmission complete. Processing request pipeline...";
+                        statusMsg.innerText = "🚀 Routing secure text transfer parameters...";
                         statusMsg.style.color = "#10b981";
                         
-                        window.parent.postMessage({
-                            type: 'SPEECH_SUBMIT_EVENT',
-                            text: fullTranscriptAccumulator.trim()
-                        }, '*');
+                        // Use query params to bypass structural locks safely
+                        const targetUrl = new URL(window.parent.location.href);
+                        targetUrl.searchParams.set('speech_transit_param', fullTranscriptAccumulator.trim());
+                        window.parent.location.href = targetUrl.href;
                     } else {
                         statusMsg.innerText = "⚠️ No active speech detected. Please try again.";
                         statusMsg.style.color = "#f87171";
@@ -850,8 +842,6 @@ else:
                 </div>""", 
                 unsafe_allow_html=True
             )
-            if st.session_state.get("chat_input_terminal_field"):
-                st.session_state.last_speech_transcript = ""
 
         if st.session_state.autoplay_audio_data:
             st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
