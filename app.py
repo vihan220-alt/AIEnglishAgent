@@ -135,6 +135,9 @@ if "payment_plan_selected" not in st.session_state:
 if "incoming_video_payload" not in st.session_state:
     st.session_state.incoming_video_payload = None
 
+if "last_speech_transcript" not in st.session_state:
+    st.session_state.last_speech_transcript = ""
+
 if st.session_state.active_chat_id not in st.session_state.all_chats:
     if st.session_state.all_chats:
         st.session_state.active_chat_id = list(st.session_state.all_chats.keys())[0]
@@ -293,7 +296,6 @@ def render_webcam_video_recorder():
         });
     </script>
     """
-    # FIX: Key removed entirely to prevent metrics collection TypeErrors across dynamic reruns
     components.html(webcam_html, height=340)
 
 # =========================================================
@@ -352,6 +354,7 @@ def text_to_speech_bytes(text_payload):
 if speech_bridge_data and speech_bridge_data.strip():
     captured_speech_text = speech_bridge_data.strip()
     st.session_state["hidden_speech_transfer_node"] = ""
+    st.session_state.last_speech_transcript = captured_speech_text  # Keep memory intact
     current_chat["history"].append({"role": "user", "content": captured_speech_text})
     eval_reply = get_evaluator_response(user_package_tier if 'user_package_tier' in locals() else "Trial")
     current_chat["history"].append({"role": "assistant", "content": eval_reply})
@@ -780,118 +783,4 @@ else:
                     let temporaryStreamText = "";
                     for (let i = event.resultIndex; i < event.results.length; ++i) {
                         if (event.results[i].isFinal) {
-                            fullTranscriptAccumulator += event.results[i][0].transcript + " ";
-                        } else {
-                            temporaryStreamText += event.results[i][0].transcript;
-                        }
-                    }
-                    statusMsg.innerText = "✍️ " + (fullTranscriptAccumulator + temporaryStreamText);
-                    statusMsg.style.color = "#60a5fa";
-                };
-
-                stopSpeakingBtn.addEventListener('click', () => {
-                    if (speechEngine) {
-                        speechEngine.stop();
-                    }
-                });
-
-                speechEngine.onend = () => {
-                    speakBtn.disabled = false;
-                    stopSpeakingBtn.disabled = true;
-                    pulseLight.classList.remove('pulsing');
-                    
-                    if (fullTranscriptAccumulator.trim() !== "") {
-                        statusMsg.innerText = "🚀 Transmission complete. Processing request pipeline...";
-                        statusMsg.style.color = "#10b981";
-                        
-                        window.parent.postMessage({
-                            type: 'SPEECH_SUBMIT_EVENT',
-                            text: fullTranscriptAccumulator.trim()
-                        }, '*');
-                    } else {
-                        statusMsg.innerText = "⚠️ No active speech detected. Please try again.";
-                        statusMsg.style.color = "#f87171";
-                    }
-                };
-
-                speechEngine.onerror = (e) => {
-                    speakBtn.disabled = false;
-                    stopSpeakingBtn.disabled = true;
-                    pulseLight.classList.remove('pulsing');
-                    statusMsg.innerText = "⚠️ Device transmission dropped or timed out.";
-                    statusMsg.style.color = "#f87171";
-                };
-            }
-        </script>
-        """
-        # FIX: Key removed here as well to prevent overlapping telemetry index conflicts on voice actions
-        components.html(Enhanced_Voice_Deck_HTML, height=120)
-
-        if st.session_state.autoplay_audio_data:
-            st.audio(st.session_state.autoplay_audio_data, format="audio/mp3", autoplay=True)
-            st.session_state.autoplay_audio_data = None
-
-        text_input = st.chat_input("Type your translation, essay answer, or session text here...", key="chat_input_terminal_field")
-        if text_input:
-            current_chat["history"].append({"role": "user", "content": text_input})
-            eval_reply = get_evaluator_response(user_package_tier)
-            current_chat["history"].append({"role": "assistant", "content": eval_reply})
-            st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
-            st.rerun()
-
-    elif app_mode == "📊 Analytics Dashboard":
-        st.title("Linguistic Matrix Progress Tracker")
-        metrics = st.session_state.performance_metrics
-        m_col1, m_col2 = st.columns(2)
-        with m_col1: 
-            st.metric(label="Calculated Fluency Score", value=f"{metrics.get('fluency_score', 0.0)} / 10.0")
-        with m_col2: 
-            st.metric(label="Grammar Slips Logged", value=int(metrics.get('grammar_errors_logged', 0)))
-
-    elif app_mode == "🌐 Explore Video Learning Engine":
-        st.title("🎬 Topic Multi-Module Learning Hub")
-        st.markdown("Select a track and a specialized focus session from over 50+ available learning modules.")
-
-        curriculum_matrix = {
-            "📚 Module 1: Grammar Foundations & Structural Accuracy": {
-                "sessions": {
-                    "Session 1: Subject-Verb Agreement Principles": "3QUvK9459w8",
-                    "Session 2: Mastering Modal Verbs for Obligation & Permission": "NkYox74b89A",
-                    "Session 3: Present Perfect vs. Past Simple Tense Transitions": "g2bA7A1GE94"
-                }
-            },
-            "💼 Module 2: Accent Modulation & Corporate Phonetics": {
-                "sessions": {
-                    "Session 4: Professional Intonation & Sentence Stress Pacing": "F4N95-G77qE",
-                    "Session 5: Overcoming Mother Tongue Influence (MTI) Variables": "n_w9mR47gXw"
-                }
-            }
-        }
-
-        with st.container(border=True):
-            selected_module = st.selectbox(
-                "🎯 Step 1: Select Training Module Category:", 
-                options=list(curriculum_matrix.keys()),
-                key="learning_hub_category_selector"
-            )
-            
-            session_options = list(curriculum_matrix[selected_module]["sessions"].keys())
-            selected_session = st.selectbox(
-                "📝 Step 2: Choose Specific Focus Topic Session:", 
-                options=session_options,
-                key=f"session_select_node_{selected_module.replace(' ', '_')}"
-            )
-
-        video_id = curriculum_matrix[selected_module]["sessions"][selected_session]
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
-
-        st.markdown("---")
-        st.markdown(f"### 📺 Now Playing: **{selected_session}**")
-        st.caption(f"Curriculum Track: {selected_module}")
-        st.video(video_url)
-
-    elif app_mode == "📬 Submit Custom Prompts":
-        st.title("Custom Evaluation Prompt Intake Node")
-        with st.form("custom_prompt_submission_form_fixed", clear_on_submit=True):
-            p_name = st.text_input("Instructor Name:", key="intake_instructor_name")
-            st.form_submit_button("Submit")
+                            fullTranscriptAccumulator += event
