@@ -637,7 +637,7 @@ else:
                         st.rerun()
 
         # =========================================================
-        # 🎙️ VOICE CONTROLLER DECK DEPLOYMENT (TOP-LEVEL BREAKOUT FIXED)
+        # 🎙️ VOICE CONTROLLER DECK DEPLOYMENT (WITH CONDITIONAL UI)
         # =========================================================
         st.markdown("### 🎙️ Voice Dictation Integration")
         
@@ -811,7 +811,6 @@ else:
                         statusMsg.innerText = "🚀 Routing secure text transfer parameters...";
                         statusMsg.style.color = "#10b981";
                         
-                        // Force explicit change to the true top browser URL instance 
                         const topWindow = window.top || window.parent.parent || window.parent;
                         const targetUrl = new URL(topWindow.location.href);
                         targetUrl.searchParams.set('speech_transit_param', fullTranscriptAccumulator.trim());
@@ -834,7 +833,7 @@ else:
         """
         components.html(Enhanced_Voice_Deck_HTML, height=120)
 
-        # DISPLAY TRANSMITTED TRANSCRIPT (SURVIVES PAGE RE-RENDERS)
+        # DISPLAY TRANSMITTED TRANSCRIPT ONLY IF IT CONTAINS CONTENT
         if st.session_state.last_speech_transcript:
             st.markdown(
                 f"""<div style='background-color: rgba(96, 165, 250, 0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(96, 165, 250, 0.3); margin-top: -5px; margin-bottom: 15px;'>
@@ -850,6 +849,7 @@ else:
 
         text_input = st.chat_input("Type your translation, essay answer, or session text here...", key="chat_input_terminal_field")
         if text_input:
+            # Explicitly reset the transcript here so the boxed layout UI clears on manually typed entries
             st.session_state.last_speech_transcript = "" 
             current_chat["history"].append({"role": "user", "content": text_input})
             eval_reply = get_evaluator_response(user_package_tier)
