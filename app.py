@@ -418,21 +418,22 @@ if not st.session_state.is_logged_in:
     
     is_developer = st.query_params.get("dev") == "true"
     
-    reg_email = st.text_input("Email ID Address:", placeholder="name@example.com", key="login_email_persist")
-    reg_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="login_pass_persist")
-    reg_age = st.number_input("What is your age?", min_value=1, max_value=120, value=25, key="login_age_persist")
-    reg_intent = st.text_area("Why do you want to join this assessment platform?", placeholder="Explain why you want to use this service...", key="login_intent_persist")
-    reg_gender = st.radio("Select Gender Profile:", ["Male", "Female"], key="login_gender_persist")
-    
-    if is_developer:
-        btn_col1, btn_col2 = st.columns([1, 1])
-        with btn_col1:
-            submit_clicked = st.button("Verify Account & Enter Portal", type="primary", use_container_width=True, key="submit_onboarding")
-        with btn_col2:
-            lucky_clicked = st.button("✨ I'm Feeling Lucky (Bypass)", use_container_width=True, key="dev_bypass")
-    else:
-        submit_clicked = st.button("Verify Account & Enter Portal", type="primary", use_container_width=True, key="submit_onboarding")
-        lucky_clicked = False
+    with st.form("onboarding_credential_form"):
+        reg_email = st.text_input("Email ID Address:", placeholder="name@example.com", key="login_email_persist")
+        reg_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="login_pass_persist")
+        reg_age = st.number_input("What is your age?", min_value=1, max_value=120, value=25, key="login_age_persist")
+        reg_intent = st.text_area("Why do you want to join this assessment platform?", placeholder="Explain why you want to use this service...", key="login_intent_persist")
+        reg_gender = st.radio("Select Gender Profile:", ["Male", "Female"], key="login_gender_persist")
+        
+        if is_developer:
+            btn_col1, btn_col2 = st.columns([1, 1])
+            with btn_col1:
+                submit_clicked = st.form_submit_button("Verify Account & Enter Portal", type="primary", use_container_width=True)
+            with btn_col2:
+                lucky_clicked = st.form_submit_button("✨ I'm Feeling Lucky (Bypass)", use_container_width=True)
+        else:
+            submit_clicked = st.form_submit_button("Verify Account & Enter Portal", type="primary", use_container_width=True)
+            lucky_clicked = False
 
     proceed_to_login = False
     target_email = ""
@@ -450,8 +451,6 @@ if not st.session_state.is_logged_in:
         elif len(password_clean) < 4:
             st.error("❌ **Invalid Password:** Password string must contain a minimum of 4 characters.")
         else:
-            if not intent_clean:
-                intent_clean = "I want to improve my English skills."
             proceed_to_login = True
             target_email = email_clean.lower()
 
