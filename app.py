@@ -444,16 +444,12 @@ if not st.session_state.is_logged_in:
         intent_clean = reg_intent.strip()
         email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
         
-        is_meaningful = bool(re.search(r'[a-zA-Z]{2,}\s+[a-zA-Z]{2,}\s+[a-zA-Z]{2,}', intent_clean))
-        
         if not email_clean or not password_clean or not intent_clean:
             st.error("❌ **Submission Blocked:** All input rows must be filled. You cannot proceed with blank fields.")
         elif not re.match(email_pattern, email_clean):
             st.error("❌ **Invalid Email ID:** Please type a valid email format containing an '@' and a proper domain.")
         elif len(password_clean) < 4:
             st.error("❌ **Invalid Password:** Password string must contain a minimum of 4 characters.")
-        elif not is_meaningful or len(intent_clean) < 12:
-            st.error("❌ **Validation Failed:** Please write a valid sentence explaining your intent. Random characters or gibberish lines are blocked.")
         else:
             proceed_to_login = True
             target_email = email_clean.lower()
