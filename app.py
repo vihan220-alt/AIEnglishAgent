@@ -418,12 +418,23 @@ if not st.session_state.is_logged_in:
     
     is_developer = st.query_params.get("dev") == "true"
     
+    if "login_email_persist" not in st.session_state:
+        st.session_state.login_email_persist = ""
+    if "login_pass_persist" not in st.session_state:
+        st.session_state.login_pass_persist = ""
+    if "login_age_persist" not in st.session_state:
+        st.session_state.login_age_persist = 25
+    if "login_intent_persist" not in st.session_state:
+        st.session_state.login_intent_persist = ""
+    if "login_gender_persist" not in st.session_state:
+        st.session_state.login_gender_persist = "Male"
+
     with st.form("onboarding_credential_form"):
-        reg_email = st.text_input("Email ID Address:", placeholder="name@example.com", key="login_email_persist")
-        reg_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="login_pass_persist")
-        reg_age = st.number_input("What is your age?", min_value=1, max_value=120, value=25, key="login_age_persist")
-        reg_intent = st.text_area("Why do you want to join this assessment platform?", placeholder="Explain why you want to use this service...", key="login_intent_persist")
-        reg_gender = st.radio("Select Gender Profile:", ["Male", "Female"], key="login_gender_persist")
+        st.text_input("Email ID Address:", placeholder="name@example.com", key="login_email_persist")
+        st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="login_pass_persist")
+        st.number_input("What is your age?", min_value=1, max_value=120, value=st.session_state.login_age_persist, key="login_age_persist")
+        st.text_area("Why do you want to join this assessment platform?", placeholder="Explain why you want to use this service...", key="login_intent_persist")
+        st.radio("Select Gender Profile:", ["Male", "Female"], key="login_gender_persist")
         
         if is_developer:
             btn_col1, btn_col2 = st.columns([1, 1])
@@ -439,9 +450,9 @@ if not st.session_state.is_logged_in:
     target_email = ""
 
     if submit_clicked:
-        email_clean = reg_email.strip()
-        password_clean = reg_password.strip()
-        intent_clean = reg_intent.strip()
+        email_clean = st.session_state.login_email_persist.strip()
+        password_clean = st.session_state.login_pass_persist.strip()
+        intent_clean = st.session_state.login_intent_persist.strip()
         email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
         
         if not email_clean or not password_clean:
