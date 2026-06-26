@@ -637,7 +637,7 @@ else:
                         st.rerun()
 
         # =========================================================
-        # 🎙️ VOICE CONTROLLER DECK DEPLOYMENT (RE-ENGINEERED MECHANISM)
+        # 🎙️ VOICE CONTROLLER DECK DEPLOYMENT (TOP-LEVEL BREAKOUT FIXED)
         # =========================================================
         st.markdown("### 🎙️ Voice Dictation Integration")
         
@@ -811,10 +811,11 @@ else:
                         statusMsg.innerText = "🚀 Routing secure text transfer parameters...";
                         statusMsg.style.color = "#10b981";
                         
-                        // Use query params to bypass structural locks safely
-                        const targetUrl = new URL(window.parent.location.href);
+                        // Force explicit change to the true top browser URL instance 
+                        const topWindow = window.top || window.parent.parent || window.parent;
+                        const targetUrl = new URL(topWindow.location.href);
                         targetUrl.searchParams.set('speech_transit_param', fullTranscriptAccumulator.trim());
-                        window.parent.location.href = targetUrl.href;
+                        topWindow.location.href = targetUrl.href;
                     } else {
                         statusMsg.innerText = "⚠️ No active speech detected. Please try again.";
                         statusMsg.style.color = "#f87171";
