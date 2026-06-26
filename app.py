@@ -443,13 +443,15 @@ if not st.session_state.is_logged_in:
         intent_clean = reg_intent.strip()
         email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
         
-        if not email_clean or not password_clean or not intent_clean:
-            st.error("❌ **Submission Blocked:** All input rows must be filled. You cannot proceed with blank fields.")
+        if not email_clean or not password_clean:
+            st.error("❌ **Submission Blocked:** Email and password are required to continue.")
         elif not re.match(email_pattern, email_clean):
             st.error("❌ **Invalid Email ID:** Please type a valid email format containing an '@' and a proper domain.")
         elif len(password_clean) < 4:
             st.error("❌ **Invalid Password:** Password string must contain a minimum of 4 characters.")
         else:
+            if not intent_clean:
+                intent_clean = "I want to improve my English skills."
             proceed_to_login = True
             target_email = email_clean.lower()
 
