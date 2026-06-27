@@ -44,10 +44,11 @@ storage_bridge_html = """
         const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
 
         if (savedLoggedIn === "true" && savedEmail) {
-            const currentUrl = new URL(window.location.href);
+            const topLocation = window.top.location;
+            const currentUrl = new URL(topLocation.href);
             if (!currentUrl.searchParams.has('login_recovery_email')) {
                 currentUrl.searchParams.set('login_recovery_email', savedEmail);
-                window.location.replace(currentUrl.toString());
+                window.top.location.replace(currentUrl.toString());
             }
         }
     }
