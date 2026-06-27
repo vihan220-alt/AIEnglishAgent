@@ -454,23 +454,33 @@ if not st.session_state.is_logged_in:
         password_clean = st.session_state.login_pass_persist.strip()
         intent_clean = st.session_state.login_intent_persist.strip()
         email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
-        
-        if not email_clean or not password_clean:
-            st.error("❌ **Submission Blocked:** Email and password are required to continue.")
+        intent_pattern = r"[a-zA-Z]{2,}\s+[a-zA-Z]{2,}\s+[a-zA-Z]{2,}"
+
+        if not email_clean or not password_clean or not intent_clean:
+            st.error("❌ You cannot login without filling out every required field.")
         elif not re.match(email_pattern, email_clean):
-            st.error("❌ **Invalid Email ID:** Please type a valid email format containing an '@' and a proper domain.")
+            st.error("❌ Invalid Email ID: Please type a valid email format containing an '@' and a proper domain.")
         elif len(password_clean) < 4:
-            st.error("❌ **Invalid Password:** Password string must contain a minimum of 4 characters.")
+            st.error("❌ Invalid Password: Password must contain at least 4 characters.")
+        elif not re.search(intent_pattern, intent_clean):
+            st.error("❌ Invalid answer: please provide a meaningful reason for joining.")
         else:
             proceed_to_login = True
             target_email = email_clean.lower()
 
     elif lucky_clicked and is_developer:
-        if reg_email.strip() and reg_password.strip():
-            proceed_to_login = True
-            target_email = reg_email.strip().lower()
+        email_clean = reg_email.strip()
+        password_clean = reg_password.strip()
+        intent_clean = reg_intent.strip()
+        intent_pattern = r"[a-zA-Z]{2,}\s+[a-zA-Z]{2,}\s+[a-zA-Z]{2,}"
+
+        if not email_clean or not password_clean or not intent_clean:
+            st.error("❌ You cannot login without filling out every required field.")
+        elif not re.search(intent_pattern, intent_clean):
+            st.error("❌ Invalid answer: please provide a meaningful reason for joining.")
         else:
-            st.error("❌ Developer bypass requires both email and password to be provided.")
+            proceed_to_login = True
+            target_email = email_clean.lower()
 
     if proceed_to_login:
         st.session_state.is_logged_in = True
