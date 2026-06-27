@@ -466,8 +466,11 @@ if not st.session_state.is_logged_in:
             target_email = email_clean.lower()
 
     elif lucky_clicked and is_developer:
-        proceed_to_login = True
-        target_email = reg_email.strip().lower() if reg_email.strip() else "developer_sandbox@skillverify.ai"
+        if reg_email.strip() and reg_password.strip():
+            proceed_to_login = True
+            target_email = reg_email.strip().lower()
+        else:
+            st.error("❌ Developer bypass requires both email and password to be provided.")
 
     if proceed_to_login:
         st.session_state.is_logged_in = True
