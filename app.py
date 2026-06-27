@@ -39,15 +39,24 @@ if "user_email" not in st.session_state:
 # JavaScript to bridge the browser's localStorage back into Streamlit seamlessly
 storage_bridge_html = """
 <script>
-    const savedEmail = localStorage.getItem("skillverify_user_email");
-    const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
-    
-    if (savedLoggedIn === "true" && savedEmail) {
-        window.parent.postMessage({
-            type: 'LOCAL_STORAGE_RECOVERY_EVENT',
-            email: savedEmail
-        }, '*');
+    function recoverLoginFromLocalStorage() {
+        const savedEmail = localStorage.getItem("skillverify_user_email");
+        const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
+        const targetWindow = window.parent || window;
+
+        if (savedLoggedIn === "true" && savedEmail) {
+            targetWindow.postMessage({
+                type: 'LOCAL_STORAGE_RECOVERY_EVENT',
+                email: savedEmail
+            }, '*');
+        }
     }
+
+    window.addEventListener('load', () => {
+        recoverLoginFromLocalStorage();
+        setTimeout(recoverLoginFromLocalStorage, 250);
+        setTimeout(recoverLoginFromLocalStorage, 1000);
+    });
 </script>
 """
 components.html(storage_bridge_html, height=0, width=0)
@@ -84,10 +93,11 @@ with st.expander("👁️ System Bridge Channels", expanded=False):
     recovery_data = st.text_input("Storage Recovery Node", key="hidden_storage_recovery_input")
     video_bridge_data = st.text_input("Internal Video Sync Node", key="hidden_video_bridge_input")
 
-if recovery_data and not st.session_state.is_logged_in:
-    st.session_state.is_logged_in = True
-    st.session_state.user_email = recovery_data.strip().lower()
-    st.rerun()
+if recovery_data:
+    if recovery_data.strip():
+        st.session_state.is_logged_in = True
+        st.session_state.user_email = recovery_data.strip().lower()
+        st.rerun()
 
 # =========================================================
 # INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
