@@ -42,13 +42,13 @@ storage_bridge_html = """
     function recoverLoginFromLocalStorage() {
         const savedEmail = localStorage.getItem("skillverify_user_email");
         const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
-        const targetWindow = window.parent || window;
 
         if (savedLoggedIn === "true" && savedEmail) {
-            targetWindow.postMessage({
-                type: 'LOCAL_STORAGE_RECOVERY_EVENT',
-                email: savedEmail
-            }, '*');
+            const currentUrl = new URL(window.location.href);
+            if (!currentUrl.searchParams.has('login_recovery_email')) {
+                currentUrl.searchParams.set('login_recovery_email', savedEmail);
+                window.location.replace(currentUrl.toString());
+            }
         }
     }
 
@@ -97,6 +97,15 @@ if recovery_data:
     if recovery_data.strip():
         st.session_state.is_logged_in = True
         st.session_state.user_email = recovery_data.strip().lower()
+        st.experimental_set_query_params()
+        st.rerun()
+
+if "login_recovery_email" in st.query_params:
+    recovered_email = st.query_params.get("login_recovery_email").strip().lower()
+    if recovered_email:
+        st.session_state.is_logged_in = True
+        st.session_state.user_email = recovered_email
+        st.experimental_set_query_params()
         st.rerun()
 
 # =========================================================
