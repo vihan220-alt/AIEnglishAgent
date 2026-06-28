@@ -89,10 +89,20 @@ receiver_js = """
 """
 components.html(receiver_js, height=0, width=0)
 
-# System inputs used to capture background infrastructure events securely
-with st.expander("👁️ System Bridge Channels", expanded=False):
-    recovery_data = st.text_input("Storage Recovery Node", key="hidden_storage_recovery_input")
-    video_bridge_data = st.text_input("Internal Video Sync Node", key="hidden_video_bridge_input")
+# Hidden bridge inputs for browser-to-Streamlit messaging
+st.markdown(
+    """
+    <style>
+        #hidden_storage_recovery_input,
+        #hidden_video_bridge_input {
+            display: none !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+recovery_data = st.text_input("", key="hidden_storage_recovery_input", label_visibility="collapsed")
+video_bridge_data = st.text_input("", key="hidden_video_bridge_input", label_visibility="collapsed")
 
 if recovery_data:
     if recovery_data.strip():
