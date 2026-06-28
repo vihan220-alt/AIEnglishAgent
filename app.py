@@ -438,16 +438,16 @@ if not st.session_state.is_logged_in:
     
     is_developer = st.query_params.get("dev") == "true"
     
-    if "login_email_persist" not in st.session_state:
+    if "onboarding_form_initialized" not in st.session_state:
+        st.session_state.onboarding_form_initialized = False
+
+    if not st.session_state.onboarding_form_initialized:
         st.session_state.login_email_persist = ""
-    if "login_pass_persist" not in st.session_state:
         st.session_state.login_pass_persist = ""
-    if "login_age_persist" not in st.session_state:
         st.session_state.login_age_persist = 25
-    if "login_intent_persist" not in st.session_state:
         st.session_state.login_intent_persist = ""
-    if "login_gender_persist" not in st.session_state:
         st.session_state.login_gender_persist = "Male"
+        st.session_state.onboarding_form_initialized = True
 
     with st.form("onboarding_credential_form"):
         st.text_input("Email ID Address:", placeholder="name@example.com", key="login_email_persist")
