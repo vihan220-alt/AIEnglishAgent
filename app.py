@@ -89,27 +89,10 @@ receiver_js = """
 """
 components.html(receiver_js, height=0, width=0)
 
-# Hidden bridge inputs for browser-to-Streamlit messaging
-st.markdown(
-    """
-    <style>
-        #hidden_storage_recovery_input,
-        #hidden_video_bridge_input {
-            display: none !important;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-recovery_data = st.text_input("", key="hidden_storage_recovery_input", label_visibility="collapsed")
-video_bridge_data = st.text_input("", key="hidden_video_bridge_input", label_visibility="collapsed")
-
-if recovery_data:
-    if recovery_data.strip():
-        st.session_state.is_logged_in = True
-        st.session_state.user_email = recovery_data.strip().lower()
-        st.experimental_set_query_params()
-        st.rerun()
+# Hidden bridge inputs removed from UI (kept JS handlers intact).
+# We keep placeholder variables so downstream logic stays stable.
+recovery_data = ""
+video_bridge_data = ""
 
 if "login_recovery_email" in st.query_params:
     recovered_email = st.query_params.get("login_recovery_email").strip().lower()
