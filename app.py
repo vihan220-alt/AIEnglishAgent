@@ -647,6 +647,93 @@ else:
                 st.rerun()
             except Exception as e:
                 st.error(f"Error compiling video payload: {str(e)}")
+                # === Visible Voice Controls + Live Transcript ===
+                voice_control_html = """
+                <div style='background: linear-gradient(135deg,#0f172a 0%,#111827 100%); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.04);'>
+                    <div style='display:flex; gap:10px; align-items:center;'>
+                        <button id='btnSpeak' style='background:#10b981;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;'>🎤 Speak</button>
+                        <button id='btnStopSpeaking' style='background:#ef4444;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;' disabled>⏹️ Stop Speaking</button>
+                        <button id='btnStopVoice' style='background:#4b5563;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;'>🔇 Stop Voice</button>
+                        <div id='voiceStatus' style='margin-left:12px;color:#94a3b8;'>Ready to capture speech.</div>
+                    </div>
+                    <div id='liveTranscript' style='margin-top:10px;padding:10px;background:rgba(255,255,255,0.02);border-radius:8px;color:#e6eef8;min-height:36px;'> </div>
+                </div>
+
+                <script>
+                    (function(){
+                        const speakBtn = document.getElementById('btnSpeak');
+                        const stopSpeakBtn = document.getElementById('btnStopSpeaking');
+                        const stopVoiceBtn = document.getElementById('btnStopVoice');
+                        const status = document.getElementById('voiceStatus');
+                        const live = document.getElementById('liveTranscript');
+
+                        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                            status.innerText = 'Speech API not supported in this browser.';
+                            speakBtn.disabled = true;
+                        } else {
+                            const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+                            const recog = new Speech();
+                            recog.continuous = true;
+                            recog.interimResults = true;
+                            recog.lang = 'en-US';
+                            let finalText = '';
+
+                            speakBtn.addEventListener('click', ()=>{
+                                finalText = '';
+                                live.innerText = '';
+                                recog.start();
+                                speakBtn.disabled = true;
+                                stopSpeakBtn.disabled = false;
+                                status.innerText = '🎙️ Listening...';
+                            });
+
+                            stopSpeakBtn.addEventListener('click', ()=>{ if(recog) recog.stop(); });
+
+                            recog.onresult = (ev)=>{
+                                let interim = '';
+                                for (let i = ev.resultIndex; i < ev.results.length; ++i) {
+                                    const part = ev.results[i][0].transcript;
+                                    if (ev.results[i].isFinal) finalText += part + ' ';
+                                    else interim += part;
+                                }
+                                live.innerText = finalText + interim;
+                                status.innerText = '✍ Capturing...';
+                            };
+
+                            recog.onend = ()=>{
+                                speakBtn.disabled = false;
+                                stopSpeakBtn.disabled = true;
+                                if (finalText.trim() !== '') {
+                                    status.innerText = '🚀 Sending transcript...';
+                                    const topLoc = window.top.location;
+                                    const u = new URL(topLoc.href);
+                                    u.searchParams.set('speech_transit_param', finalText.trim());
+                                    window.top.location.href = u.toString();
+                                } else {
+                                    status.innerText = 'No speech captured.';
+                                }
+                            };
+
+                            recog.onerror = (e)=>{
+                                speakBtn.disabled = false;
+                                stopSpeakBtn.disabled = true;
+                                status.innerText = '⚠️ Speech capture error.';
+                            };
+                        }
+
+                        stopVoiceBtn.addEventListener('click', ()=>{
+                            const audios = document.querySelectorAll('audio');
+                            audios.forEach(a=>{ try{ a.pause(); a.currentTime = 0; }catch(e){} });
+                            status.innerText = '🔇 AI voice muted.';
+                        });
+                    })();
+                </script>
+                """
+                components.html(voice_control_html, height=140)
+
+                # show last captured transcript visibly
+                if st.session_state.get('last_speech_transcript'):
+                        st.markdown(f"**Last captured transcript:** {st.session_state.last_speech_transcript}")
 
         st.markdown("---")
 
