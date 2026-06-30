@@ -545,9 +545,9 @@ if not st.session_state.is_logged_in:
                 target_email = email_clean.lower()
 
         elif lucky_clicked and is_developer:
-            email_clean = reg_email.strip()
-            password_clean = reg_password.strip()
-            intent_clean = reg_intent.strip()
+            email_clean = st.session_state.login_email_persist.strip()
+            password_clean = st.session_state.login_pass_persist.strip()
+            intent_clean = st.session_state.login_intent_persist.strip()
             intent_pattern = r"[a-zA-Z]{2,}\s+[a-zA-Z]{2,}\s+[a-zA-Z]{2,}"
 
             if not email_clean or not password_clean or not intent_clean:
