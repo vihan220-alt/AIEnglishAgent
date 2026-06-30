@@ -464,9 +464,10 @@ if not st.session_state.is_logged_in:
     <script>
         const lastEmail = localStorage.getItem("skillverify_last_email");
         if (lastEmail) {
-            const input = document.querySelector('input[data-testid="skillverify_last_email"]');
+            const input = document.querySelector('input[placeholder="name@example.com"][type="text"]');
             if (input) {
                 input.value = lastEmail;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
             }
         }
     </script>
@@ -577,8 +578,24 @@ if not st.session_state.is_logged_in:
         st.markdown("### Sign In to Your Account")
         st.markdown("Welcome back! Sign in with your credentials to access your dashboard.")
         
+        # Show info about last email if available
+        last_email_js = """
+        <script>
+            const lastEmail = localStorage.getItem("skillverify_last_email");
+            if (lastEmail) {
+                const infoDiv = document.querySelector('[data-testid="last_email_info"]');
+                if (infoDiv) {
+                    infoDiv.innerHTML = `💡 Last used email: <strong>${lastEmail}</strong>`;
+                }
+            }
+        </script>
+        """
+        components.html(last_email_js, height=0)
+        
+        st.info("💡 Last used email will be pre-filled below", icon="ℹ️")
+        
         with st.form("quick_signin_form"):
-            signin_email = st.text_input("Email ID Address:", placeholder="name@example.com", key="signin_email_persist", data_testid="skillverify_last_email")
+            signin_email = st.text_input("Email ID Address:", placeholder="name@example.com", key="signin_email_persist")
             signin_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="signin_pass_persist")
             
             signin_submit = st.form_submit_button("Sign In to Portal", type="primary", use_container_width=True)
@@ -595,19 +612,35 @@ if not st.session_state.is_logged_in:
             elif len(password_clean) < 4:
                 st.error("❌ Invalid Password: Password must contain at least 4 characters.")
             else:
-                st.session_state.is_logged_in = True
-                st.session_state.user_email = email_clean
+                # Check if account exists in database
+                account_exists = False
+                if supabase_client is not None:
+                    try:
+                        response = supabase_client.table("users").select("*").eq("email", email_clean).execute()
+                        account_exists = len(response.data) > 0
+                    except Exception as e:
+                        st.warning("⚠️ Could not verify account. Proceeding with login attempt...")
+                        account_exists = True  # Allow login if we can't check
+                else:
+                    # If no database, allow login
+                    account_exists = True
                 
-                persistence_js = f"""
-                <script>
-                    localStorage.setItem("skillverify_user_email", "{email_clean}");
-                    localStorage.setItem("skillverify_is_logged_in", "true");
-                    localStorage.removeItem("skillverify_last_email");
-                </script>
-                """
-                components.html(persistence_js, height=0, width=0)
-                st.success("✓ Welcome back! Redirecting to dashboard...")
-                st.rerun()
+                if not account_exists:
+                    st.error(f"❌ No account found with email: {email_clean}\n\nPlease create a new account or check if you entered the correct email.")
+                else:
+                    st.session_state.is_logged_in = True
+                    st.session_state.user_email = email_clean
+                    
+                    persistence_js = f"""
+                    <script>
+                        localStorage.setItem("skillverify_user_email", "{email_clean}");
+                        localStorage.setItem("skillverify_is_logged_in", "true");
+                        localStorage.removeItem("skillverify_last_email");
+                    </script>
+                    """
+                    components.html(persistence_js, height=0, width=0)
+                    st.success("✓ Welcome back! Redirecting to dashboard...")
+                    st.rerun()
 else:
     # =========================================================
     # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
