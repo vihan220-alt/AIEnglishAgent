@@ -36,40 +36,28 @@ if "is_logged_in" not in st.session_state:
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
 
-# IMPROVED: Direct localStorage recovery without URL parameter tricks
-login_recovery_js = """
+# FIXED: Simple localStorage recovery - NO RELOAD LOOP
+login_persistence_js = """
 <script>
-    function restoreLoginState() {
+    (function() {
+        // Only run this recovery logic once per page load
         const savedEmail = localStorage.getItem("skillverify_user_email");
         const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
+        const currentUrl = new URL(window.location.href);
         
-        // If user is logged in according to localStorage
-        if (savedLoggedIn === "true" && savedEmail) {
-            // Check if we need to add the recovery parameter to the URL
-            const currentUrl = new URL(window.location.href);
-            if (!currentUrl.searchParams.has('login_recovery_email')) {
-                // Add the email as a query parameter to trigger Python-side restoration
-                currentUrl.searchParams.set('login_recovery_email', savedEmail);
-                // Replace the current history entry so back button doesn't loop
-                window.history.replaceState({}, document.title, currentUrl.toString());
-                // Trigger a page reload to restore session from this parameter
-                window.location.href = currentUrl.toString();
-            }
+        // Check if we already have the recovery parameter in URL
+        const hasRecoveryParam = currentUrl.searchParams.has('login_recovery_email');
+        
+        // If user should be logged in according to localStorage
+        if (savedLoggedIn === "true" && savedEmail && !hasRecoveryParam) {
+            // Add recovery parameter and reload ONCE
+            currentUrl.searchParams.set('login_recovery_email', encodeURIComponent(savedEmail));
+            window.location.replace(currentUrl.toString());
         }
-    }
-    
-    // Run restoration check as soon as possible
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', restoreLoginState);
-    } else {
-        restoreLoginState();
-    }
-    
-    // Also check periodically in case localStorage was accessed before component loaded
-    window.addEventListener('load', restoreLoginState);
+    })();
 </script>
 """
-components.html(login_recovery_js, height=0, width=0)
+components.html(login_persistence_js, height=0)
 
 # Integrated Cross-Domain Receiver for LocalStorage and Asynchronous Video Handling
 receiver_js = """
@@ -130,16 +118,13 @@ localstorage_bridge_html = """
 components.html(localstorage_bridge_html, height=0, width=0)
 
 # Check URL params as an alternative recovery method
-if "login_recovery_email" in st.query_params:
+# Only restore if session is NOT already restored (idempotent)
+if "login_recovery_email" in st.query_params and not st.session_state.is_logged_in:
     recovered_email = st.query_params.get("login_recovery_email", "").strip().lower()
-    if recovered_email:
+    if recovered_email and "@" in recovered_email:  # Basic email validation
         st.session_state.is_logged_in = True
         st.session_state.user_email = recovered_email
-        # Clear the query parameter so we don't loop
-        try:
-            st.query_params.clear()
-        except:
-            pass
+        # After setting session, rerun to re-evaluate the app logic with new login state
         st.rerun()
 
 # =========================================================
