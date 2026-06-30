@@ -661,7 +661,20 @@ if not st.session_state.is_logged_in:
                     account_exists = True
                 
                 if not account_exists:
-                    st.error(f"❌ No account found with email: {email_clean}\n\nPlease create a new account or check if you entered the correct email.")
+                    st.error(f"❌ No Account Found!")
+                    st.markdown(f"**Email:** `{email_clean}` does not have an account on this platform.")
+                    st.markdown("### What do you want to do?")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("📝 Create New Account", use_container_width=True, key="create_new_from_error"):
+                            st.session_state.login_mode = "new"
+                            st.rerun()
+                    with col2:
+                        if st.button("🔙 Try Different Email", use_container_width=True, key="retry_signin"):
+                            st.session_state.signin_email_persist = ""
+                            st.session_state.signin_pass_persist = ""
+                            st.rerun()
                 else:
                     st.session_state.is_logged_in = True
                     st.session_state.user_email = email_clean
