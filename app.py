@@ -36,31 +36,30 @@ if "is_logged_in" not in st.session_state:
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
 
-# JavaScript to bridge the browser's localStorage back into Streamlit seamlessly
-storage_bridge_html = """
+# IMPROVED: Direct localStorage recovery without URL parameter tricks
+login_recovery_js = """
 <script>
-    function recoverLoginFromLocalStorage() {
+    function restoreLoginState() {
         const savedEmail = localStorage.getItem("skillverify_user_email");
         const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
-
+        
         if (savedLoggedIn === "true" && savedEmail) {
-            const topLocation = window.top.location;
-            const currentUrl = new URL(topLocation.href);
-            if (!currentUrl.searchParams.has('login_recovery_email')) {
-                currentUrl.searchParams.set('login_recovery_email', savedEmail);
-                window.top.location.replace(currentUrl.toString());
-            }
+            // Trigger a Streamlit callback to restore session state
+            const event = new Event('skillverify_restore_login', { bubbles: true });
+            event.email = savedEmail;
+            window.parent.document.dispatchEvent(event);
         }
     }
-
-    window.addEventListener('load', () => {
-        recoverLoginFromLocalStorage();
-        setTimeout(recoverLoginFromLocalStorage, 250);
-        setTimeout(recoverLoginFromLocalStorage, 1000);
-    });
+    
+    // Restore login state immediately on page load
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', restoreLoginState);
+    } else {
+        restoreLoginState();
+    }
 </script>
 """
-components.html(storage_bridge_html, height=0, width=0)
+components.html(login_recovery_js, height=0, width=0)
 
 # Integrated Cross-Domain Receiver for LocalStorage and Asynchronous Video Handling
 receiver_js = """
@@ -94,14 +93,24 @@ components.html(receiver_js, height=0, width=0)
 recovery_data = ""
 video_bridge_data = ""
 
-if "login_recovery_email" in st.query_params:
-    recovered_email = st.query_params.get("login_recovery_email").strip().lower()
-    if recovered_email:
-        st.session_state.is_logged_in = True
-        st.session_state.user_email = recovered_email
-        st.experimental_set_query_params()
-        st.rerun()
+# IMPROVED: Check localStorage via JavaScript callback
+restore_login_callback_js = """
+<script>
+    document.addEventListener('skillverify_restore_login', function(e) {
+        const email = localStorage.getItem("skillverify_user_email");
+        if (email) {
+            const hiddenEmailRestore = document.getElementById("skillverify_email_restore");
+            if (hiddenEmailRestore) {
+                hiddenEmailRestore.value = email;
+                hiddenEmailRestore.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+    });
+</script>
+"""
+components.html(restore_login_callback_js, height=0, width=0)
 
+# Use URL param method as fallback
 # =========================================================
 # INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
 # =========================================================
