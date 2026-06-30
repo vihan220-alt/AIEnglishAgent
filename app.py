@@ -452,87 +452,162 @@ def show_subscription_options():
 # =========================================================
 if not st.session_state.is_logged_in:
     st.title("🔐 Candidate Onboarding & Qualification Portal")
-    st.markdown("You must complete all onboarding fields to access the main portal dashboard.")
+    
+    # Initialize login mode state
+    if "login_mode" not in st.session_state:
+        st.session_state.login_mode = "new"  # 'new' or 'existing'
     
     is_developer = st.query_params.get("dev") == "true"
     
-    if "onboarding_form_initialized" not in st.session_state:
-        st.session_state.onboarding_form_initialized = False
-
-    if not st.session_state.onboarding_form_initialized:
-        st.session_state.login_email_persist = ""
-        st.session_state.login_pass_persist = ""
-        st.session_state.login_age_persist = 25
-        st.session_state.login_intent_persist = ""
-        st.session_state.login_gender_persist = "Male"
-        st.session_state.onboarding_form_initialized = True
-
-    with st.form("onboarding_credential_form"):
-        st.text_input("Email ID Address:", placeholder="name@example.com", key="login_email_persist")
-        st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="login_pass_persist")
-        st.number_input("What is your age?", min_value=1, max_value=120, value=st.session_state.login_age_persist, key="login_age_persist")
-        st.text_area("Why do you want to join this assessment platform?", placeholder="Explain why you want to use this service...", key="login_intent_persist")
-        st.radio("Select Gender Profile:", ["Male", "Female"], key="login_gender_persist")
+    # Get last email from localStorage if user just logged out
+    get_last_email_js = """
+    <script>
+        const lastEmail = localStorage.getItem("skillverify_last_email");
+        if (lastEmail) {
+            const input = document.querySelector('input[data-testid="skillverify_last_email"]');
+            if (input) {
+                input.value = lastEmail;
+            }
+        }
+    </script>
+    """
+    components.html(get_last_email_js, height=0)
+    
+    # Mode toggle
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📝 New Account", use_container_width=True, 
+                     type="primary" if st.session_state.login_mode == "new" else "secondary"):
+            st.session_state.login_mode = "new"
+            st.rerun()
+    with col2:
+        if st.button("🔓 Already Have Account?", use_container_width=True,
+                     type="primary" if st.session_state.login_mode == "existing" else "secondary"):
+            st.session_state.login_mode = "existing"
+            st.rerun()
+    
+    st.markdown("---")
+    
+    # ===== NEW ACCOUNT FORM =====
+    if st.session_state.login_mode == "new":
+        st.markdown("### Create New Account")
+        st.markdown("You must complete all onboarding fields to access the main portal dashboard.")
         
-        if is_developer:
-            btn_col1, btn_col2 = st.columns([1, 1])
-            with btn_col1:
+        if "onboarding_form_initialized" not in st.session_state:
+            st.session_state.onboarding_form_initialized = False
+
+        if not st.session_state.onboarding_form_initialized:
+            st.session_state.login_email_persist = ""
+            st.session_state.login_pass_persist = ""
+            st.session_state.login_age_persist = 25
+            st.session_state.login_intent_persist = ""
+            st.session_state.login_gender_persist = "Male"
+            st.session_state.onboarding_form_initialized = True
+
+        with st.form("onboarding_credential_form"):
+            st.text_input("Email ID Address:", placeholder="name@example.com", key="login_email_persist")
+            st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="login_pass_persist")
+            st.number_input("What is your age?", min_value=1, max_value=120, value=st.session_state.login_age_persist, key="login_age_persist")
+            st.text_area("Why do you want to join this assessment platform?", placeholder="Explain why you want to use this service...", key="login_intent_persist")
+            st.radio("Select Gender Profile:", ["Male", "Female"], key="login_gender_persist")
+            
+            if is_developer:
+                btn_col1, btn_col2 = st.columns([1, 1])
+                with btn_col1:
+                    submit_clicked = st.form_submit_button("Verify Account & Enter Portal", type="primary", use_container_width=True)
+                with btn_col2:
+                    lucky_clicked = st.form_submit_button("✨ I'm Feeling Lucky (Bypass)", use_container_width=True)
+            else:
                 submit_clicked = st.form_submit_button("Verify Account & Enter Portal", type="primary", use_container_width=True)
-            with btn_col2:
-                lucky_clicked = st.form_submit_button("✨ I'm Feeling Lucky (Bypass)", use_container_width=True)
-        else:
-            submit_clicked = st.form_submit_button("Verify Account & Enter Portal", type="primary", use_container_width=True)
-            lucky_clicked = False
+                lucky_clicked = False
 
-    proceed_to_login = False
-    target_email = ""
+        proceed_to_login = False
+        target_email = ""
 
-    if submit_clicked:
-        email_clean = st.session_state.login_email_persist.strip()
-        password_clean = st.session_state.login_pass_persist.strip()
-        intent_clean = st.session_state.login_intent_persist.strip()
-        email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
-        intent_pattern = r"[a-zA-Z]{2,}\s+[a-zA-Z]{2,}\s+[a-zA-Z]{2,}"
+        if submit_clicked:
+            email_clean = st.session_state.login_email_persist.strip()
+            password_clean = st.session_state.login_pass_persist.strip()
+            intent_clean = st.session_state.login_intent_persist.strip()
+            email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
+            intent_pattern = r"[a-zA-Z]{2,}\s+[a-zA-Z]{2,}\s+[a-zA-Z]{2,}"
 
-        if not email_clean or not password_clean or not intent_clean:
-            st.error("❌ You cannot login without filling out every required field.")
-        elif not re.match(email_pattern, email_clean):
-            st.error("❌ Invalid Email ID: Please type a valid email format containing an '@' and a proper domain.")
-        elif len(password_clean) < 4:
-            st.error("❌ Invalid Password: Password must contain at least 4 characters.")
-        elif not re.search(intent_pattern, intent_clean):
-            st.error("❌ Invalid answer: please provide a meaningful reason for joining.")
-        else:
-            proceed_to_login = True
-            target_email = email_clean.lower()
+            if not email_clean or not password_clean or not intent_clean:
+                st.error("❌ You cannot login without filling out every required field.")
+            elif not re.match(email_pattern, email_clean):
+                st.error("❌ Invalid Email ID: Please type a valid email format containing an '@' and a proper domain.")
+            elif len(password_clean) < 4:
+                st.error("❌ Invalid Password: Password must contain at least 4 characters.")
+            elif not re.search(intent_pattern, intent_clean):
+                st.error("❌ Invalid answer: please provide a meaningful reason for joining.")
+            else:
+                proceed_to_login = True
+                target_email = email_clean.lower()
 
-    elif lucky_clicked and is_developer:
-        email_clean = reg_email.strip()
-        password_clean = reg_password.strip()
-        intent_clean = reg_intent.strip()
-        intent_pattern = r"[a-zA-Z]{2,}\s+[a-zA-Z]{2,}\s+[a-zA-Z]{2,}"
+        elif lucky_clicked and is_developer:
+            email_clean = reg_email.strip()
+            password_clean = reg_password.strip()
+            intent_clean = reg_intent.strip()
+            intent_pattern = r"[a-zA-Z]{2,}\s+[a-zA-Z]{2,}\s+[a-zA-Z]{2,}"
 
-        if not email_clean or not password_clean or not intent_clean:
-            st.error("❌ You cannot login without filling out every required field.")
-        elif not re.search(intent_pattern, intent_clean):
-            st.error("❌ Invalid answer: please provide a meaningful reason for joining.")
-        else:
-            proceed_to_login = True
-            target_email = email_clean.lower()
+            if not email_clean or not password_clean or not intent_clean:
+                st.error("❌ You cannot login without filling out every required field.")
+            elif not re.search(intent_pattern, intent_clean):
+                st.error("❌ Invalid answer: please provide a meaningful reason for joining.")
+            else:
+                proceed_to_login = True
+                target_email = email_clean.lower()
 
-    if proceed_to_login:
-        st.session_state.is_logged_in = True
-        st.session_state.user_email = target_email
+        if proceed_to_login:
+            st.session_state.is_logged_in = True
+            st.session_state.user_email = target_email
+            
+            persistence_js = f"""
+            <script>
+                localStorage.setItem("skillverify_user_email", "{target_email}");
+                localStorage.setItem("skillverify_is_logged_in", "true");
+                localStorage.removeItem("skillverify_last_email");
+            </script>
+            """
+            components.html(persistence_js, height=0, width=0)
+            st.success("✓ Identity validated! Redirecting to dashboard...")
+            st.rerun()
+    
+    # ===== QUICK SIGN-IN FORM (EXISTING ACCOUNT) =====
+    else:
+        st.markdown("### Sign In to Your Account")
+        st.markdown("Welcome back! Sign in with your credentials to access your dashboard.")
         
-        persistence_js = f"""
-        <script>
-            localStorage.setItem("skillverify_user_email", "{target_email}");
-            localStorage.setItem("skillverify_is_logged_in", "true");
-        </script>
-        """
-        components.html(persistence_js, height=0, width=0)
-        st.success("✓ Identity validated! Redirecting to dashboard...")
-        st.rerun()
+        with st.form("quick_signin_form"):
+            signin_email = st.text_input("Email ID Address:", placeholder="name@example.com", key="signin_email_persist", data_testid="skillverify_last_email")
+            signin_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="signin_pass_persist")
+            
+            signin_submit = st.form_submit_button("Sign In to Portal", type="primary", use_container_width=True)
+        
+        if signin_submit:
+            email_clean = signin_email.strip().lower()
+            password_clean = signin_password.strip()
+            email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
+            
+            if not email_clean or not password_clean:
+                st.error("❌ Please enter both email and password.")
+            elif not re.match(email_pattern, email_clean):
+                st.error("❌ Invalid Email ID: Please type a valid email format.")
+            elif len(password_clean) < 4:
+                st.error("❌ Invalid Password: Password must contain at least 4 characters.")
+            else:
+                st.session_state.is_logged_in = True
+                st.session_state.user_email = email_clean
+                
+                persistence_js = f"""
+                <script>
+                    localStorage.setItem("skillverify_user_email", "{email_clean}");
+                    localStorage.setItem("skillverify_is_logged_in", "true");
+                    localStorage.removeItem("skillverify_last_email");
+                </script>
+                """
+                components.html(persistence_js, height=0, width=0)
+                st.success("✓ Welcome back! Redirecting to dashboard...")
+                st.rerun()
 else:
     # =========================================================
     # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
@@ -543,11 +618,14 @@ else:
         st.markdown(f"##### 🔑 Profile Active: `{st.session_state.user_email}`")
         
         if st.button("🚪 Log Out / Switch Account", use_container_width=True):
+            current_email = st.session_state.user_email
             st.session_state.is_logged_in = False
             st.session_state.user_email = ""
             
-            logout_js = """
+            logout_js = f"""
             <script>
+                // Save the email for quick login later (but clear the login state)
+                localStorage.setItem("skillverify_last_email", "{current_email}");
                 localStorage.removeItem("skillverify_user_email");
                 localStorage.removeItem("skillverify_is_logged_in");
             </script>
