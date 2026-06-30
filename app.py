@@ -43,20 +43,30 @@ login_recovery_js = """
         const savedEmail = localStorage.getItem("skillverify_user_email");
         const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
         
+        // If user is logged in according to localStorage
         if (savedLoggedIn === "true" && savedEmail) {
-            // Trigger a Streamlit callback to restore session state
-            const event = new Event('skillverify_restore_login', { bubbles: true });
-            event.email = savedEmail;
-            window.parent.document.dispatchEvent(event);
+            // Check if we need to add the recovery parameter to the URL
+            const currentUrl = new URL(window.location.href);
+            if (!currentUrl.searchParams.has('login_recovery_email')) {
+                // Add the email as a query parameter to trigger Python-side restoration
+                currentUrl.searchParams.set('login_recovery_email', savedEmail);
+                // Replace the current history entry so back button doesn't loop
+                window.history.replaceState({}, document.title, currentUrl.toString());
+                // Trigger a page reload to restore session from this parameter
+                window.location.href = currentUrl.toString();
+            }
         }
     }
     
-    // Restore login state immediately on page load
+    // Run restoration check as soon as possible
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', restoreLoginState);
     } else {
         restoreLoginState();
     }
+    
+    // Also check periodically in case localStorage was accessed before component loaded
+    window.addEventListener('load', restoreLoginState);
 </script>
 """
 components.html(login_recovery_js, height=0, width=0)
@@ -93,24 +103,45 @@ components.html(receiver_js, height=0, width=0)
 recovery_data = ""
 video_bridge_data = ""
 
-# IMPROVED: Check localStorage via JavaScript callback
-restore_login_callback_js = """
+# IMPROVED: Hidden input field that gets populated from localStorage
+localstorage_bridge_html = """
+<div style="display:none;">
+    <input type="hidden" id="skillverify_email_restore" value="">
+    <input type="hidden" id="skillverify_logged_in_restore" value="">
+</div>
 <script>
-    document.addEventListener('skillverify_restore_login', function(e) {
-        const email = localStorage.getItem("skillverify_user_email");
-        if (email) {
-            const hiddenEmailRestore = document.getElementById("skillverify_email_restore");
-            if (hiddenEmailRestore) {
-                hiddenEmailRestore.value = email;
-                hiddenEmailRestore.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-        }
-    });
+    // Directly read from localStorage and populate hidden inputs immediately
+    const savedEmail = localStorage.getItem("skillverify_user_email");
+    const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
+    
+    const emailInput = document.getElementById("skillverify_email_restore");
+    const loggedInInput = document.getElementById("skillverify_logged_in_restore");
+    
+    if (emailInput && savedEmail) {
+        emailInput.value = savedEmail;
+        emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (loggedInInput && savedLoggedIn) {
+        loggedInInput.value = savedLoggedIn;
+        loggedInInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
 </script>
 """
-components.html(restore_login_callback_js, height=0, width=0)
+components.html(localstorage_bridge_html, height=0, width=0)
 
-# Use URL param method as fallback
+# Check URL params as an alternative recovery method
+if "login_recovery_email" in st.query_params:
+    recovered_email = st.query_params.get("login_recovery_email", "").strip().lower()
+    if recovered_email:
+        st.session_state.is_logged_in = True
+        st.session_state.user_email = recovered_email
+        # Clear the query parameter so we don't loop
+        try:
+            st.query_params.clear()
+        except:
+            pass
+        st.rerun()
+
 # =========================================================
 # INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
 # =========================================================
