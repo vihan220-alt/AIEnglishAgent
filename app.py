@@ -594,9 +594,44 @@ if not st.session_state.is_logged_in:
         
         st.info("💡 Last used email will be pre-filled below", icon="ℹ️")
         
+        # Disable browser password save dialog
+        disable_autosave_js = """
+        <script>
+            // Disable browser password save dialog
+            document.addEventListener('DOMContentLoaded', function() {
+                const forms = document.querySelectorAll('form');
+                forms.forEach(form => {
+                    form.setAttribute('autocomplete', 'off');
+                    form.addEventListener('submit', function(e) {
+                        // Prevent browser from offering to save password
+                        const inputs = form.querySelectorAll('input');
+                        inputs.forEach(input => {
+                            input.setAttribute('autocomplete', 'off');
+                            input.setAttribute('data-lpignore', 'true');
+                            input.setAttribute('data-1p-ignore', 'true');
+                        });
+                    });
+                });
+            });
+            
+            // Also run on page load
+            window.addEventListener('load', function() {
+                const forms = document.querySelectorAll('form');
+                forms.forEach(form => {
+                    form.setAttribute('autocomplete', 'off');
+                    const inputs = form.querySelectorAll('input[type="password"]');
+                    inputs.forEach(input => {
+                        input.setAttribute('autocomplete', 'new-password');
+                    });
+                });
+            });
+        </script>
+        """
+        components.html(disable_autosave_js, height=0)
+        
         with st.form("quick_signin_form"):
             signin_email = st.text_input("Email ID Address:", placeholder="name@example.com", key="signin_email_persist")
-            signin_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="signin_pass_persist")
+            signin_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="signin_pass_persist", autocomplete="off")
             
             signin_submit = st.form_submit_button("Sign In to Portal", type="primary", use_container_width=True)
         
