@@ -661,19 +661,20 @@ if not st.session_state.is_logged_in:
             else:
                 # Check if account exists in database
                 account_exists = False
-                if supabase_client is not None:
+                if supabase_client is None:
+                    st.error("❌ Account verification is unavailable because the database client is not configured.")
+                else:
                     try:
                         response = supabase_client.table("users").select("*").eq("email", email_clean).execute()
                         account_exists = len(response.data) > 0
-                    except Exception as e:
-                        st.warning("⚠️ Could not verify account. Proceeding with login attempt...")
-                        account_exists = True  # Allow login if we can't check
-                else:
-                    # If no database, allow login
-                    account_exists = True
-                
+                    except Exception:
+                        st.error("⚠️ Could not verify account. Please try again later or create a new account.")
+
                 if not account_exists:
-                    st.error(f"❌ No account found with email: {email_clean}\n\nPlease create a new account or check if you entered the correct email.")
+                    st.error(
+                        f"❌ No account found for email: {email_clean}.\n\n"
+                        "If you don't have an account yet, please switch to 'New Account' and register."
+                    )
                 else:
                     st.session_state.is_logged_in = True
                     st.session_state.user_email = email_clean
