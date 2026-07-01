@@ -144,6 +144,7 @@ if "login_recovery_email" in st.query_params and not st.session_state.is_logged_
             components.html(cleanup_js, height=0)
             st.warning("⚠️ Stored login credentials were not valid. Please sign in again or create a new account.")
             st.experimental_set_query_params()
+            st.rerun()
 
 # =========================================================
 # INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
