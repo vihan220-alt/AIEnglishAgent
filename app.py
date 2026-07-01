@@ -486,7 +486,19 @@ if not st.session_state.is_logged_in:
                      type="primary" if st.session_state.login_mode == "existing" else "secondary"):
             st.session_state.login_mode = "existing"
             st.rerun()
-    
+
+    # Ensure login form state keys exist before any form render
+    if "login_email_persist" not in st.session_state:
+        st.session_state.login_email_persist = ""
+    if "login_pass_persist" not in st.session_state:
+        st.session_state.login_pass_persist = ""
+    if "login_age_persist" not in st.session_state:
+        st.session_state.login_age_persist = 25
+    if "login_intent_persist" not in st.session_state:
+        st.session_state.login_intent_persist = ""
+    if "login_gender_persist" not in st.session_state:
+        st.session_state.login_gender_persist = "Male"
+
     st.markdown("---")
     
     # ===== NEW ACCOUNT FORM =====
@@ -545,9 +557,9 @@ if not st.session_state.is_logged_in:
                 target_email = email_clean.lower()
 
         elif lucky_clicked and is_developer:
-            email_clean = st.session_state.login_email_persist.strip()
-            password_clean = st.session_state.login_pass_persist.strip()
-            intent_clean = st.session_state.login_intent_persist.strip()
+            email_clean = reg_email.strip()
+            password_clean = reg_password.strip()
+            intent_clean = reg_intent.strip()
             intent_pattern = r"[a-zA-Z]{2,}\s+[a-zA-Z]{2,}\s+[a-zA-Z]{2,}"
 
             if not email_clean or not password_clean or not intent_clean:
@@ -631,7 +643,7 @@ if not st.session_state.is_logged_in:
         
         with st.form("quick_signin_form"):
             signin_email = st.text_input("Email ID Address:", placeholder="name@example.com", key="signin_email_persist")
-            signin_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="signin_pass_persist", autocomplete="off")
+            signin_password = st.text_input("Email Password Account:", type="password", placeholder="••••••••", key="signin_pass_persist")
             
             signin_submit = st.form_submit_button("Sign In to Portal", type="primary", use_container_width=True)
         
@@ -661,20 +673,7 @@ if not st.session_state.is_logged_in:
                     account_exists = True
                 
                 if not account_exists:
-                    st.error(f"❌ No Account Found!")
-                    st.markdown(f"**Email:** `{email_clean}` does not have an account on this platform.")
-                    st.markdown("### What do you want to do?")
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if st.button("📝 Create New Account", use_container_width=True, key="create_new_from_error"):
-                            st.session_state.login_mode = "new"
-                            st.rerun()
-                    with col2:
-                        if st.button("🔙 Try Different Email", use_container_width=True, key="retry_signin"):
-                            st.session_state.signin_email_persist = ""
-                            st.session_state.signin_pass_persist = ""
-                            st.rerun()
+                    st.error(f"❌ No account found with email: {email_clean}\n\nPlease create a new account or check if you entered the correct email.")
                 else:
                     st.session_state.is_logged_in = True
                     st.session_state.user_email = email_clean
