@@ -121,11 +121,29 @@ components.html(localstorage_bridge_html, height=0, width=0)
 # Only restore if session is NOT already restored (idempotent)
 if "login_recovery_email" in st.query_params and not st.session_state.is_logged_in:
     recovered_email = st.query_params.get("login_recovery_email", "").strip().lower()
-    if recovered_email and "@" in recovered_email:  # Basic email validation
-        st.session_state.is_logged_in = True
-        st.session_state.user_email = recovered_email
-        # After setting session, rerun to re-evaluate the app logic with new login state
-        st.rerun()
+    if recovered_email and "@" in recovered_email:
+        email_exists = False
+        if supabase_client is not None:
+            try:
+                response = supabase_client.table("users").select("email").eq("email", recovered_email).execute()
+                email_exists = len(response.data) > 0
+            except Exception:
+                email_exists = False
+
+        if email_exists:
+            st.session_state.is_logged_in = True
+            st.session_state.user_email = recovered_email
+            st.rerun()
+        else:
+            cleanup_js = """
+            <script>
+                localStorage.removeItem("skillverify_user_email");
+                localStorage.removeItem("skillverify_is_logged_in");
+            </script>
+            """
+            components.html(cleanup_js, height=0)
+            st.warning("⚠️ Stored login credentials were not valid. Please sign in again or create a new account.")
+            st.experimental_set_query_params()
 
 # =========================================================
 # INITIALIZE GLOBAL SESSION STATE MEMORY FRAMEWORKS
