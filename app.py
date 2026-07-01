@@ -685,9 +685,15 @@ if not st.session_state.is_logged_in:
                 else:
                     try:
                         response = supabase_client.table("users").select("*").eq("email", email_clean).execute()
-                        account_exists = len(response.data) > 0
+                        if hasattr(response, "error") and response.error:
+                            account_exists = False
+                        elif isinstance(response.data, list):
+                            account_exists = len(response.data) > 0
+                        else:
+                            account_exists = bool(response.data)
                     except Exception:
                         st.error("⚠️ Could not verify account. Please try again later or create a new account.")
+                        account_exists = False
 
                 if not account_exists:
                     st.error(
