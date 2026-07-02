@@ -59,6 +59,50 @@ login_persistence_js = """
 """
 components.html(login_persistence_js, height=0)
 
+# Restore saved profile fields automatically from localStorage when user returns
+profile_restore_js = """
+<script>
+    (function() {
+        let profile = {};
+        try {
+            profile = JSON.parse(localStorage.getItem("skillverify_last_profile") || "{}");
+        } catch (e) {
+            profile = {};
+        }
+
+        if (profile) {
+            const emailInput = document.querySelector('input[placeholder="name@example.com"]');
+            const ageInput = document.querySelector('input[type="number"]');
+            const intentInput = document.querySelector('textarea[placeholder="Explain why you want to use this service..."]');
+            const maleRadio = document.querySelector('input[type="radio"][value="Male"]');
+            const femaleRadio = document.querySelector('input[type="radio"][value="Female"]');
+
+            if (emailInput && profile.email && !emailInput.value) {
+                emailInput.value = profile.email;
+                emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            if (ageInput && profile.age && !ageInput.value) {
+                ageInput.value = profile.age;
+                ageInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            if (intentInput && profile.intent && !intentInput.value) {
+                intentInput.value = profile.intent;
+                intentInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            if (maleRadio && profile.gender === "Male") {
+                maleRadio.checked = true;
+                maleRadio.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            if (femaleRadio && profile.gender === "Female") {
+                femaleRadio.checked = true;
+                femaleRadio.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+    })();
+</script>
+"""
+components.html(profile_restore_js, height=0)
+
 # Integrated Cross-Domain Receiver for LocalStorage and Asynchronous Video Handling
 receiver_js = """
 <script>
@@ -593,10 +637,17 @@ if not st.session_state.is_logged_in:
             st.session_state.is_logged_in = True
             st.session_state.user_email = target_email
             
+            profile_json = json.dumps({
+                "email": target_email,
+                "age": st.session_state.get("login_age_persist", ""),
+                "intent": st.session_state.get("login_intent_persist", ""),
+                "gender": st.session_state.get("login_gender_persist", "Male")
+            })
             persistence_js = f"""
             <script>
                 localStorage.setItem("skillverify_user_email", "{target_email}");
                 localStorage.setItem("skillverify_is_logged_in", "true");
+                localStorage.setItem("skillverify_last_profile", {profile_json});
                 localStorage.removeItem("skillverify_last_email");
             </script>
             """
@@ -728,10 +779,17 @@ else:
             st.session_state.is_logged_in = False
             st.session_state.user_email = ""
             
+            profile_json = json.dumps({
+                "email": st.session_state.get("login_email_persist", current_email),
+                "age": st.session_state.get("login_age_persist", ""),
+                "intent": st.session_state.get("login_intent_persist", ""),
+                "gender": st.session_state.get("login_gender_persist", "Male")
+            })
             logout_js = f"""
             <script>
-                // Save the email for quick login later (but clear the login state)
+                // Save the email and profile data for quick restore after logout
                 localStorage.setItem("skillverify_last_email", "{current_email}");
+                localStorage.setItem("skillverify_last_profile", {profile_json});
                 localStorage.removeItem("skillverify_user_email");
                 localStorage.removeItem("skillverify_is_logged_in");
             </script>
