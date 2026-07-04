@@ -36,28 +36,34 @@ if "is_logged_in" not in st.session_state:
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
 
-# FIXED: Simple localStorage recovery - NO RELOAD LOOP
-login_persistence_js = """
+# CRITICAL: Immediate client-side recovery that prevents brief login UI flash
+recovery_control_js = """
 <script>
-    (function() {
-        // Only run this recovery logic once per page load
-        const savedEmail = localStorage.getItem("skillverify_user_email");
-        const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
-        const currentUrl = new URL(window.location.href);
-        
-        // Check if we already have the recovery parameter in URL
-        const hasRecoveryParam = currentUrl.searchParams.has('login_recovery_email');
-        
-        // If user should be logged in according to localStorage
-        if (savedLoggedIn === "true" && savedEmail && !hasRecoveryParam) {
-            // Add recovery parameter and reload ONCE
-            currentUrl.searchParams.set('login_recovery_email', encodeURIComponent(savedEmail));
-            window.location.replace(currentUrl.toString());
+    (function(){
+        // Temporarily hide the page until recovery check completes
+        function reveal() { try{ document.documentElement.style.visibility = ''; }catch(e){} }
+        try {
+            document.documentElement.style.visibility = 'hidden';
+            const savedEmail = localStorage.getItem("skillverify_user_email");
+            const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
+            const currentUrl = new URL(window.location.href);
+            const hasRecoveryParam = currentUrl.searchParams.has('login_recovery_email');
+
+            if (savedLoggedIn === "true" && savedEmail && !hasRecoveryParam) {
+                // Add recovery parameter and reload ONCE to allow server-side restore
+                currentUrl.searchParams.set('login_recovery_email', encodeURIComponent(savedEmail));
+                window.location.replace(currentUrl.toString());
+                return;
+            }
+        } catch(e) {
+            // ignore errors and reveal page
         }
+        // Reveal the page if no reload was triggered (safety timeout)
+        setTimeout(reveal, 600);
     })();
 </script>
 """
-components.html(login_persistence_js, height=0)
+components.html(recovery_control_js, height=0)
 
 # Restore saved profile fields automatically from localStorage when user returns
 profile_restore_js = """
