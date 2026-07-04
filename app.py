@@ -65,6 +65,31 @@ recovery_control_js = """
 """
 components.html(recovery_control_js, height=0)
 
+# Debug overlay: shows localStorage & query param status to help diagnose recovery
+debug_overlay_html = """
+<div id="sv_debug_overlay" style="position:fixed;right:10px;top:72px;z-index:99999;background:rgba(0,0,0,0.65);color:#fff;padding:8px;border-radius:8px;font-family:system-ui, sans-serif;font-size:12px;min-width:220px;">
+    <strong style="font-size:13px">Recovery Debug</strong>
+    <div id="sv_debug_content" style="margin-top:6px;line-height:1.3"></div>
+</div>
+<script>
+    (function(){
+        const box = document.getElementById('sv_debug_content');
+        function refresh(){
+            try{
+                const savedEmail = localStorage.getItem('skillverify_user_email');
+                const savedLogged = localStorage.getItem('skillverify_is_logged_in');
+                const lastProfile = localStorage.getItem('skillverify_last_profile');
+                const qp = new URL(window.location.href).searchParams.get('login_recovery_email');
+                box.innerHTML = `savedEmail: <b>${savedEmail||'<i>none</i>'}</b><br>savedLogged: <b>${savedLogged||'<i>none</i>'}</b><br>qp: <b>${qp||'<i>none</i>'}</b><br>lastProfile: <small>${(lastProfile||'<i>none</i>')}</small>`;
+            }catch(e){ box.innerText = 'debug error'; }
+        }
+        refresh();
+        setInterval(refresh, 1000);
+    })();
+</script>
+"""
+components.html(debug_overlay_html, height=0)
+
 # Restore saved profile fields automatically from localStorage when user returns
 profile_restore_js = """
 <script>
@@ -651,10 +676,15 @@ if not st.session_state.is_logged_in:
             })
             persistence_js = f"""
             <script>
+                // Save to localStorage
                 localStorage.setItem("skillverify_user_email", "{target_email}");
                 localStorage.setItem("skillverify_is_logged_in", "true");
                 localStorage.setItem("skillverify_last_profile", {profile_json});
                 localStorage.removeItem("skillverify_last_email");
+                // Also set cookies as a fallback (7 days)
+                document.cookie = "skillverify_user_email={target_email};path=/;max-age=604800";
+                document.cookie = "skillverify_is_logged_in=true;path=/;max-age=604800";
+                document.cookie = "skillverify_last_profile=" + encodeURIComponent({profile_json}) + ";path=/;max-age=604800";
             </script>
             """
             components.html(persistence_js, height=0, width=0)
@@ -766,6 +796,8 @@ if not st.session_state.is_logged_in:
                         localStorage.setItem("skillverify_user_email", "{email_clean}");
                         localStorage.setItem("skillverify_is_logged_in", "true");
                         localStorage.removeItem("skillverify_last_email");
+                        document.cookie = "skillverify_user_email={email_clean};path=/;max-age=604800";
+                        document.cookie = "skillverify_is_logged_in=true;path=/;max-age=604800";
                     </script>
                     """
                     components.html(persistence_js, height=0, width=0)
@@ -798,6 +830,10 @@ else:
                 localStorage.setItem("skillverify_last_profile", {profile_json});
                 localStorage.removeItem("skillverify_user_email");
                 localStorage.removeItem("skillverify_is_logged_in");
+                // Cookie fallback: save last profile and expire auth cookies
+                document.cookie = "skillverify_last_profile=" + encodeURIComponent({profile_json}) + ";path=/;max-age=604800";
+                document.cookie = "skillverify_user_email=;path=/;max-age=0";
+                document.cookie = "skillverify_is_logged_in=;path=/;max-age=0";
             </script>
             """
             components.html(logout_js, height=0, width=0)
