@@ -293,34 +293,78 @@ supabase_client = get_supabase_client()
 
 def init_user_and_get_plan(email_str):
     clean_email = email_str.strip().lower()
+    # Default: new users get a 10-day free trial
+    TRIAL_DAYS = 10
     if not clean_email or supabase_client is None:
-        return "Trial", 15
+        return "Trial", TRIAL_DAYS
     try:
         response = supabase_client.table("users").select("*").eq("email", clean_email).execute()
         user_records = response.data
         if len(user_records) == 0:
-            new_profile = {"email": clean_email, "user_plan": "Trial", "signup_date": str(date.today())}
+            new_profile = {
+                "email": clean_email,
+                "user_plan": "Trial",
+                "signup_date": str(date.today()),
+                "plan_start_date": str(date.today()),
+                "plan_expiry_date": str((date.today()).isoformat())
+            }
             supabase_client.table("users").insert(new_profile).execute()
-            return "Trial", 15
+            return "Trial", TRIAL_DAYS
         user_data = user_records[0]
         assigned_plan = user_data.get("user_plan", "Trial")
+        # If there is a plan_expiry_date stored, compute remaining days
+        expiry_str = user_data.get("plan_expiry_date")
+        if expiry_str:
+            try:
+                expiry_date_obj = datetime.strptime(expiry_str, "%Y-%m-%d").date()
+                days_remaining = max(0, (expiry_date_obj - date.today()).days)
+                if days_remaining == 0:
+                    # mark expired
+                    supabase_client.table("users").update({"user_plan": "Expired"}).eq("email", clean_email).execute()
+                    return "Expired", 0
+                return assigned_plan, days_remaining
+            except Exception:
+                # malformed expiry, fall back to trial calculation
+                pass
+
+        # Fallback: use signup_date for trial calculation
         signup_dt_str = user_data.get("signup_date", str(date.today()))
         signup_date_obj = datetime.strptime(signup_dt_str, "%Y-%m-%d").date()
         days_consumed = (date.today() - signup_date_obj).days
-        remaining_trial_days = max(0, 15 - days_consumed)
+        remaining_trial_days = max(0, TRIAL_DAYS - days_consumed)
         if assigned_plan == "Trial" and remaining_trial_days <= 0:
             supabase_client.table("users").update({"user_plan": "Expired"}).eq("email", clean_email).execute()
             return "Expired", 0
         return assigned_plan, remaining_trial_days
     except Exception:
-        return "Trial", 15
+        return "Trial", TRIAL_DAYS
 
-def update_user_plan_db(email_str, target_plan):
+def update_user_plan_db(email_str, target_plan, months_duration=1):
+    """
+    Update the user's plan and set expiry based on months_duration.
+    months_duration can be 1, 3, 6, etc. Use 0 for non-expiring (rare).
+    """
     clean_email = email_str.strip().lower()
     if supabase_client is None:
         return False
     try:
-        supabase_client.table("users").update({"user_plan": target_plan}).eq("email", clean_email).execute()
+        start_date = date.today()
+        # approximate month as 30 days for expiry calculations
+        try:
+            from datetime import timedelta
+            if months_duration and months_duration > 0:
+                expiry_date = start_date + timedelta(days=30 * months_duration)
+                expiry_str = expiry_date.strftime("%Y-%m-%d")
+            else:
+                expiry_str = None
+        except Exception:
+            expiry_str = None
+
+        update_payload = {"user_plan": target_plan, "plan_start_date": str(start_date)}
+        if expiry_str:
+            update_payload["plan_expiry_date"] = expiry_str
+
+        supabase_client.table("users").update(update_payload).eq("email", clean_email).execute()
         return True
     except Exception:
         return False
@@ -503,36 +547,57 @@ def show_subscription_options():
     with col1:
         st.markdown("### 🥉 Basic\n**₹15** / month")
         if st.button("Select ₹15 Plan", use_container_width=True, key="btn_tier_15_select"): 
-            st.session_state.payment_plan_selected = ("Basic Premium", 15, "1 Month")
+            st.session_state.payment_plan_selected = ("Basic", 15, "1 Month", 1)
             st.rerun()
     with col2:
         st.markdown("### 🥈 Standard\n**₹30** / month")
         if st.button("Select ₹30 Plan", use_container_width=True, type="primary", key="btn_tier_30_select"): 
-            st.session_state.payment_plan_selected = ("Standard Premium", 30, "1 Month")
+            st.session_state.payment_plan_selected = ("Standard", 30, "1 Month", 1)
             st.rerun()
     with col3:
-        st.markdown("### 🥇 Executive\n**₹50** / month")
+        st.markdown("### 🥇 Epic\n**₹50** / month")
         if st.button("Select ₹50 Plan", use_container_width=True, key="btn_tier_50_select"): 
-            st.session_state.payment_plan_selected = ("Executive Premium", 50, "1 Month")
+            st.session_state.payment_plan_selected = ("Epic", 50, "1 Month", 1)
             st.rerun()
             
     st.markdown("---")
     coupon_input = st.text_input("Enter Coupon Code here:", key="coupon_field_intake").strip().upper()
-    if coupon_input in ["FREE3M", "SKILL3"]:
-        st.success("🎉 Coupon Applied Successfully! You get **3 Months FREE**.")
-        if st.session_state.payment_plan_selected:
-            p_name, _, _ = st.session_state.payment_plan_selected
-            st.session_state.payment_plan_selected = (p_name, 0, "3 Months Promo")
+    valid_coupons = {"FREE6M":6, "SKILL6":6}
+    if coupon_input:
+        if coupon_input in valid_coupons:
+            months = valid_coupons[coupon_input]
+            st.success(f"🎉 Coupon Applied Successfully! You get **{months} Months FREE**.")
+            if st.session_state.payment_plan_selected:
+                p_name, _, _, _ = st.session_state.payment_plan_selected
+                st.session_state.payment_plan_selected = (p_name, 0, f"{months} Months Promo", months)
+        else:
+            st.error("❌ Please write valid coupon code.")
 
     if st.session_state.payment_plan_selected:
-        plan_nm, plan_amt, plan_dur = st.session_state.payment_plan_selected
+        plan_nm, plan_amt, plan_dur, plan_months = st.session_state.payment_plan_selected
         render_payment_gateway(st.session_state.user_email, plan_nm, plan_amt, plan_dur)
-        
+
+        # Option to activate now (skip trial) without using payment gateway
+        if st.button(f"Activate Now (Skip Trial) - {plan_nm}", use_container_width=True, key="activate_now_btn"):
+            if supabase_client is None:
+                st.error("Database initialization failed. Please set up your secrets parameters.")
+            else:
+                months_to_set = plan_months or 1
+                success = update_user_plan_db(st.session_state.user_email, f"{plan_nm} ({plan_dur})", months_duration=months_to_set)
+                if success:
+                    st.success("Successfully activated plan! Reloading layout...")
+                    st.session_state.payment_plan_selected = None
+                    st.session_state.iframe_render_idx += 1
+                    st.rerun()
+                else:
+                    st.error("Database storage push failed. Verify connectivity parameters.")
+
         if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True, key="payment_simulation_trigger"):
             if supabase_client is None:
                 st.error("Database initialization failed. Please set up your secrets parameters.")
             else:
-                success = update_user_plan_db(st.session_state.user_email, f"{plan_nm} ({plan_dur})")
+                months_to_set = plan_months or 1
+                success = update_user_plan_db(st.session_state.user_email, f"{plan_nm} ({plan_dur})", months_duration=months_to_set)
                 if success:
                     st.success("Successfully activated plan! Reloading layout...")
                     st.session_state.payment_plan_selected = None
@@ -932,7 +997,7 @@ else:
         active_id = st.session_state.active_chat_id
         st.title(f"{st.session_state.all_chats[active_id]['title'] if active_id in st.session_state.all_chats else 'English Assessment Portal'}")
         
-        if "Premium" not in user_package_tier:
+        if user_package_tier in ("Trial", "Expired"):
             st.warning(f"⏳ Free Trial Active Account Profile — **{trial_countdown} days left**")
             with st.expander("👑 Upgrade to Premium Instantly", expanded=False):
                 show_subscription_options()
