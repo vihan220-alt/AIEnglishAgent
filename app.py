@@ -889,13 +889,10 @@ if not st.session_state.is_logged_in:
                         account_exists = False
 
                 if not account_exists:
-                            st.error(f"❌ No account found for email: {email_clean}. We don't have any account like that.")
-                            if st.button("Create New Account with this email", key="btn_create_new_from_signin"):
-                                st.session_state.login_mode = "new"
-                                # prefill the email in new account form
-                                st.session_state.login_email_persist = email_clean
-                                st.rerun()
+                    st.error(f"❌ No account found for email: {email_clean}. We don't have any account like that.")
+                    st.session_state.signin_missing_email = email_clean
                 else:
+                    st.session_state.signin_missing_email = ""
                     st.session_state.is_logged_in = True
                     st.session_state.user_email = email_clean
                     
@@ -911,6 +908,13 @@ if not st.session_state.is_logged_in:
                     components.html(persistence_js, height=0, width=0)
                     st.success("✓ Welcome back! Redirecting to dashboard...")
                     st.rerun()
+
+        if st.session_state.get("signin_missing_email"):
+            if st.button("Create New Account with this email", key="btn_create_new_from_signin"):
+                st.session_state.login_mode = "new"
+                st.session_state.login_email_persist = st.session_state.signin_missing_email
+                st.session_state.signin_missing_email = ""
+                st.rerun()
 else:
     # =========================================================
     # SIDEBAR WORKSPACE NAVIGATION & CHAT INTERFACE OPTIONS
