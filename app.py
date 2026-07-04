@@ -371,6 +371,30 @@ def update_user_plan_db(email_str, target_plan, months_duration=1):
     except Exception:
         return False
 
+
+def save_profile_to_db(email_str, profile_dict):
+    """Insert or update the user's profile fields in the users table."""
+    clean_email = (email_str or "").strip().lower()
+    if not clean_email or supabase_client is None:
+        return False
+    try:
+        # Check existing
+        resp = supabase_client.table("users").select("email").eq("email", clean_email).execute()
+        payload = profile_dict.copy()
+        payload["email"] = clean_email
+        if resp and getattr(resp, 'data', None) and len(resp.data) > 0:
+            supabase_client.table("users").update(payload).eq("email", clean_email).execute()
+        else:
+            # ensure signup_date and default plan if not provided
+            if "signup_date" not in payload:
+                payload["signup_date"] = str(date.today())
+            if "user_plan" not in payload:
+                payload["user_plan"] = "Trial"
+            supabase_client.table("users").insert(payload).execute()
+        return True
+    except Exception:
+        return False
+
 ROBOT_AVATAR = "https://img.icons8.com/fluent/96/artificial-intelligence.png"
 USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
 
@@ -741,6 +765,21 @@ if not st.session_state.is_logged_in:
                 "intent": st.session_state.get("login_intent_persist", ""),
                 "gender": st.session_state.get("login_gender_persist", "Male")
             })
+            # Persist profile to DB (insert/update)
+            try:
+                profile_payload = {
+                    "age": st.session_state.get("login_age_persist", ""),
+                    "intent": st.session_state.get("login_intent_persist", ""),
+                    "gender": st.session_state.get("login_gender_persist", "Male"),
+                    "user_plan": "Trial",
+                    "plan_start_date": str(date.today())
+                }
+                # set expiry
+                from datetime import timedelta
+                profile_payload["plan_expiry_date"] = (date.today() + timedelta(days=10)).strftime("%Y-%m-%d")
+                save_profile_to_db(target_email, profile_payload)
+            except Exception:
+                pass
             persistence_js = f"""
             <script>
                 // Save to localStorage
@@ -850,10 +889,12 @@ if not st.session_state.is_logged_in:
                         account_exists = False
 
                 if not account_exists:
-                    st.error(
-                        f"❌ No account found for email: {email_clean}.\n\n"
-                        "If you don't have an account yet, please switch to 'New Account' and register."
-                    )
+                            st.error(f"❌ No account found for email: {email_clean}. We don't have any account like that.")
+                            if st.button("Create New Account with this email", key="btn_create_new_from_signin"):
+                                st.session_state.login_mode = "new"
+                                # prefill the email in new account form
+                                st.session_state.login_email_persist = email_clean
+                                st.rerun()
                 else:
                     st.session_state.is_logged_in = True
                     st.session_state.user_email = email_clean
@@ -881,6 +922,17 @@ else:
         
         if st.button("🚪 Log Out / Switch Account", use_container_width=True):
             current_email = st.session_state.user_email
+            # Persist profile to DB before logout
+            try:
+                profile_payload = {
+                    "age": st.session_state.get("login_age_persist", ""),
+                    "intent": st.session_state.get("login_intent_persist", ""),
+                    "gender": st.session_state.get("login_gender_persist", "Male")
+                }
+                save_profile_to_db(current_email, profile_payload)
+            except Exception:
+                pass
+
             st.session_state.is_logged_in = False
             st.session_state.user_email = ""
             
