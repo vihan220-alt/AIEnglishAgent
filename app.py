@@ -25,7 +25,7 @@ import base64
 import streamlit.components.v1 as components
 from io import BytesIO
 from gtts import gTTS
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from supabase import create_client, Client
 
 # =========================================================
@@ -301,12 +301,14 @@ def init_user_and_get_plan(email_str):
         response = supabase_client.table("users").select("*").eq("email", clean_email).execute()
         user_records = response.data
         if len(user_records) == 0:
+            # set trial expiry to TRIAL_DAYS from today
+            expiry_dt = date.today() + timedelta(days=TRIAL_DAYS)
             new_profile = {
                 "email": clean_email,
                 "user_plan": "Trial",
                 "signup_date": str(date.today()),
                 "plan_start_date": str(date.today()),
-                "plan_expiry_date": str((date.today()).isoformat())
+                "plan_expiry_date": expiry_dt.strftime("%Y-%m-%d")
             }
             supabase_client.table("users").insert(new_profile).execute()
             return "Trial", TRIAL_DAYS
@@ -317,8 +319,8 @@ def init_user_and_get_plan(email_str):
         if expiry_str:
             try:
                 expiry_date_obj = datetime.strptime(expiry_str, "%Y-%m-%d").date()
-                days_remaining = max(0, (expiry_date_obj - date.today()).days)
-                if days_remaining == 0:
+                days_remaining = (expiry_date_obj - date.today()).days
+                if days_remaining <= 0:
                     # mark expired
                     supabase_client.table("users").update({"user_plan": "Expired"}).eq("email", clean_email).execute()
                     return "Expired", 0
