@@ -893,6 +893,16 @@ if not st.session_state.is_logged_in:
                     st.session_state.signin_missing_email = email_clean
                 else:
                     st.session_state.signin_missing_email = ""
+                    # load saved profile values from database before login
+                    try:
+                        profile_row = response.data[0] if isinstance(response.data, list) and len(response.data) > 0 else None
+                        if profile_row:
+                            st.session_state.login_email_persist = profile_row.get("email", email_clean)
+                            st.session_state.login_age_persist = profile_row.get("age", st.session_state.get("login_age_persist", 25))
+                            st.session_state.login_intent_persist = profile_row.get("intent", st.session_state.get("login_intent_persist", ""))
+                            st.session_state.login_gender_persist = profile_row.get("gender", st.session_state.get("login_gender_persist", "Male"))
+                    except Exception:
+                        pass
                     st.session_state.is_logged_in = True
                     st.session_state.user_email = email_clean
                     
