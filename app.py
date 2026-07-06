@@ -313,10 +313,27 @@ def get_supabase_client():
 
 supabase_client = get_supabase_client()
 
+def normalize_plan_name(plan_name):
+    if not plan_name:
+        return plan_name
+    normalized = plan_name.strip().lower()
+    if "exclusive" in normalized or "epic" in normalized or "executive" in normalized:
+        return "Exclusive"
+    if "standard" in normalized:
+        return "Standard"
+    if "basic" in normalized:
+        return "Basic"
+    if "trial" in normalized:
+        return "Trial"
+    if "expired" in normalized:
+        return "Expired"
+    return plan_name
+
+
 def init_user_and_get_plan(email_str):
     clean_email = email_str.strip().lower()
-    # Default: new users get a 10-day free trial
-    TRIAL_DAYS = 10
+    # Default: new users get a 15-day free trial
+    TRIAL_DAYS = 15
     if not clean_email or supabase_client is None:
         return "Trial", TRIAL_DAYS
     try:
@@ -335,15 +352,22 @@ def init_user_and_get_plan(email_str):
             supabase_client.table("users").insert(new_profile).execute()
             return "Trial", TRIAL_DAYS
         user_data = user_records[0]
-        assigned_plan = user_data.get("user_plan", "Trial")
+        assigned_plan = normalize_plan_name(user_data.get("user_plan", "Trial"))
         # If there is a plan_expiry_date stored, compute remaining days
         expiry_str = user_data.get("plan_expiry_date")
         if expiry_str:
             try:
                 expiry_date_obj = datetime.strptime(expiry_str, "%Y-%m-%d").date()
+                # ensure trial expiry uses at least the current 15-day policy for older accounts
+                signup_dt_str = user_data.get("signup_date", str(date.today()))
+                signup_date_obj = datetime.strptime(signup_dt_str, "%Y-%m-%d").date()
+                trial_max_expiry = signup_date_obj + timedelta(days=TRIAL_DAYS)
+                if assigned_plan == "Trial" and expiry_date_obj < trial_max_expiry:
+                    expiry_date_obj = trial_max_expiry
+                    supabase_client.table("users").update({"plan_expiry_date": expiry_date_obj.strftime("%Y-%m-%d")}).eq("email", clean_email).execute()
+
                 days_remaining = (expiry_date_obj - date.today()).days
                 if days_remaining <= 0:
-                    # mark expired
                     supabase_client.table("users").update({"user_plan": "Expired"}).eq("email", clean_email).execute()
                     return "Expired", 0
                 return assigned_plan, days_remaining
@@ -372,6 +396,7 @@ def update_user_plan_db(email_str, target_plan, months_duration=1):
     if supabase_client is None:
         return False
     try:
+        target_plan = normalize_plan_name(target_plan)
         start_date = date.today()
         # approximate month as 30 days for expiry calculations
         try:
@@ -593,19 +618,19 @@ def show_subscription_options():
     st.subheader("Select a Subscription Tier to Continue:")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown("### 🥉 Basic Premium\n**₹15** / month\n*Expires after 1 month*")
-        if st.button("Select ₹15 Plan", use_container_width=True, key="btn_tier_15_select"): 
-            st.session_state.payment_plan_selected = ("Basic Premium", 15, "1 Month", 1)
+        st.markdown("### 🥉 Basic\n**₹15** / month\n*Poorer tier, suitable for light use*\n*Expires after 1 month*")
+        if st.button("Select ₹15 Basic", use_container_width=True, key="btn_tier_15_select"): 
+            st.session_state.payment_plan_selected = ("Basic", 15, "1 Month", 1)
             st.rerun()
     with col2:
-        st.markdown("### 🥈 Standard Premium\n**₹30** / month\n*Expires after 1 month*")
-        if st.button("Select ₹30 Plan", use_container_width=True, type="primary", key="btn_tier_30_select"): 
-            st.session_state.payment_plan_selected = ("Standard Premium", 30, "1 Month", 1)
+        st.markdown("### 🥈 Standard\n**₹30** / month\n*Better than Basic, more features included*\n*Expires after 1 month*")
+        if st.button("Select ₹30 Standard", use_container_width=True, type="primary", key="btn_tier_30_select"): 
+            st.session_state.payment_plan_selected = ("Standard", 30, "1 Month", 1)
             st.rerun()
     with col3:
-        st.markdown("### 🥇 Epic Premium\n**₹50** / month\n*Expires after 1 month*")
-        if st.button("Select ₹50 Plan", use_container_width=True, key="btn_tier_50_select"): 
-            st.session_state.payment_plan_selected = ("Epic Premium", 50, "1 Month", 1)
+        st.markdown("### 🥇 Exclusive\n**₹50** / month\n*Most powerful plan, best performance*\n*Expires after 1 month*")
+        if st.button("Select ₹50 Exclusive", use_container_width=True, key="btn_tier_50_select"): 
+            st.session_state.payment_plan_selected = ("Exclusive", 50, "1 Month", 1)
             st.rerun()
             
     st.markdown("---")
@@ -624,6 +649,7 @@ def show_subscription_options():
     if st.session_state.payment_plan_selected:
         plan_nm, plan_amt, plan_dur, plan_months = st.session_state.payment_plan_selected
         render_payment_gateway(st.session_state.user_email, plan_nm, plan_amt, plan_dur)
+        st.caption("Payments are processed through Razorpay and credited to the AIEnglishAgent platform for your monthly pass.")
 
         # Option to activate now (skip trial) without using payment gateway
         if st.button(f"Activate Now (Skip Trial) - {plan_nm}", use_container_width=True, key="activate_now_btn"):
@@ -631,7 +657,7 @@ def show_subscription_options():
                 st.error("Database initialization failed. Please set up your secrets parameters.")
             else:
                 months_to_set = plan_months or 1
-                success = update_user_plan_db(st.session_state.user_email, f"{plan_nm} ({plan_dur})", months_duration=months_to_set)
+                success = update_user_plan_db(st.session_state.user_email, plan_nm, months_duration=months_to_set)
                 if success:
                     st.success("Successfully activated plan! Reloading layout...")
                     st.session_state.payment_plan_selected = None
@@ -645,7 +671,7 @@ def show_subscription_options():
                 st.error("Database initialization failed. Please set up your secrets parameters.")
             else:
                 months_to_set = plan_months or 1
-                success = update_user_plan_db(st.session_state.user_email, f"{plan_nm} ({plan_dur})", months_duration=months_to_set)
+                success = update_user_plan_db(st.session_state.user_email, plan_nm, months_duration=months_to_set)
                 if success:
                     st.success("Successfully activated plan! Reloading layout...")
                     st.session_state.payment_plan_selected = None
@@ -796,9 +822,9 @@ if not st.session_state.is_logged_in:
                     "user_plan": "Trial",
                     "plan_start_date": str(date.today())
                 }
-                # set expiry
+                # set expiry for a 15-day trial
                 from datetime import timedelta
-                profile_payload["plan_expiry_date"] = (date.today() + timedelta(days=10)).strftime("%Y-%m-%d")
+                profile_payload["plan_expiry_date"] = (date.today() + timedelta(days=15)).strftime("%Y-%m-%d")
                 save_profile_to_db(target_email, profile_payload)
             except Exception:
                 pass
@@ -1080,7 +1106,8 @@ else:
     # =========================================================
     if user_package_tier == "Expired":
         st.title("SkillVerify English Assessment Portal 🚀")
-        st.error("⚠️ Your 15-day Free Trial package limits have been exhausted!")
+        st.error("⚠️ Your 15-day free trial is over. To continue, please subscribe to one of the monthly passes.")
+        st.warning("Your old pass has expired — please pay again to renew access.")
         show_subscription_options()
 
     elif app_mode == "🗣️ Skill Assessment Portal":
