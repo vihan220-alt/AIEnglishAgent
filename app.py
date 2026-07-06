@@ -200,14 +200,23 @@ if "login_recovery_email" in st.query_params and not st.session_state.is_logged_
         email_exists = False
         if supabase_client is not None:
             try:
-                response = supabase_client.table("users").select("email").eq("email", recovered_email).execute()
-                email_exists = len(response.data) > 0
+                response = supabase_client.table("users").select("email, age, intent, gender").eq("email", recovered_email).execute()
+                email_exists = isinstance(response.data, list) and len(response.data) > 0
             except Exception:
                 email_exists = False
 
         if email_exists:
             st.session_state.is_logged_in = True
             st.session_state.user_email = recovered_email
+            try:
+                profile_row = response.data[0]
+                st.session_state.login_email_persist = profile_row.get("email", recovered_email)
+                st.session_state.login_age_persist = profile_row.get("age", st.session_state.get("login_age_persist", 25))
+                st.session_state.login_intent_persist = profile_row.get("intent", st.session_state.get("login_intent_persist", ""))
+                st.session_state.login_gender_persist = profile_row.get("gender", st.session_state.get("login_gender_persist", "Male"))
+            except Exception:
+                pass
+            st.experimental_set_query_params()
             st.rerun()
         else:
             cleanup_js = """
