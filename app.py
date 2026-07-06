@@ -593,19 +593,19 @@ def show_subscription_options():
     st.subheader("Select a Subscription Tier to Continue:")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown("### 🥉 Basic\n**₹15** / month")
+        st.markdown("### 🥉 Basic Premium\n**₹15** / month\n*Expires after 1 month*")
         if st.button("Select ₹15 Plan", use_container_width=True, key="btn_tier_15_select"): 
-            st.session_state.payment_plan_selected = ("Basic", 15, "1 Month", 1)
+            st.session_state.payment_plan_selected = ("Basic Premium", 15, "1 Month", 1)
             st.rerun()
     with col2:
-        st.markdown("### 🥈 Standard\n**₹30** / month")
+        st.markdown("### 🥈 Standard Premium\n**₹30** / month\n*Expires after 1 month*")
         if st.button("Select ₹30 Plan", use_container_width=True, type="primary", key="btn_tier_30_select"): 
-            st.session_state.payment_plan_selected = ("Standard", 30, "1 Month", 1)
+            st.session_state.payment_plan_selected = ("Standard Premium", 30, "1 Month", 1)
             st.rerun()
     with col3:
-        st.markdown("### 🥇 Epic\n**₹50** / month")
+        st.markdown("### 🥇 Epic Premium\n**₹50** / month\n*Expires after 1 month*")
         if st.button("Select ₹50 Plan", use_container_width=True, key="btn_tier_50_select"): 
-            st.session_state.payment_plan_selected = ("Epic", 50, "1 Month", 1)
+            st.session_state.payment_plan_selected = ("Epic Premium", 50, "1 Month", 1)
             st.rerun()
             
     st.markdown("---")
