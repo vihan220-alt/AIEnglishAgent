@@ -40,17 +40,31 @@ if "user_email" not in st.session_state:
 recovery_control_js = """
 <script>
     (function(){
-        // Temporarily hide the page until recovery check completes
         function reveal() { try{ document.documentElement.style.visibility = ''; }catch(e){} }
         try {
             document.documentElement.style.visibility = 'hidden';
-            const savedEmail = localStorage.getItem("skillverify_user_email");
-            const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
             const currentUrl = new URL(window.location.href);
             const hasRecoveryParam = currentUrl.searchParams.has('login_recovery_email');
 
+            let savedEmail = localStorage.getItem("skillverify_user_email");
+            let savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
+
+            if ((!savedEmail || !savedLoggedIn) && document.cookie) {
+                const cookieEntries = document.cookie.split(';').map(c => c.trim());
+                const cookieMap = {};
+                cookieEntries.forEach(entry => {
+                    const [name, value] = entry.split('=');
+                    cookieMap[name] = value;
+                });
+                if (!savedEmail && cookieMap.skillverify_user_email) {
+                    savedEmail = decodeURIComponent(cookieMap.skillverify_user_email);
+                }
+                if (!savedLoggedIn && cookieMap.skillverify_is_logged_in) {
+                    savedLoggedIn = decodeURIComponent(cookieMap.skillverify_is_logged_in);
+                }
+            }
+
             if (savedLoggedIn === "true" && savedEmail && !hasRecoveryParam) {
-                // Add recovery parameter and reload ONCE to allow server-side restore
                 currentUrl.searchParams.set('login_recovery_email', encodeURIComponent(savedEmail));
                 window.location.replace(currentUrl.toString());
                 return;
@@ -58,8 +72,7 @@ recovery_control_js = """
         } catch(e) {
             // ignore errors and reveal page
         }
-        // Reveal the page if no reload was triggered (safety timeout)
-        setTimeout(reveal, 600);
+        setTimeout(reveal, 2000);
     })();
 </script>
 """
