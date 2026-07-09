@@ -651,8 +651,20 @@ def show_subscription_options():
 
     if st.session_state.payment_plan_selected:
         plan_nm, plan_amt, plan_dur, plan_months = st.session_state.payment_plan_selected
-        render_payment_gateway(st.session_state.user_email, plan_nm, plan_amt, plan_dur)
-        st.caption("Payments are processed through Razorpay and credited to the AIEnglishAgent platform for your monthly pass.")
+        # Render payment widget with guarded error handling so the app doesn't crash
+        try:
+            render_payment_gateway(st.session_state.user_email, plan_nm, plan_amt, plan_dur)
+            st.caption("Payments are processed through Razorpay and credited to the AIEnglishAgent platform for your monthly pass.")
+        except Exception as e:
+            st.error("Payment widget failed to render — see debug info below.")
+            st.write({
+                "user_email": st.session_state.get("user_email"),
+                "plan_nm": plan_nm,
+                "plan_amt": plan_amt,
+                "plan_dur": plan_dur,
+                "plan_months": plan_months,
+                "exception": str(e)
+            })
 
         # Option to activate now (skip trial) without using payment gateway
         if st.button(f"Activate Now (Skip Trial) - {plan_nm}", use_container_width=True, key="activate_now_btn"):
