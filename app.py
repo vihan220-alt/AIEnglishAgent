@@ -332,6 +332,9 @@ def normalize_plan_name(plan_name):
 
 def init_user_and_get_plan(email_str):
     clean_email = email_str.strip().lower()
+    # Allow a temporary per-user expire override for the current session.
+    if st.session_state.get("force_expire_for_me", False) and clean_email and clean_email == st.session_state.get("user_email", "").strip().lower():
+        return "Expired", 0
     # Default: new users get a 15-day free trial
     TRIAL_DAYS = 15
     if not clean_email or supabase_client is None:
@@ -997,6 +1000,7 @@ else:
 
             st.session_state.is_logged_in = False
             st.session_state.user_email = ""
+            st.session_state.force_expire_for_me = False
             
             profile_json = json.dumps({
                 "email": st.session_state.get("login_email_persist", current_email),
@@ -1021,6 +1025,17 @@ else:
             st.rerun()
         
         user_package_tier, trial_countdown = init_user_and_get_plan(st.session_state.user_email)
+        if "force_expire_for_me" not in st.session_state:
+            st.session_state.force_expire_for_me = False
+        if st.button("🧪 Expire my account now (temporary)", use_container_width=True, key="btn_force_expire_me"):
+            st.session_state.force_expire_for_me = True
+            st.rerun()
+        if st.session_state.force_expire_for_me:
+            st.info("⚠️ Temporary override enabled: your current account is forced into Expired status.")
+            if st.button("↩ Reset temporary expire override", use_container_width=True, key="btn_reset_force_expire"):
+                st.session_state.force_expire_for_me = False
+                st.success("Temporary override cleared. Your account will resume normal plan checks.")
+                st.rerun()
         
         if "active_nav_mode" not in st.session_state:
             st.session_state.active_nav_mode = "🗣️ Skill Assessment Portal"
