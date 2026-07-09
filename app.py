@@ -1119,19 +1119,13 @@ else:
     # =========================================================
     # ROUTED CONTENT INTERFACE SWITCHER VIEWS
     # =========================================================
-    if user_package_tier == "Expired":
-        st.title("SkillVerify English Assessment Portal 🚀")
-        st.error("⚠️ Your 15-day free trial is over. To continue, please subscribe to one of the monthly passes.")
-        st.warning("Your old pass has expired — please pay again to renew access.")
-        show_subscription_options()
-
-    elif app_mode == "🗣️ Skill Assessment Portal":
+    if app_mode == "🗣️ Skill Assessment Portal":
         active_id = st.session_state.active_chat_id
         st.title(f"{st.session_state.all_chats[active_id]['title'] if active_id in st.session_state.all_chats else 'English Assessment Portal'}")
         
-        if user_package_tier in ("Trial", "Expired"):
-            st.warning(f"⏳ Free Trial Active Account Profile — **{trial_countdown} days left**")
-            with st.expander("👑 Upgrade to Premium Instantly", expanded=False):
+        if user_package_tier == "Trial":
+            st.info(f"🆓 Free trial is active — **{trial_countdown} days left**")
+            with st.expander("💳 Pay to Continue", expanded=False):
                 show_subscription_options()
         else:
             st.success(f"👑 Active License Verified — **{user_package_tier}**")
