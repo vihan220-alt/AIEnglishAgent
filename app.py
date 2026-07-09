@@ -1037,17 +1037,6 @@ else:
             st.rerun()
         
         user_package_tier, trial_countdown = init_user_and_get_plan(st.session_state.user_email)
-        if "force_expire_for_me" not in st.session_state:
-            st.session_state.force_expire_for_me = False
-        if st.button("🧪 Expire my account now (temporary)", use_container_width=True, key="btn_force_expire_me"):
-            st.session_state.force_expire_for_me = True
-            st.rerun()
-        if st.session_state.force_expire_for_me:
-            st.info("⚠️ Temporary override enabled: your current account is forced into Expired status.")
-            if st.button("↩ Reset temporary expire override", use_container_width=True, key="btn_reset_force_expire"):
-                st.session_state.force_expire_for_me = False
-                st.success("Temporary override cleared. Your account will resume normal plan checks.")
-                st.rerun()
         
         if "active_nav_mode" not in st.session_state:
             st.session_state.active_nav_mode = "🗣️ Skill Assessment Portal"
