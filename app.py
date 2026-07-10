@@ -1398,12 +1398,25 @@ else:
             )
 
         video_id = curriculum_matrix[selected_module]["sessions"][selected_session]
+        watch_url = f"https://www.youtube.com/watch?v={video_id}"
         embed_url = f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1"
 
         st.markdown("---")
         st.markdown(f"### 📺 Now Playing: **{selected_session}**")
         st.caption(f"Curriculum Track: {selected_module}")
-        components.iframe(embed_url, height=360, scrolling=False)
+
+        # Validate embeddability using YouTube oEmbed before embedding
+        try:
+            oembed_url = f"https://www.youtube.com/oembed?url={watch_url}&format=json"
+            resp = requests.get(oembed_url, timeout=6)
+            if resp.status_code == 200:
+                components.iframe(embed_url, height=360, scrolling=False)
+            else:
+                st.error("Video unavailable or cannot be embedded in this page.")
+                st.markdown(f"[Open on YouTube]({watch_url})")
+        except Exception:
+            st.warning("Could not verify video availability (network or CORS).")
+            st.markdown(f"[Open on YouTube]({watch_url})")
 
     elif app_mode == "📬 Submit Custom Prompts":
         st.title("Custom Evaluation Prompt Intake Node")
