@@ -1398,12 +1398,12 @@ else:
             )
 
         video_id = curriculum_matrix[selected_module]["sessions"][selected_session]
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        embed_url = f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1"
 
         st.markdown("---")
         st.markdown(f"### 📺 Now Playing: **{selected_session}**")
         st.caption(f"Curriculum Track: {selected_module}")
-        st.video(video_url)
+        components.iframe(embed_url, height=360, scrolling=False)
 
     elif app_mode == "📬 Submit Custom Prompts":
         st.title("Custom Evaluation Prompt Intake Node")
