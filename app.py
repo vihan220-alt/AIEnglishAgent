@@ -725,13 +725,20 @@ if "speech_transit_param" in st.query_params:
     captured_speech_text = st.query_params.get("speech_transit_param").strip()
     if captured_speech_text:
         st.session_state.last_speech_transcript = captured_speech_text
-        current_chat["history"].append({"role": "user", "content": captured_speech_text})
         user_package_tier, _ = init_user_and_get_plan(st.session_state.user_email)
-        eval_reply = get_evaluator_response(user_package_tier)
-        current_chat["history"].append({"role": "assistant", "content": eval_reply})
-        st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
-        st.query_params.clear()
-        st.rerun()
+        allowed, _ = consume_ai_question(
+            user_package_tier, st.session_state.user_email
+        )
+        if allowed:
+            current_chat["history"].append({"role": "user", "content": captured_speech_text})
+            eval_reply = get_evaluator_response(user_package_tier)
+            current_chat["history"].append({"role": "assistant", "content": eval_reply})
+            st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
+            st.query_params.clear()
+            st.rerun()
+        else:
+            st.query_params.clear()
+            render_trial_ai_limit_notice()
 
 def show_subscription_options():
     st.subheader("Select a Subscription Tier to Continue:")
