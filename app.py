@@ -109,7 +109,8 @@ profile_restore_js = """
     (function() {
         let profile = {};
         try {
-            profile = JSON.parse(localStorage.getItem("skillverify_last_profile") || "{}");
+            const savedState = JSON.parse(localStorage.getItem('skillverify_saved_state') || '{}');
+            profile = savedState.last_profile || JSON.parse(localStorage.getItem('skillverify_last_profile') || '{}');
         } catch (e) {
             profile = {};
         }
@@ -146,6 +147,69 @@ profile_restore_js = """
 </script>
 """
 components.html(profile_restore_js, height=0)
+
+# Auto-save form and login state to localStorage continuously
+autosave_state_js = """
+<script>
+    (function() {
+        const STORAGE_KEY = 'skillverify_saved_state';
+
+        function getSaved() {
+            try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function saveState(state) {
+            try {
+                const next = Object.assign(getSaved(), state || {});
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+            } catch (e) {
+                // ignore storage write failures
+            }
+        }
+
+        function saveProfileFields() {
+            const emailInput = document.querySelector('input[placeholder="name@example.com"]');
+            const ageInput = document.querySelector('input[type="number"]');
+            const intentInput = document.querySelector('textarea[placeholder="Explain why you want to use this service..."]');
+            const maleRadio = document.querySelector('input[type="radio"][value="Male"]');
+            const femaleRadio = document.querySelector('input[type="radio"][value="Female"]');
+            const profile = {};
+            if (emailInput && emailInput.value) profile.email = emailInput.value;
+            if (ageInput && ageInput.value) profile.age = ageInput.value;
+            if (intentInput && intentInput.value) profile.intent = intentInput.value;
+            if (maleRadio && maleRadio.checked) profile.gender = 'Male';
+            if (femaleRadio && femaleRadio.checked) profile.gender = 'Female';
+            if (Object.keys(profile).length > 0) {
+                saveState({ last_profile: profile });
+            }
+        }
+
+        function attachInput(selector) {
+            const element = document.querySelector(selector);
+            if (!element) return;
+            element.addEventListener('input', saveProfileFields);
+            element.addEventListener('change', saveProfileFields);
+        }
+
+        function tryAttach() {
+            attachInput('input[placeholder="name@example.com"]');
+            attachInput('input[type="number"]');
+            attachInput('textarea[placeholder="Explain why you want to use this service..."]');
+            attachInput('input[type="radio"][value="Male"]');
+            attachInput('input[type="radio"][value="Female"]');
+        }
+
+        tryAttach();
+        setTimeout(tryAttach, 800);
+        window.addEventListener('beforeunload', saveProfileFields);
+    })();
+</script>
+"""
+components.html(autosave_state_js, height=0)
 
 # Integrated Cross-Domain Receiver for LocalStorage and Asynchronous Video Handling
 receiver_js = """
@@ -845,15 +909,18 @@ if not st.session_state.is_logged_in:
                 pass
             persistence_js = f"""
             <script>
-                // Save to localStorage
-                localStorage.setItem("skillverify_user_email", "{target_email}");
-                localStorage.setItem("skillverify_is_logged_in", "true");
-                localStorage.setItem("skillverify_last_profile", {profile_json});
-                localStorage.removeItem("skillverify_last_email");
-                // Also set cookies as a fallback (7 days)
-                document.cookie = "skillverify_user_email={target_email};path=/;max-age=604800";
-                document.cookie = "skillverify_is_logged_in=true;path=/;max-age=604800";
-                document.cookie = "skillverify_last_profile=" + encodeURIComponent({profile_json}) + ";path=/;max-age=604800";
+                const savedState = JSON.parse(localStorage.getItem('skillverify_saved_state') || '{}');
+                savedState.user_email = '{target_email}';
+                savedState.is_logged_in = 'true';
+                savedState.last_profile = {profile_json};
+                localStorage.setItem('skillverify_saved_state', JSON.stringify(savedState));
+                localStorage.setItem('skillverify_user_email', '{target_email}');
+                localStorage.setItem('skillverify_is_logged_in', 'true');
+                localStorage.setItem('skillverify_last_profile', {profile_json});
+                localStorage.removeItem('skillverify_last_email');
+                document.cookie = 'skillverify_user_email={target_email};path=/;max-age=604800';
+                document.cookie = 'skillverify_is_logged_in=true;path=/;max-age=604800';
+                document.cookie = 'skillverify_last_profile=' + encodeURIComponent({profile_json}) + ';path=/;max-age=604800';
             </script>
             """
             components.html(persistence_js, height=0, width=0)
@@ -971,11 +1038,15 @@ if not st.session_state.is_logged_in:
                     
                     persistence_js = f"""
                     <script>
-                        localStorage.setItem("skillverify_user_email", "{email_clean}");
-                        localStorage.setItem("skillverify_is_logged_in", "true");
-                        localStorage.removeItem("skillverify_last_email");
-                        document.cookie = "skillverify_user_email={email_clean};path=/;max-age=604800";
-                        document.cookie = "skillverify_is_logged_in=true;path=/;max-age=604800";
+                        const savedState = JSON.parse(localStorage.getItem('skillverify_saved_state') || '{}');
+                        savedState.user_email = '{email_clean}';
+                        savedState.is_logged_in = 'true';
+                        localStorage.setItem('skillverify_saved_state', JSON.stringify(savedState));
+                        localStorage.setItem('skillverify_user_email', '{email_clean}');
+                        localStorage.setItem('skillverify_is_logged_in', 'true');
+                        localStorage.removeItem('skillverify_last_email');
+                        document.cookie = 'skillverify_user_email={email_clean};path=/;max-age=604800';
+                        document.cookie = 'skillverify_is_logged_in=true;path=/;max-age=604800';
                     </script>
                     """
                     components.html(persistence_js, height=0, width=0)
@@ -1022,15 +1093,18 @@ else:
             })
             logout_js = f"""
             <script>
-                // Save the email and profile data for quick restore after logout
-                localStorage.setItem("skillverify_last_email", "{current_email}");
-                localStorage.setItem("skillverify_last_profile", {profile_json});
-                localStorage.removeItem("skillverify_user_email");
-                localStorage.removeItem("skillverify_is_logged_in");
-                // Cookie fallback: save last profile and expire auth cookies
-                document.cookie = "skillverify_last_profile=" + encodeURIComponent({profile_json}) + ";path=/;max-age=604800";
-                document.cookie = "skillverify_user_email=;path=/;max-age=0";
-                document.cookie = "skillverify_is_logged_in=;path=/;max-age=0";
+                const savedState = JSON.parse(localStorage.getItem('skillverify_saved_state') || '{}');
+                savedState.last_profile = {profile_json};
+                savedState.is_logged_in = 'false';
+                savedState.user_email = '';
+                localStorage.setItem('skillverify_saved_state', JSON.stringify(savedState));
+                localStorage.setItem('skillverify_last_email', '{current_email}');
+                localStorage.setItem('skillverify_last_profile', {profile_json});
+                localStorage.removeItem('skillverify_user_email');
+                localStorage.removeItem('skillverify_is_logged_in');
+                document.cookie = 'skillverify_last_profile=' + encodeURIComponent({profile_json}) + ';path=/;max-age=604800';
+                document.cookie = 'skillverify_user_email=;path=/;max-age=0';
+                document.cookie = 'skillverify_is_logged_in=;path=/;max-age=0';
             </script>
             """
             components.html(logout_js, height=0, width=0)
