@@ -1468,7 +1468,87 @@ else:
                 )
 
     elif app_mode == "📬 Submit Custom Prompts":
-        st.title("Custom Evaluation Prompt Intake Node")
-        with st.form("custom_prompt_submission_form_fixed", clear_on_submit=True):
-            p_name = st.text_input("Instructor Name:", key="intake_instructor_name")
-            st.form_submit_button("Submit")
+        st.title("Custom Evaluation Prompts")
+
+        if "custom_prompt_submissions" not in st.session_state:
+            st.session_state.custom_prompt_submissions = []
+
+        with st.form("custom_prompt_submission_form", clear_on_submit=True):
+            instructor_name = st.text_input("Instructor name")
+            prompt_topic = st.selectbox(
+                "English topic",
+                [
+                    "Grammar",
+                    "Pronunciation",
+                    "Vocabulary",
+                    "Reading",
+                    "Writing",
+                    "Speaking",
+                    "Listening",
+                    "Business English",
+                    "Interview Practice",
+                ],
+            )
+            prompt_level = st.selectbox(
+                "Difficulty level",
+                ["Beginner", "Intermediate", "Advanced"],
+            )
+            prompt_text = st.text_area(
+                "Prompt for learners",
+                placeholder="Example: Describe your daily routine using the present simple tense.",
+                height=130,
+            )
+            submitted = st.form_submit_button("Submit for approval", type="primary")
+
+        if submitted:
+            if not instructor_name.strip() or not prompt_text.strip():
+                st.error("Enter your name and an English prompt before submitting.")
+            else:
+                st.session_state.custom_prompt_submissions.append(
+                    {
+                        "instructor": instructor_name.strip(),
+                        "topic": prompt_topic,
+                        "level": prompt_level,
+                        "prompt": prompt_text.strip(),
+                        "status": "Pending review",
+                        "submitted_at": datetime.now().strftime("%d %b %Y, %I:%M %p"),
+                    }
+                )
+                st.success("Your prompt was sent for admin review.")
+
+        st.markdown("---")
+        admin_email = st.secrets.get("ADMIN_EMAIL", "vihan220@gmail.com").strip().lower()
+        is_admin = st.session_state.user_email.strip().lower() == admin_email
+
+        if is_admin:
+            st.subheader("Admin Review")
+            pending_count = sum(
+                item["status"] == "Pending review"
+                for item in st.session_state.custom_prompt_submissions
+            )
+            st.caption(f"{pending_count} prompt(s) waiting for review.")
+
+            if not st.session_state.custom_prompt_submissions:
+                st.info("No prompts have been submitted yet.")
+            else:
+                for index, item in enumerate(st.session_state.custom_prompt_submissions):
+                    with st.container(border=True):
+                        st.markdown(f"**{item['topic']} - {item['level']}**")
+                        st.caption(
+                            f"Submitted by {item['instructor']} on {item['submitted_at']}"
+                        )
+                        st.write(item["prompt"])
+                        st.write(f"Status: **{item['status']}**")
+
+                        if item["status"] == "Pending review":
+                            approve_column, reject_column = st.columns(2)
+                            with approve_column:
+                                if st.button("Approve", key=f"approve_prompt_{index}"):
+                                    item["status"] = "Approved"
+                                    st.rerun()
+                            with reject_column:
+                                if st.button("Reject", key=f"reject_prompt_{index}"):
+                                    item["status"] = "Rejected"
+                                    st.rerun()
+        else:
+            st.info("Submitted prompts are reviewed by the administrator before learners can use them.")
