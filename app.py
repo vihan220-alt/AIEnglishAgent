@@ -1468,87 +1468,172 @@ else:
                 )
 
     elif app_mode == "📬 Submit Custom Prompts":
-        st.title("Custom Evaluation Prompts")
+        st.title("Send a Question to the Admin")
 
-        if "custom_prompt_submissions" not in st.session_state:
-            st.session_state.custom_prompt_submissions = []
-
-        with st.form("custom_prompt_submission_form", clear_on_submit=True):
-            instructor_name = st.text_input("Instructor name")
-            prompt_topic = st.selectbox(
-                "English topic",
-                [
-                    "Grammar",
-                    "Pronunciation",
-                    "Vocabulary",
-                    "Reading",
-                    "Writing",
-                    "Speaking",
-                    "Listening",
-                    "Business English",
-                    "Interview Practice",
-                ],
-            )
-            prompt_level = st.selectbox(
-                "Difficulty level",
-                ["Beginner", "Intermediate", "Advanced"],
-            )
-            prompt_text = st.text_area(
-                "Prompt for learners",
-                placeholder="Example: Describe your daily routine using the present simple tense.",
-                height=130,
-            )
-            submitted = st.form_submit_button("Submit for approval", type="primary")
-
-        if submitted:
-            if not instructor_name.strip() or not prompt_text.strip():
-                st.error("Enter your name and an English prompt before submitting.")
-            else:
-                st.session_state.custom_prompt_submissions.append(
-                    {
-                        "instructor": instructor_name.strip(),
-                        "topic": prompt_topic,
-                        "level": prompt_level,
-                        "prompt": prompt_text.strip(),
-                        "status": "Pending review",
-                        "submitted_at": datetime.now().strftime("%d %b %Y, %I:%M %p"),
-                    }
-                )
-                st.success("Your prompt was sent for admin review.")
-
-        st.markdown("---")
         admin_email = st.secrets.get("ADMIN_EMAIL", "vihan220@gmail.com").strip().lower()
-        is_admin = st.session_state.user_email.strip().lower() == admin_email
+        current_email = st.session_state.user_email.strip().lower()
+        is_admin = current_email == admin_email
 
-        if is_admin:
+        if supabase_client is None:
+            st.error("Question prompt storage is not configured. Please contact the administrator.")
+        elif is_admin:
             st.subheader("Admin Review")
-            pending_count = sum(
-                item["status"] == "Pending review"
-                for item in st.session_state.custom_prompt_submissions
-            )
-            st.caption(f"{pending_count} prompt(s) waiting for review.")
 
-            if not st.session_state.custom_prompt_submissions:
-                st.info("No prompts have been submitted yet.")
+            try:
+                submissions = (
+                    supabase_client.table("custom_prompt_submissions")
+                    .select("*")
+                    .order("created_at", desc=True)
+                    .execute()
+                    .data
+                )
+            except Exception:
+                submissions = None
+
+            if submissions is None:
+                st.error("The question prompt review table is not ready yet.")
+            elif not submissions:
+                st.info("No learner question prompts are waiting for review.")
             else:
-                for index, item in enumerate(st.session_state.custom_prompt_submissions):
+                for item in submissions:
+                    submission_id = item["id"]
+                    status = item.get("status", "pending")
                     with st.container(border=True):
-                        st.markdown(f"**{item['topic']} - {item['level']}**")
-                        st.caption(
-                            f"Submitted by {item['instructor']} on {item['submitted_at']}"
+                        st.markdown(
+                            f"**{item.get('topic', 'English question')} - "
+                            f"{item.get('difficulty', 'General')}**"
                         )
-                        st.write(item["prompt"])
-                        st.write(f"Status: **{item['status']}**")
+                        st.caption(
+                            f"From {item.get('learner_email', 'Learner')} | "
+                            f"Status: {status.title()}"
+                        )
+                        st.write(item.get("question", ""))
 
-                        if item["status"] == "Pending review":
-                            approve_column, reject_column = st.columns(2)
-                            with approve_column:
-                                if st.button("Approve", key=f"approve_prompt_{index}"):
-                                    item["status"] = "Approved"
+                        if status == "pending":
+                            with st.form(f"admin_review_{submission_id}"):
+                                personal_answer = st.text_area(
+                                    "Your personal answer or message",
+                                    key=f"admin_answer_{submission_id}",
+                                    height=120,
+                                )
+                                approve_column, reject_column = st.columns(2)
+                                with approve_column:
+                                    approve = st.form_submit_button(
+                                        "Approve and send answer",
+                                        type="primary",
+                                    )
+                                with reject_column:
+                                    reject = st.form_submit_button("Reject")
+
+                            if approve:
+                                if not personal_answer.strip():
+                                    st.error("Write your personal answer before approving.")
+                                else:
+                                    supabase_client.table("custom_prompt_submissions").update(
+                                        {
+                                            "status": "approved",
+                                            "admin_answer": personal_answer.strip(),
+                                            "reviewed_at": datetime.utcnow().isoformat(),
+                                        }
+                                    ).eq("id", submission_id).execute()
                                     st.rerun()
-                            with reject_column:
-                                if st.button("Reject", key=f"reject_prompt_{index}"):
-                                    item["status"] = "Rejected"
-                                    st.rerun()
+
+                            if reject:
+                                rejection_message = (
+                                    personal_answer.strip()
+                                    or "Your question prompt was rejected. Please send it again."
+                                )
+                                supabase_client.table("custom_prompt_submissions").update(
+                                    {
+                                        "status": "rejected",
+                                        "admin_answer": rejection_message,
+                                        "reviewed_at": datetime.utcnow().isoformat(),
+                                    }
+                                ).eq("id", submission_id).execute()
+                                st.rerun()
+                        elif status == "approved":
+                            st.success("Approved and answered")
+                            st.write(item.get("admin_answer", ""))
+                        else:
+                            st.error("Rejected")
+                            st.write(item.get("admin_answer", ""))
+
         else:
-            st.info("Submitted prompts are reviewed by the administrator before learners can use them.")
+            st.caption("Your question is private. Only the administrator can review it.")
+            with st.form("learner_question_prompt_form", clear_on_submit=True):
+                prompt_topic = st.selectbox(
+                    "English topic",
+                    [
+                        "Grammar",
+                        "Pronunciation",
+                        "Vocabulary",
+                        "Reading",
+                        "Writing",
+                        "Speaking",
+                        "Listening",
+                        "Business English",
+                        "Interview Practice",
+                    ],
+                )
+                prompt_level = st.selectbox(
+                    "Difficulty level",
+                    ["Beginner", "Intermediate", "Advanced"],
+                )
+                question = st.text_area(
+                    "Your question prompt",
+                    placeholder="Example: Please explain when I should use 'has' and 'have'.",
+                    height=140,
+                )
+                send_question = st.form_submit_button("Send to admin", type="primary")
+
+            if send_question:
+                if not question.strip():
+                    st.error("Write your question before sending it.")
+                else:
+                    try:
+                        supabase_client.table("custom_prompt_submissions").insert(
+                            {
+                                "learner_email": current_email,
+                                "topic": prompt_topic,
+                                "difficulty": prompt_level,
+                                "question": question.strip(),
+                                "status": "pending",
+                            }
+                        ).execute()
+                        st.success("Your question was sent to the admin for review.")
+                    except Exception:
+                        st.error("Your question could not be sent. Please try again later.")
+
+            st.markdown("---")
+            st.subheader("My Question Updates")
+            try:
+                my_submissions = (
+                    supabase_client.table("custom_prompt_submissions")
+                    .select("*")
+                    .eq("learner_email", current_email)
+                    .order("created_at", desc=True)
+                    .execute()
+                    .data
+                )
+            except Exception:
+                my_submissions = []
+
+            if not my_submissions:
+                st.info("You have not sent any question prompts yet.")
+            else:
+                for item in my_submissions:
+                    status = item.get("status", "pending")
+                    with st.container(border=True):
+                        st.write(item.get("question", ""))
+                        if status == "pending":
+                            st.info("Your question is waiting for admin review.")
+                        elif status == "approved":
+                            st.success("Your question was approved. Admin answer:")
+                            st.write(item.get("admin_answer", ""))
+                        else:
+                            st.error(
+                                item.get(
+                                    "admin_answer",
+                                    "Your question prompt was rejected. Please send it again.",
+                                )
+                            )
