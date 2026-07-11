@@ -1460,20 +1460,7 @@ else:
                     )
                     st.markdown(f"### Now Playing: {selected_session}")
                     st.caption(f"English topic: {selected_module}")
-                    player_html = f"""
-                    <iframe
-                        src="{embed_url}"
-                        title="Approved English lesson"
-                        width="100%"
-                        height="360"
-                        frameborder="0"
-                        referrerpolicy="strict-origin-when-cross-origin"
-                        sandbox="allow-scripts allow-same-origin allow-presentation"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowfullscreen>
-                    </iframe>
-                    """
-                    components.html(player_html, height=370, scrolling=False)
+                    components.iframe(embed_url, height=360, scrolling=False)
             except (requests.RequestException, ValueError):
                 st.error(
                     "You cannot access this video because this is the English Agent. "
