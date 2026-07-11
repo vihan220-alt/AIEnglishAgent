@@ -909,7 +909,7 @@ if not st.session_state.is_logged_in:
                 pass
             persistence_js = f"""
             <script>
-                const savedState = JSON.parse(localStorage.getItem('skillverify_saved_state') || '{}');
+                const savedState = JSON.parse(localStorage.getItem('skillverify_saved_state') || '{{}}');
                 savedState.user_email = '{target_email}';
                 savedState.is_logged_in = 'true';
                 savedState.last_profile = {profile_json};
@@ -1038,7 +1038,7 @@ if not st.session_state.is_logged_in:
                     
                     persistence_js = f"""
                     <script>
-                        const savedState = JSON.parse(localStorage.getItem('skillverify_saved_state') || '{}');
+                        const savedState = JSON.parse(localStorage.getItem('skillverify_saved_state') || '{{}}');
                         savedState.user_email = '{email_clean}';
                         savedState.is_logged_in = 'true';
                         localStorage.setItem('skillverify_saved_state', JSON.stringify(savedState));
@@ -1093,7 +1093,7 @@ else:
             })
             logout_js = f"""
             <script>
-                const savedState = JSON.parse(localStorage.getItem('skillverify_saved_state') || '{}');
+                const savedState = JSON.parse(localStorage.getItem('skillverify_saved_state') || '{{}}');
                 savedState.last_profile = {profile_json};
                 savedState.is_logged_in = 'false';
                 savedState.user_email = '';
