@@ -1351,146 +1351,83 @@ else:
             st.metric(label="Grammar Slips Logged", value=int(metrics.get('grammar_errors_logged', 0)))
 
     elif app_mode == "🌐 Explore Video Learning Engine":
-        st.title("🎬 Topic Multi-Module Learning Hub")
-        st.markdown("Explore 60+ distinct learning sessions across modern English topics, professional communication, and speaking confidence.")
+        st.title("English Video Learning Library")
+        st.caption("Only approved English lessons for the selected topic are available in this agent.")
 
-        curriculum_matrix = {
-            "📚 Module 1: Grammar Foundations & Structural Accuracy": {
-                "sessions": {
-                    "Session 1: Subject-Verb Agreement Principles": "M7lc1UVf-VE",
-                    "Session 2: Mastering Modal Verbs for Obligation & Permission": "JfVOs4VSpmA",
-                    "Session 3: Present Perfect vs. Past Simple Tense Transitions": "YQHsXMglC9A",
-                    "Session 4: Relative Clauses and Sentence Linking": "dQw4w9WgXcQ",
-                    "Session 5: Articles, Determiners, and Precision": "9bZkp7q19f0",
-                    "Session 6: Conditional Sentences for Real-Life English": "kJQP7kiw5Fk"
-                }
+        # Every playable video must be deliberately listed here. Do not accept URLs or
+        # IDs from the browser, a query string, or an arbitrary user input.
+        approved_english_library = {
+            "Grammar Foundations": {
+                "Subject-Verb Agreement": {
+                    "video_id": "yY89V2jX36E",
+                    "topic_terms": ("subject", "verb", "agreement"),
+                    "approved_source": "bbc learning english",
+                },
             },
-            "💼 Module 2: Accent Modulation & Corporate Phonetics": {
-                "sessions": {
-                    "Session 7: Professional Intonation & Sentence Stress Pacing": "RgKAFK5djSk",
-                    "Session 8: Overcoming Mother Tongue Influence (MTI) Variables": "OPf0YbXqDm0",
-                    "Session 9: Clear Pronunciation for Team Meetings": "CevxZvSJLk8",
-                    "Session 10: Confidence in Client Calls and Presentations": "tVj0ZTS4WF4",
-                    "Session 11: Voice Projection and Speaking Rhythm": "e-ORhEE9VVg",
-                    "Session 12: Neutral Accent Practice for Global English": "6Dh-RL__uN4"
-                }
+            "Pronunciation and Intonation": {
+                "English Pronunciation Practice": {
+                    "video_id": "sDcvF1a4vCY",
+                    "topic_terms": ("pronunciation",),
+                    "approved_source": "bbc learning english",
+                },
             },
-            "🗣️ Module 3: Business Communication & Meetings": {
-                "sessions": {
-                    "Session 13: Leading a Meeting in Professional English": "kffacxfA7G4",
-                    "Session 14: Negotiation Phrases for Workplace Discussions": "oRdxUFDoQe0",
-                    "Session 15: Writing Concise Email Updates": "uelHwf8o7_U",
-                    "Session 16: Giving Clear Instructions to a Team": "3JZ_D3ELwOQ",
-                    "Session 17: Handling Feedback Without Losing Confidence": "fJ9rUzIMcZQ",
-                    "Session 18: Explaining Complex Ideas Simply": "HgzGwKwLmgM"
-                }
-            },
-            "🎤 Module 4: Interview Preparation & Confidence": {
-                "sessions": {
-                    "Session 19: Answering Common Interview Questions": "Zi_XLOBDo_Y",
-                    "Session 20: STAR Method for Strong Responses": "60ItHLz5WEA",
-                    "Session 21: Body Language During Interviews": "fRh_vgS2dFE",
-                    "Session 22: Mock Interview Speaking Practice": "JGwWNGJdvx8",
-                    "Session 23: Talking About Strengths and Weaknesses": "hT_nvWreIhg",
-                    "Session 24: Handling Tough Questions Calmly": "k4V3Mo61fJM"
-                }
-            },
-            "👂 Module 5: Listening & Comprehension Skills": {
-                "sessions": {
-                    "Session 25: Fast Listening for Key Information": "pRpeEdMmmQ0",
-                    "Session 26: Listening for Tone and Emotion": "ScNNfyq3d_w",
-                    "Session 27: Following Fast Conversations in English": "YykjpeuMNEk",
-                    "Session 28: Improving Listening Accuracy with Daily Practice": "XqZsoesa55w",
-                    "Session 29: Understanding Different English Accents": "sOnqjkJTMaA",
-                    "Session 30: From Words to Meaning in Real Contexts": "2vjPBrBU-TM"
-                }
-            },
-            "📖 Module 6: Vocabulary Expansion & Word Choice": {
-                "sessions": {
-                    "Session 31: Building Strong Everyday Vocabulary": "TUVcZfQe-Kw",
-                    "Session 32: Advanced Vocabulary for Professional Writing": "0KSOMA3QBU0",
-                    "Session 33: Replacing Repeated Words with Better Choices": "z9Uz1icjwrM",
-                    "Session 34: Using Idioms Naturally": "UceaB4D0jpo",
-                    "Session 35: Formal vs Casual Vocabulary": "vPpBQgL1dB4",
-                    "Session 36: Topic-Based Vocabulary for Daily Life": "kXYiU_JCYtU"
-                }
-            },
-            "🗣️ Module 7: Pronunciation & Intonation Practice": {
-                "sessions": {
-                    "Session 37: Stress Patterns in Everyday English": "dvgZkm1xWPE",
-                    "Session 38: Rising and Falling Intonation": "tU6d6cwQeTg",
-                    "Session 39: Pronouncing Common Problem Sounds": "OYfx9pB_0qs",
-                    "Session 40: Improving Word Endings and Clarity": "A0g3j1g-U3s",
-                    "Session 41: Speaking with Natural Flow": "Pkh8UtuejGw",
-                    "Session 42: Practicing Connected Speech": "wXhTHyIgQ_U"
-                }
-            },
-            "✉️ Module 8: Writing & Email Communication": {
-                "sessions": {
-                    "Session 43: Writing Professional Emails in English": "ktvTqknDobU",
-                    "Session 44: Polite Requests and Follow-Up Messages": "IwX92HyFhTk",
-                    "Session 45: Writing Short Reports and Summaries": "a3Z7zEc7AXQ",
-                    "Session 46: Clear Messaging for Customer Support": "6_b7RDuLwcI",
-                    "Session 47: Writing with Confidence and Clarity": "ftL1G5RgOYM",
-                    "Session 48: Structuring Emails for Better Results": "Xjz6jRM-vhg"
-                }
-            },
-            "🎯 Module 9: Public Speaking & Presentation Skills": {
-                "sessions": {
-                    "Session 49: Speaking with a Strong Opening": "Sh5g5X8Vt2Q",
-                    "Session 50: Organizing Thoughts for a Presentation": "fDi2chk7u-0",
-                    "Session 51: Handling Nervousness on Stage": "gBOt4nE2E8Q",
-                    "Session 52: Making Your Message Memorable": "hLQl3WQQoQ0",
-                    "Session 53: Storytelling for Better Presentations": "eY52Zsg-KVI",
-                    "Session 54: Closing a Presentation with Impact": "Wch3gJG2GJ4"
-                }
-            },
-            "🌍 Module 10: Everyday Conversation & Fluency": {
-                "sessions": {
-                    "Session 55: Small Talk for Daily Life": "NAb8BNdHP8c",
-                    "Session 56: Talking About Hobbies and Interests": "xsHFPlDMf7I",
-                    "Session 57: Describing Daily Routine in English": "G5q9KSedQJk",
-                    "Session 58: Expressing Opinions Clearly": "omz9FlD3wDQ",
-                    "Session 59: Asking Follow-Up Questions Naturally": "dAd1BAqhnH8",
-                    "Session 60: Building Fluency Through Daily Practice": "A6kYmx9KZcY"
-                }
-            }
         }
 
-        with st.container(border=True):
-            selected_module = st.selectbox(
-                "🎯 Step 1: Select Training Module Category:",
-                options=list(curriculum_matrix.keys()),
-                key="learning_hub_category_selector"
+        selected_module = st.selectbox(
+            "Choose an English learning area:",
+            options=list(approved_english_library.keys()),
+            key="english_learning_module_selector",
+        )
+        selected_session = st.selectbox(
+            "Choose an approved lesson:",
+            options=list(approved_english_library[selected_module].keys()),
+            key="english_learning_session_selector",
+        )
+        lesson = approved_english_library[selected_module][selected_session]
+
+        # A changed query parameter is an attempt to select a video outside this
+        # English-only library. It is rejected before any player is rendered.
+        requested_video_id = st.query_params.get("video", lesson["video_id"])
+        if requested_video_id != lesson["video_id"]:
+            st.error(
+                "You cannot access this video because this is the English Agent. "
+                "Only approved English-topic videos are available."
             )
-            
-            session_options = list(curriculum_matrix[selected_module]["sessions"].keys())
-            selected_session = st.selectbox(
-                "📝 Step 2: Choose Specific Focus Topic Session:",
-                options=session_options,
-                key=f"session_select_node_{selected_module.replace(' ', '_')}"
-            )
+        else:
+            video_id = lesson["video_id"]
+            watch_url = f"https://www.youtube.com/watch?v={video_id}"
 
-        video_id = curriculum_matrix[selected_module]["sessions"][selected_session]
-        watch_url = f"https://www.youtube.com/watch?v={video_id}"
-        embed_url = f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1"
+            try:
+                response = requests.get(
+                    f"https://www.youtube.com/oembed?url={watch_url}&format=json",
+                    timeout=6,
+                )
+                metadata = response.json() if response.status_code == 200 else {}
+                video_title = metadata.get("title", "").lower()
+                author_name = metadata.get("author_name", "").lower()
+                is_english_source = lesson["approved_source"] in author_name
+                is_related_to_topic = any(
+                    term in video_title for term in lesson["topic_terms"]
+                )
 
-        st.markdown("---")
-        st.markdown(f"### 📺 Now Playing: **{selected_session}**")
-        st.caption(f"Curriculum Track: {selected_module}")
-
-        # Validate embeddability using YouTube oEmbed before embedding
-        try:
-            oembed_url = f"https://www.youtube.com/oembed?url={watch_url}&format=json"
-            resp = requests.get(oembed_url, timeout=6)
-            if resp.status_code == 200:
-                components.iframe(embed_url, height=360, scrolling=False)
-            else:
-                st.error("Video unavailable or cannot be embedded in this page.")
-                st.markdown(f"[Open on YouTube]({watch_url})")
-        except Exception:
-            st.warning("Could not verify video availability (network or CORS).")
-            st.markdown(f"[Open on YouTube]({watch_url})")
+                if not (is_english_source and is_related_to_topic):
+                    st.error(
+                        "You cannot access this video because this is the English Agent. "
+                        "Only approved English-topic videos are available."
+                    )
+                else:
+                    embed_url = (
+                        f"https://www.youtube-nocookie.com/embed/{video_id}"
+                        "?rel=0&modestbranding=1&disablekb=1"
+                    )
+                    st.markdown(f"### Now Playing: {selected_session}")
+                    st.caption(f"English topic: {selected_module}")
+                    components.iframe(embed_url, height=360, scrolling=False)
+            except (requests.RequestException, ValueError):
+                st.error(
+                    "You cannot access this video because this is the English Agent. "
+                    "Only approved English-topic videos are available."
+                )
 
     elif app_mode == "📬 Submit Custom Prompts":
         st.title("Custom Evaluation Prompt Intake Node")
