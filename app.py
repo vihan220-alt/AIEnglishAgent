@@ -1356,62 +1356,59 @@ else:
 
         # Every playable video must be deliberately listed here. Do not accept URLs or
         # IDs from the browser, a query string, or an arbitrary user input.
-        # Ten English-only topics, with six approved sessions in each topic.
-        # Each session can use only the explicitly approved video for its lesson type.
-        def build_approved_sessions(
-            start_number, topic_name, video_id, topic_terms, approved_source
-        ):
+        # Each topic uses an approved BBC Learning English lesson. Sessions open
+        # different lesson segments, so learners do not receive the same session.
+        def build_approved_sessions(start_number, topic_name, lesson):
             return {
-                f"Session {number}: {topic_name} Practice": {
-                    "video_id": video_id,
-                    "topic_terms": topic_terms,
-                    "approved_source": approved_source,
+                f"Session {number}: {topic_name} - Part {part}": {
+                    **lesson,
+                    "start_seconds": (part - 1) * 30,
                 }
-                for number in range(start_number, start_number + 6)
+                for part, number in enumerate(range(start_number, start_number + 6), start=1)
             }
 
-        grammar_video = {
+        subject_verb = {
             "video_id": "yY89V2jX36E",
             "topic_terms": ("subject", "verb", "agreement"),
             "approved_source": "bbc learning english",
         }
-        pronunciation_video = {
-            "video_id": "sDcvF1a4vCY",
-            "topic_terms": ("pronunciation",),
+        schwa = {
+            "video_id": "I0EGFlffmcY",
+            "topic_terms": ("schwa", "speech"),
+            "approved_source": "bbc learning english",
+        }
+        cycling = {
+            "video_id": "hb1CBEENiPQ",
+            "topic_terms": ("cycle",),
+            "approved_source": "bbc learning english",
+        }
+        fluency = {
+            "video_id": "LDkvRFCm8No",
+            "topic_terms": ("speak", "fluently"),
+            "approved_source": "bbc learning english",
+        }
+        reading = {
+            "video_id": "h_pvijqmolQ",
+            "topic_terms": ("read", "books"),
+            "approved_source": "bbc learning english",
+        }
+        environment = {
+            "video_id": "JXxnEhD-25Q",
+            "topic_terms": ("environmental", "english"),
             "approved_source": "bbc learning english",
         }
 
         approved_english_library = {
-            "Grammar Foundations": build_approved_sessions(
-                1, "Grammar Foundations", **grammar_video
-            ),
-            "Subject-Verb Agreement": build_approved_sessions(
-                7, "Subject-Verb Agreement", **grammar_video
-            ),
-            "Compound Subjects": build_approved_sessions(
-                13, "Compound Subjects", **grammar_video
-            ),
-            "Complex Sentence Agreement": build_approved_sessions(
-                19, "Complex Sentence Agreement", **grammar_video
-            ),
-            "Singular and Plural Verbs": build_approved_sessions(
-                25, "Singular and Plural Verbs", **grammar_video
-            ),
-            "English Pronunciation": build_approved_sessions(
-                31, "English Pronunciation", **pronunciation_video
-            ),
-            "Clear English Speech": build_approved_sessions(
-                37, "Clear English Speech", **pronunciation_video
-            ),
-            "English Sound Practice": build_approved_sessions(
-                43, "English Sound Practice", **pronunciation_video
-            ),
-            "Speech Clarity Practice": build_approved_sessions(
-                49, "Speech Clarity Practice", **pronunciation_video
-            ),
-            "Pronunciation Review": build_approved_sessions(
-                55, "Pronunciation Review", **pronunciation_video
-            ),
+            "Subject-Verb Agreement": build_approved_sessions(1, "Subject-Verb Agreement", subject_verb),
+            "Agreement Rules": build_approved_sessions(7, "Agreement Rules", subject_verb),
+            "Schwa Pronunciation": build_approved_sessions(13, "Schwa Pronunciation", schwa),
+            "Fast Speech Listening": build_approved_sessions(19, "Fast Speech Listening", schwa),
+            "Cycling Vocabulary": build_approved_sessions(25, "Cycling Vocabulary", cycling),
+            "English Discussion Practice": build_approved_sessions(31, "English Discussion Practice", cycling),
+            "Speaking Fluency": build_approved_sessions(37, "Speaking Fluency", fluency),
+            "Conversation Confidence": build_approved_sessions(43, "Conversation Confidence", fluency),
+            "Reading Vocabulary": build_approved_sessions(49, "Reading Vocabulary", reading),
+            "Environmental English": build_approved_sessions(55, "Environmental English", environment),
         }
 
         selected_module = st.selectbox(
@@ -1459,7 +1456,7 @@ else:
                 else:
                     embed_url = (
                         f"https://www.youtube-nocookie.com/embed/{video_id}"
-                        "?rel=0&modestbranding=1&disablekb=1"
+                        f"?start={lesson['start_seconds']}&rel=0&modestbranding=1&disablekb=1"
                     )
                     st.markdown(f"### Now Playing: {selected_session}")
                     st.caption(f"English topic: {selected_module}")
