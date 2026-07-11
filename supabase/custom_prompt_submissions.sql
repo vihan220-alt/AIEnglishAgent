@@ -17,3 +17,8 @@ create index if not exists custom_prompt_submissions_learner_email_idx
 
 create index if not exists custom_prompt_submissions_status_idx
     on public.custom_prompt_submissions (status);
+
+-- Allow the Streamlit app's Supabase connection to use this table.
+grant usage on schema public to anon, authenticated;
+grant select, insert, update on public.custom_prompt_submissions to anon, authenticated;
+grant usage, select on sequence public.custom_prompt_submissions_id_seq to anon, authenticated;
