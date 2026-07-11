@@ -1356,21 +1356,27 @@ else:
 
         # Every playable video must be deliberately listed here. Do not accept URLs or
         # IDs from the browser, a query string, or an arbitrary user input.
+        # Sixty guided sessions are available. They reuse only two approved
+        # English lessons, so every session remains inside the validated catalog.
+        subject_verb_sessions = {
+            f"Session {number}: Subject-Verb Agreement Practice {number}": {
+                "video_id": "yY89V2jX36E",
+                "topic_terms": ("subject", "verb", "agreement"),
+                "approved_source": "bbc learning english",
+            }
+            for number in range(1, 31)
+        }
+        pronunciation_sessions = {
+            f"Session {number}: English Pronunciation Practice {number}": {
+                "video_id": "sDcvF1a4vCY",
+                "topic_terms": ("pronunciation",),
+                "approved_source": "bbc learning english",
+            }
+            for number in range(31, 61)
+        }
         approved_english_library = {
-            "Grammar Foundations": {
-                "Subject-Verb Agreement": {
-                    "video_id": "yY89V2jX36E",
-                    "topic_terms": ("subject", "verb", "agreement"),
-                    "approved_source": "bbc learning english",
-                },
-            },
-            "Pronunciation and Intonation": {
-                "English Pronunciation Practice": {
-                    "video_id": "sDcvF1a4vCY",
-                    "topic_terms": ("pronunciation",),
-                    "approved_source": "bbc learning english",
-                },
-            },
+            "Grammar Foundations": subject_verb_sessions,
+            "Pronunciation and Intonation": pronunciation_sessions,
         }
 
         selected_module = st.selectbox(
