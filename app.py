@@ -1606,6 +1606,9 @@ else:
 
             st.markdown("---")
             st.subheader("My Question Updates")
+            if st.button("Check for new answers", key="refresh_question_updates"):
+                st.rerun()
+
             try:
                 my_submissions = (
                     supabase_client.table("custom_prompt_submissions")
