@@ -1470,7 +1470,7 @@ else:
     elif app_mode == "📬 Submit Custom Prompts":
         st.title("Send a Question to the Admin")
 
-        admin_email = st.secrets.get("ADMIN_EMAIL", "vihan220@gmail.com").strip().lower()
+        admin_email = "vihan220@gmail.com"
         current_email = st.session_state.user_email.strip().lower()
         is_admin = current_email == admin_email
 
