@@ -509,6 +509,58 @@ def save_profile_to_db(email_str, profile_dict):
     except Exception:
         return False
 
+TRIAL_AI_QUESTION_LIMIT = 10
+
+def get_trial_ai_question_usage(email_str):
+    clean_email = (email_str or "").strip().lower()
+    if not clean_email:
+        return 0
+    if supabase_client is not None:
+        try:
+            response = (
+                supabase_client.table("users")
+                .select("trial_ai_questions_used")
+                .eq("email", clean_email)
+                .execute()
+            )
+            if response.data:
+                return int(response.data[0].get("trial_ai_questions_used") or 0)
+        except Exception:
+            pass
+    return int(st.session_state.get("trial_ai_questions_used", 0))
+
+def consume_ai_question(plan_tier, email_str):
+    if plan_tier == "Expired":
+        return False, 0
+
+    if plan_tier != "Trial":
+        return True, None
+
+    used = get_trial_ai_question_usage(email_str)
+    if used >= TRIAL_AI_QUESTION_LIMIT:
+        return False, 0
+
+    next_used = used + 1
+    st.session_state.trial_ai_questions_used = next_used
+    if supabase_client is not None:
+        try:
+            (
+                supabase_client.table("users")
+                .update({"trial_ai_questions_used": next_used})
+                .eq("email", (email_str or "").strip().lower())
+                .execute()
+            )
+        except Exception:
+            pass
+    return True, TRIAL_AI_QUESTION_LIMIT - next_used
+
+def render_trial_ai_limit_notice():
+    st.warning(
+        f"You have used all {TRIAL_AI_QUESTION_LIMIT} free AI questions. "
+        "Choose a paid plan for unlimited AI questions."
+    )
+    show_subscription_options()
+
 ROBOT_AVATAR = "https://img.icons8.com/fluent/96/artificial-intelligence.png"
 USER_AVATAR = "https://img.icons8.com/fluent/96/user-male-circle.png"
 
@@ -1199,7 +1251,12 @@ else:
         st.title(f"{st.session_state.all_chats[active_id]['title'] if active_id in st.session_state.all_chats else 'English Assessment Portal'}")
         
         if user_package_tier == "Trial":
-            st.info(f"🆓 Free trial is active — **{trial_countdown} days left**")
+            trial_questions_used = get_trial_ai_question_usage(st.session_state.user_email)
+            trial_questions_left = max(0, TRIAL_AI_QUESTION_LIMIT - trial_questions_used)
+            st.info(
+                f"🆓 Free trial is active — **{trial_countdown} days left** | "
+                f"**{trial_questions_left} of {TRIAL_AI_QUESTION_LIMIT} AI questions left**"
+            )
             with st.expander("💳 Pay to Continue", expanded=False):
                 show_subscription_options()
         else:
@@ -1326,20 +1383,32 @@ else:
                     experience_tier = st.selectbox("Target Competency Level:", ["Beginner / Elementary", "Advanced / Native Proficiency"], key="setup_experience_tier")
                     if st.form_submit_button("🔥 Launch Language Assessment Matrix", type="primary"):
                         current_chat["history"].append({"role": "user", "content": f"🎯 Profile setup for {target_skill} targeting {experience_tier} benchmarks."})
-                        eval_reply = get_evaluator_response(user_package_tier)
-                        current_chat["history"].append({"role": "assistant", "content": eval_reply})
-                        st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
-                        st.rerun()
+                        allowed, _ = consume_ai_question(
+                            user_package_tier, st.session_state.user_email
+                        )
+                        if allowed:
+                            eval_reply = get_evaluator_response(user_package_tier)
+                            current_chat["history"].append({"role": "assistant", "content": eval_reply})
+                            st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
+                            st.rerun()
+                        else:
+                            render_trial_ai_limit_notice()
 
         text_input = st.chat_input("Type your translation, essay answer, or session text here...", key="chat_input_terminal_field")
         if text_input:
             # Explicitly reset the transcript here so the boxed layout UI clears on manually typed entries
             st.session_state.last_speech_transcript = "" 
-            current_chat["history"].append({"role": "user", "content": text_input})
-            eval_reply = get_evaluator_response(user_package_tier)
-            current_chat["history"].append({"role": "assistant", "content": eval_reply})
-            st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
-            st.rerun()
+            allowed, _ = consume_ai_question(
+                user_package_tier, st.session_state.user_email
+            )
+            if allowed:
+                current_chat["history"].append({"role": "user", "content": text_input})
+                eval_reply = get_evaluator_response(user_package_tier)
+                current_chat["history"].append({"role": "assistant", "content": eval_reply})
+                st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
+                st.rerun()
+            else:
+                render_trial_ai_limit_notice()
 
     elif app_mode == "📊 Analytics Dashboard":
         st.title("Linguistic Matrix Progress Tracker")
