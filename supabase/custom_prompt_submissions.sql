@@ -22,3 +22,9 @@ create index if not exists custom_prompt_submissions_status_idx
 grant usage on schema public to anon, authenticated;
 grant select, insert, update on public.custom_prompt_submissions to anon, authenticated;
 grant usage, select on sequence public.custom_prompt_submissions_id_seq to anon, authenticated;
+
+-- The Streamlit app manages access on the server, so allow its database client
+-- to create and update learner questions.
+alter table public.custom_prompt_submissions disable row level security;
+grant all privileges on table public.custom_prompt_submissions to anon, authenticated;
+grant all privileges on sequence public.custom_prompt_submissions_id_seq to anon, authenticated;
