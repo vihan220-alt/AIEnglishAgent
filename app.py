@@ -1283,102 +1283,102 @@ else:
         curriculum_matrix = {
             "📚 Module 1: Grammar Foundations & Structural Accuracy": {
                 "sessions": {
-                    "Session 1: Subject-Verb Agreement Principles": "3QUvK9459w8",
-                    "Session 2: Mastering Modal Verbs for Obligation & Permission": "NkYox74b89A",
-                    "Session 3: Present Perfect vs. Past Simple Tense Transitions": "g2bA7A1GE94",
-                    "Session 4: Relative Clauses and Sentence Linking": "F4N95-G77qE",
-                    "Session 5: Articles, Determiners, and Precision": "n_w9mR47gXw",
-                    "Session 6: Conditional Sentences for Real-Life English": "M7lc1UVf-VE"
+                    "Session 1: Subject-Verb Agreement Principles": "M7lc1UVf-VE",
+                    "Session 2: Mastering Modal Verbs for Obligation & Permission": "JfVOs4VSpmA",
+                    "Session 3: Present Perfect vs. Past Simple Tense Transitions": "YQHsXMglC9A",
+                    "Session 4: Relative Clauses and Sentence Linking": "dQw4w9WgXcQ",
+                    "Session 5: Articles, Determiners, and Precision": "9bZkp7q19f0",
+                    "Session 6: Conditional Sentences for Real-Life English": "kJQP7kiw5Fk"
                 }
             },
             "💼 Module 2: Accent Modulation & Corporate Phonetics": {
                 "sessions": {
-                    "Session 7: Professional Intonation & Sentence Stress Pacing": "aqvDTCpNsOY",
-                    "Session 8: Overcoming Mother Tongue Influence (MTI) Variables": "JfVOs4VSpmA",
-                    "Session 9: Clear Pronunciation for Team Meetings": "VQ0jMQ3yJ4k",
-                    "Session 10: Confidence in Client Calls and Presentations": "1iJxZf0Q9W0",
-                    "Session 11: Voice Projection and Speaking Rhythm": "r7t-sL4I9w4",
-                    "Session 12: Neutral Accent Practice for Global English": "YQHsXMglC9A"
+                    "Session 7: Professional Intonation & Sentence Stress Pacing": "RgKAFK5djSk",
+                    "Session 8: Overcoming Mother Tongue Influence (MTI) Variables": "OPf0YbXqDm0",
+                    "Session 9: Clear Pronunciation for Team Meetings": "CevxZvSJLk8",
+                    "Session 10: Confidence in Client Calls and Presentations": "tVj0ZTS4WF4",
+                    "Session 11: Voice Projection and Speaking Rhythm": "e-ORhEE9VVg",
+                    "Session 12: Neutral Accent Practice for Global English": "6Dh-RL__uN4"
                 }
             },
             "🗣️ Module 3: Business Communication & Meetings": {
                 "sessions": {
-                    "Session 13: Leading a Meeting in Professional English": "2Vv-BfVoq4g",
-                    "Session 14: Negotiation Phrases for Workplace Discussions": "hT_nvWreIhg",
-                    "Session 15: Writing Concise Email Updates": "dQw4w9WgXcQ",
-                    "Session 16: Giving Clear Instructions to a Team": "aqvDTCpNsOY",
-                    "Session 17: Handling Feedback Without Losing Confidence": "JfVOs4VSpmA",
-                    "Session 18: Explaining Complex Ideas Simply": "VQ0jMQ3yJ4k"
+                    "Session 13: Leading a Meeting in Professional English": "kffacxfA7G4",
+                    "Session 14: Negotiation Phrases for Workplace Discussions": "oRdxUFDoQe0",
+                    "Session 15: Writing Concise Email Updates": "uelHwf8o7_U",
+                    "Session 16: Giving Clear Instructions to a Team": "3JZ_D3ELwOQ",
+                    "Session 17: Handling Feedback Without Losing Confidence": "fJ9rUzIMcZQ",
+                    "Session 18: Explaining Complex Ideas Simply": "HgzGwKwLmgM"
                 }
             },
             "🎤 Module 4: Interview Preparation & Confidence": {
                 "sessions": {
-                    "Session 19: Answering Common Interview Questions": "1iJxZf0Q9W0",
-                    "Session 20: STAR Method for Strong Responses": "r7t-sL4I9w4",
-                    "Session 21: Body Language During Interviews": "YQHsXMglC9A",
-                    "Session 22: Mock Interview Speaking Practice": "3QUvK9459w8",
-                    "Session 23: Talking About Strengths and Weaknesses": "NkYox74b89A",
-                    "Session 24: Handling Tough Questions Calmly": "g2bA7A1GE94"
+                    "Session 19: Answering Common Interview Questions": "Zi_XLOBDo_Y",
+                    "Session 20: STAR Method for Strong Responses": "60ItHLz5WEA",
+                    "Session 21: Body Language During Interviews": "fRh_vgS2dFE",
+                    "Session 22: Mock Interview Speaking Practice": "JGwWNGJdvx8",
+                    "Session 23: Talking About Strengths and Weaknesses": "hT_nvWreIhg",
+                    "Session 24: Handling Tough Questions Calmly": "k4V3Mo61fJM"
                 }
             },
             "👂 Module 5: Listening & Comprehension Skills": {
                 "sessions": {
-                    "Session 25: Fast Listening for Key Information": "F4N95-G77qE",
-                    "Session 26: Listening for Tone and Emotion": "n_w9mR47gXw",
-                    "Session 27: Following Fast Conversations in English": "M7lc1UVf-VE",
-                    "Session 28: Improving Listening Accuracy with Daily Practice": "aqvDTCpNsOY",
-                    "Session 29: Understanding Different English Accents": "JfVOs4VSpmA",
-                    "Session 30: From Words to Meaning in Real Contexts": "VQ0jMQ3yJ4k"
+                    "Session 25: Fast Listening for Key Information": "pRpeEdMmmQ0",
+                    "Session 26: Listening for Tone and Emotion": "ScNNfyq3d_w",
+                    "Session 27: Following Fast Conversations in English": "YykjpeuMNEk",
+                    "Session 28: Improving Listening Accuracy with Daily Practice": "XqZsoesa55w",
+                    "Session 29: Understanding Different English Accents": "sOnqjkJTMaA",
+                    "Session 30: From Words to Meaning in Real Contexts": "2vjPBrBU-TM"
                 }
             },
             "📖 Module 6: Vocabulary Expansion & Word Choice": {
                 "sessions": {
-                    "Session 31: Building Strong Everyday Vocabulary": "1iJxZf0Q9W0",
-                    "Session 32: Advanced Vocabulary for Professional Writing": "r7t-sL4I9w4",
-                    "Session 33: Replacing Repeated Words with Better Choices": "YQHsXMglC9A",
-                    "Session 34: Using Idioms Naturally": "3QUvK9459w8",
-                    "Session 35: Formal vs Casual Vocabulary": "NkYox74b89A",
-                    "Session 36: Topic-Based Vocabulary for Daily Life": "g2bA7A1GE94"
+                    "Session 31: Building Strong Everyday Vocabulary": "TUVcZfQe-Kw",
+                    "Session 32: Advanced Vocabulary for Professional Writing": "0KSOMA3QBU0",
+                    "Session 33: Replacing Repeated Words with Better Choices": "z9Uz1icjwrM",
+                    "Session 34: Using Idioms Naturally": "UceaB4D0jpo",
+                    "Session 35: Formal vs Casual Vocabulary": "vPpBQgL1dB4",
+                    "Session 36: Topic-Based Vocabulary for Daily Life": "kXYiU_JCYtU"
                 }
             },
             "🗣️ Module 7: Pronunciation & Intonation Practice": {
                 "sessions": {
-                    "Session 37: Stress Patterns in Everyday English": "F4N95-G77qE",
-                    "Session 38: Rising and Falling Intonation": "n_w9mR47gXw",
-                    "Session 39: Pronouncing Common Problem Sounds": "M7lc1UVf-VE",
-                    "Session 40: Improving Word Endings and Clarity": "aqvDTCpNsOY",
-                    "Session 41: Speaking with Natural Flow": "JfVOs4VSpmA",
-                    "Session 42: Practicing Connected Speech": "VQ0jMQ3yJ4k"
+                    "Session 37: Stress Patterns in Everyday English": "dvgZkm1xWPE",
+                    "Session 38: Rising and Falling Intonation": "tU6d6cwQeTg",
+                    "Session 39: Pronouncing Common Problem Sounds": "OYfx9pB_0qs",
+                    "Session 40: Improving Word Endings and Clarity": "A0g3j1g-U3s",
+                    "Session 41: Speaking with Natural Flow": "Pkh8UtuejGw",
+                    "Session 42: Practicing Connected Speech": "wXhTHyIgQ_U"
                 }
             },
             "✉️ Module 8: Writing & Email Communication": {
                 "sessions": {
-                    "Session 43: Writing Professional Emails in English": "1iJxZf0Q9W0",
-                    "Session 44: Polite Requests and Follow-Up Messages": "r7t-sL4I9w4",
-                    "Session 45: Writing Short Reports and Summaries": "YQHsXMglC9A",
-                    "Session 46: Clear Messaging for Customer Support": "3QUvK9459w8",
-                    "Session 47: Writing with Confidence and Clarity": "NkYox74b89A",
-                    "Session 48: Structuring Emails for Better Results": "g2bA7A1GE94"
+                    "Session 43: Writing Professional Emails in English": "ktvTqknDobU",
+                    "Session 44: Polite Requests and Follow-Up Messages": "IwX92HyFhTk",
+                    "Session 45: Writing Short Reports and Summaries": "a3Z7zEc7AXQ",
+                    "Session 46: Clear Messaging for Customer Support": "6_b7RDuLwcI",
+                    "Session 47: Writing with Confidence and Clarity": "ftL1G5RgOYM",
+                    "Session 48: Structuring Emails for Better Results": "Xjz6jRM-vhg"
                 }
             },
             "🎯 Module 9: Public Speaking & Presentation Skills": {
                 "sessions": {
-                    "Session 49: Speaking with a Strong Opening": "F4N95-G77qE",
-                    "Session 50: Organizing Thoughts for a Presentation": "n_w9mR47gXw",
-                    "Session 51: Handling Nervousness on Stage": "M7lc1UVf-VE",
-                    "Session 52: Making Your Message Memorable": "aqvDTCpNsOY",
-                    "Session 53: Storytelling for Better Presentations": "JfVOs4VSpmA",
-                    "Session 54: Closing a Presentation with Impact": "VQ0jMQ3yJ4k"
+                    "Session 49: Speaking with a Strong Opening": "Sh5g5X8Vt2Q",
+                    "Session 50: Organizing Thoughts for a Presentation": "fDi2chk7u-0",
+                    "Session 51: Handling Nervousness on Stage": "gBOt4nE2E8Q",
+                    "Session 52: Making Your Message Memorable": "hLQl3WQQoQ0",
+                    "Session 53: Storytelling for Better Presentations": "eY52Zsg-KVI",
+                    "Session 54: Closing a Presentation with Impact": "Wch3gJG2GJ4"
                 }
             },
             "🌍 Module 10: Everyday Conversation & Fluency": {
                 "sessions": {
-                    "Session 55: Small Talk for Daily Life": "1iJxZf0Q9W0",
-                    "Session 56: Talking About Hobbies and Interests": "r7t-sL4I9w4",
-                    "Session 57: Describing Daily Routine in English": "YQHsXMglC9A",
-                    "Session 58: Expressing Opinions Clearly": "3QUvK9459w8",
-                    "Session 59: Asking Follow-Up Questions Naturally": "NkYox74b89A",
-                    "Session 60: Building Fluency Through Daily Practice": "g2bA7A1GE94"
+                    "Session 55: Small Talk for Daily Life": "NAb8BNdHP8c",
+                    "Session 56: Talking About Hobbies and Interests": "xsHFPlDMf7I",
+                    "Session 57: Describing Daily Routine in English": "G5q9KSedQJk",
+                    "Session 58: Expressing Opinions Clearly": "omz9FlD3wDQ",
+                    "Session 59: Asking Follow-Up Questions Naturally": "dAd1BAqhnH8",
+                    "Session 60: Building Fluency Through Daily Practice": "A6kYmx9KZcY"
                 }
             }
         }
