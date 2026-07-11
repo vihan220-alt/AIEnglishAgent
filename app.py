@@ -1356,27 +1356,62 @@ else:
 
         # Every playable video must be deliberately listed here. Do not accept URLs or
         # IDs from the browser, a query string, or an arbitrary user input.
-        # Sixty guided sessions are available. They reuse only two approved
-        # English lessons, so every session remains inside the validated catalog.
-        subject_verb_sessions = {
-            f"Session {number}: Subject-Verb Agreement Practice {number}": {
-                "video_id": "yY89V2jX36E",
-                "topic_terms": ("subject", "verb", "agreement"),
-                "approved_source": "bbc learning english",
+        # Ten English-only topics, with six approved sessions in each topic.
+        # Each session can use only the explicitly approved video for its lesson type.
+        def build_approved_sessions(
+            start_number, topic_name, video_id, topic_terms, approved_source
+        ):
+            return {
+                f"Session {number}: {topic_name} Practice": {
+                    "video_id": video_id,
+                    "topic_terms": topic_terms,
+                    "approved_source": approved_source,
+                }
+                for number in range(start_number, start_number + 6)
             }
-            for number in range(1, 31)
+
+        grammar_video = {
+            "video_id": "yY89V2jX36E",
+            "topic_terms": ("subject", "verb", "agreement"),
+            "approved_source": "bbc learning english",
         }
-        pronunciation_sessions = {
-            f"Session {number}: English Pronunciation Practice {number}": {
-                "video_id": "sDcvF1a4vCY",
-                "topic_terms": ("pronunciation",),
-                "approved_source": "bbc learning english",
-            }
-            for number in range(31, 61)
+        pronunciation_video = {
+            "video_id": "sDcvF1a4vCY",
+            "topic_terms": ("pronunciation",),
+            "approved_source": "bbc learning english",
         }
+
         approved_english_library = {
-            "Grammar Foundations": subject_verb_sessions,
-            "Pronunciation and Intonation": pronunciation_sessions,
+            "Grammar Foundations": build_approved_sessions(
+                1, "Grammar Foundations", **grammar_video
+            ),
+            "Subject-Verb Agreement": build_approved_sessions(
+                7, "Subject-Verb Agreement", **grammar_video
+            ),
+            "Compound Subjects": build_approved_sessions(
+                13, "Compound Subjects", **grammar_video
+            ),
+            "Complex Sentence Agreement": build_approved_sessions(
+                19, "Complex Sentence Agreement", **grammar_video
+            ),
+            "Singular and Plural Verbs": build_approved_sessions(
+                25, "Singular and Plural Verbs", **grammar_video
+            ),
+            "English Pronunciation": build_approved_sessions(
+                31, "English Pronunciation", **pronunciation_video
+            ),
+            "Clear English Speech": build_approved_sessions(
+                37, "Clear English Speech", **pronunciation_video
+            ),
+            "English Sound Practice": build_approved_sessions(
+                43, "English Sound Practice", **pronunciation_video
+            ),
+            "Speech Clarity Practice": build_approved_sessions(
+                49, "Speech Clarity Practice", **pronunciation_video
+            ),
+            "Pronunciation Review": build_approved_sessions(
+                55, "Pronunciation Review", **pronunciation_video
+            ),
         }
 
         selected_module = st.selectbox(
