@@ -746,82 +746,52 @@ if "speech_transit_param" in st.query_params:
             render_trial_ai_limit_notice()
 
 def show_subscription_options():
-    st.subheader("Select a Subscription Tier to Continue:")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown("### 🥉 Basic\n**₹15** / month\n*Poorer tier, suitable for light use*\n*Expires after 1 month*")
-        if st.button("Select ₹15 Basic", use_container_width=True, key="btn_tier_15_select"): 
-            st.session_state.payment_plan_selected = ("Basic", 15, "1 Month", 1)
-            st.rerun()
-    with col2:
-        st.markdown("### 🥈 Standard\n**₹30** / month\n*Better than Basic, more features included*\n*Expires after 1 month*")
-        if st.button("Select ₹30 Standard", use_container_width=True, type="primary", key="btn_tier_30_select"): 
-            st.session_state.payment_plan_selected = ("Standard", 30, "1 Month", 1)
-            st.rerun()
-    with col3:
-        st.markdown("### 🥇 Exclusive\n**₹50** / month\n*Most powerful plan, best performance*\n*Expires after 1 month*")
-        if st.button("Select ₹50 Exclusive", use_container_width=True, key="btn_tier_50_select"): 
-            st.session_state.payment_plan_selected = ("Exclusive", 50, "1 Month", 1)
-            st.rerun()
-            
-    st.markdown("---")
-    coupon_input = st.text_input("Enter Coupon Code here:", key="coupon_field_intake").strip().upper()
-    valid_coupons = {"FREE6M":6, "SKILL6":6}
-    if coupon_input:
-        if coupon_input in valid_coupons:
-            months = valid_coupons[coupon_input]
-            st.success(f"🎉 Coupon Applied Successfully! You get **{months} Months FREE**.")
-            if st.session_state.payment_plan_selected:
-                p_name, _, _, _ = st.session_state.payment_plan_selected
-                st.session_state.payment_plan_selected = (p_name, 0, f"{months} Months Promo", months)
+    st.subheader("Choose a Monthly Pass")
+
+    monthly_plans = {
+        "Basic - Rs. 15 / month": ("Basic", 15),
+        "Standard - Rs. 30 / month": ("Standard", 30),
+        "Exclusive - Rs. 50 / month": ("Exclusive", 50),
+    }
+    selected_plan_label = st.radio(
+        "Monthly pass",
+        options=list(monthly_plans.keys()),
+        key="monthly_pass_selector",
+    )
+    plan_name, plan_amount = monthly_plans[selected_plan_label]
+
+    # Store the choice without rerunning, so it remains selected on the page.
+    st.session_state.payment_plan_selected = (plan_name, plan_amount, "1 Month", 1)
+    st.caption("Each paid pass expires 30 days after successful payment.")
+
+    coupon_input = st.text_input(
+        "Coupon code",
+        key="coupon_field_intake",
+    ).strip().upper()
+    valid_coupons = {"FREE6M": 6, "SKILL6": 6}
+    coupon_is_valid = not coupon_input or coupon_input in valid_coupons
+
+    if coupon_input and not coupon_is_valid:
+        st.error("This coupon code is not valid. Please enter a valid code or leave the field empty.")
+
+    if coupon_is_valid:
+        if coupon_input:
+            promo_months = valid_coupons[coupon_input]
+            st.success(f"Coupon applied: {promo_months} months free.")
+            st.info("The promotion is activated by the platform administrator after verification.")
         else:
-            st.error("❌ Please write valid coupon code.")
-
-    if st.session_state.payment_plan_selected:
-        plan_nm, plan_amt, plan_dur, plan_months = st.session_state.payment_plan_selected
-        # Render payment widget with guarded error handling so the app doesn't crash
-        try:
-            render_payment_gateway(st.session_state.user_email, plan_nm, plan_amt, plan_dur)
-            st.caption("Payments are processed through Razorpay and credited to the AIEnglishAgent platform for your monthly pass.")
-        except Exception as e:
-            st.error("Payment widget failed to render — see debug info below.")
-            st.write({
-                "user_email": st.session_state.get("user_email"),
-                "plan_nm": plan_nm,
-                "plan_amt": plan_amt,
-                "plan_dur": plan_dur,
-                "plan_months": plan_months,
-                "exception": str(e)
-            })
-
-        # Option to activate now (skip trial) without using payment gateway
-        if st.button(f"Activate Now (Skip Trial) - {plan_nm}", use_container_width=True, key="activate_now_btn"):
-            if supabase_client is None:
-                st.error("Database initialization failed. Please set up your secrets parameters.")
-            else:
-                months_to_set = plan_months or 1
-                success = update_user_plan_db(st.session_state.user_email, plan_nm, months_duration=months_to_set)
-                if success:
-                    st.success("Successfully activated plan! Reloading layout...")
-                    st.session_state.payment_plan_selected = None
-                    st.session_state.iframe_render_idx += 1
-                    st.rerun()
-                else:
-                    st.error("Database storage push failed. Verify connectivity parameters.")
-
-        if st.button(f"⚡ [Simulate Payment Success] Activate {plan_nm}", use_container_width=True, key="payment_simulation_trigger"):
-            if supabase_client is None:
-                st.error("Database initialization failed. Please set up your secrets parameters.")
-            else:
-                months_to_set = plan_months or 1
-                success = update_user_plan_db(st.session_state.user_email, plan_nm, months_duration=months_to_set)
-                if success:
-                    st.success("Successfully activated plan! Reloading layout...")
-                    st.session_state.payment_plan_selected = None
-                    st.session_state.iframe_render_idx += 1
-                    st.rerun()
-                else:
-                    st.error("Database storage push failed. Verify connectivity parameters.")
+            st.markdown("---")
+            st.caption(
+                "Payment is processed by Razorpay and sent to the merchant account "
+                "configured for this platform. Settlement details are available in "
+                "the owner's Razorpay dashboard."
+            )
+            render_payment_gateway(
+                st.session_state.user_email,
+                plan_name,
+                plan_amount,
+                "1 Month",
+            )
 
 # =========================================================
 # CONDITIONAL ROUTER (ONBOARDING LOGIC WITH HIDDEN DEV BYPASS)
