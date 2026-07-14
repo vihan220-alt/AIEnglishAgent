@@ -588,7 +588,7 @@ def render_payment_gateway(email_recipient, selected_plan, cost_inr, plan_durati
         </form>
     </div>
     """
-    components.html(razorpay_html_code, height=160, key="razorpay_node_static")
+    components.html(razorpay_html_code, height=160)
 
 # =========================================================
 # HTML5 WEBCAM VIDEO RECORDING CONTROLLER
