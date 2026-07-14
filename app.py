@@ -509,7 +509,7 @@ def save_profile_to_db(email_str, profile_dict):
     except Exception:
         return False
 
-TRIAL_AI_QUESTION_LIMIT = 10
+TRIAL_AI_QUESTION_LIMIT = 20
 
 def get_trial_ai_question_usage(email_str):
     clean_email = (email_str or "").strip().lower()
@@ -556,7 +556,7 @@ def consume_ai_question(plan_tier, email_str):
 
 def render_trial_ai_limit_notice():
     st.warning(
-        f"You have used all {TRIAL_AI_QUESTION_LIMIT} free AI questions. "
+        "Your free trial AI access has ended. "
         "Choose a paid plan for unlimited AI questions."
     )
     show_subscription_options()
@@ -1258,12 +1258,7 @@ else:
         st.title(f"{st.session_state.all_chats[active_id]['title'] if active_id in st.session_state.all_chats else 'English Assessment Portal'}")
         
         if user_package_tier == "Trial":
-            trial_questions_used = get_trial_ai_question_usage(st.session_state.user_email)
-            trial_questions_left = max(0, TRIAL_AI_QUESTION_LIMIT - trial_questions_used)
-            st.info(
-                f"🆓 Free trial is active — **{trial_countdown} days left** | "
-                f"**{trial_questions_left} of {TRIAL_AI_QUESTION_LIMIT} AI questions left**"
-            )
+            st.info(f"🆓 Free trial is active — **{trial_countdown} days left**")
             with st.expander("💳 Pay to Continue", expanded=False):
                 show_subscription_options()
         else:
