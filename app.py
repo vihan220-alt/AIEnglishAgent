@@ -396,6 +396,11 @@ def normalize_plan_name(plan_name):
 
 def init_user_and_get_plan(email_str):
     clean_email = email_str.strip().lower()
+
+    # The owner account has free, unlimited access and never needs a paid plan.
+    if clean_email == "vihan220@gmail.com":
+        return "Exclusive", 999999
+
     # Allow a temporary per-user expire override for the current session.
     if st.session_state.get("force_expire_for_me", False) and clean_email and clean_email == st.session_state.get("user_email", "").strip().lower():
         return "Expired", 0
@@ -1428,13 +1433,15 @@ else:
             try:
                 user_count_response = (
                     supabase_client.table("users")
-                    .select("email", count="exact")
+                    .select("email")
                     .execute()
                 )
-                registered_people = getattr(
-                    user_count_response,
-                    "count",
-                    len(user_count_response.data or []),
+                registered_people = len(
+                    {
+                        row.get("email", "").strip().lower()
+                        for row in (user_count_response.data or [])
+                        if row.get("email")
+                    }
                 )
                 st.metric("Registered people", registered_people)
             except Exception:
