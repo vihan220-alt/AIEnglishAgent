@@ -1416,10 +1416,29 @@ else:
         st.title("Linguistic Matrix Progress Tracker")
         metrics = st.session_state.performance_metrics
         m_col1, m_col2 = st.columns(2)
-        with m_col1: 
+        with m_col1:
             st.metric(label="Calculated Fluency Score", value=f"{metrics.get('fluency_score', 0.0)} / 10.0")
-        with m_col2: 
+        with m_col2:
             st.metric(label="Grammar Slips Logged", value=int(metrics.get('grammar_errors_logged', 0)))
+
+        # This count is visible only to the administrator.
+        if st.session_state.user_email.strip().lower() == "vihan220@gmail.com":
+            st.markdown("---")
+            st.subheader("Admin Overview")
+            try:
+                user_count_response = (
+                    supabase_client.table("users")
+                    .select("email", count="exact")
+                    .execute()
+                )
+                registered_people = getattr(
+                    user_count_response,
+                    "count",
+                    len(user_count_response.data or []),
+                )
+                st.metric("Registered people", registered_people)
+            except Exception:
+                st.warning("The registered-people count is not available right now.")
 
     elif app_mode == "🌐 Explore Video Learning Engine":
         st.title("English Video Learning Library")
