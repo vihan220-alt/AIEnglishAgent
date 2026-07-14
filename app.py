@@ -1422,6 +1422,21 @@ else:
                     if row.get("email")
                 }
                 st.metric("Registered people", len(people_by_email))
+                st.caption("This removes test accounts only. Your administrator account is kept.")
+                if st.button("Reset test accounts", type="secondary", key="reset_test_accounts"):
+                    test_emails = [
+                        email for email in people_by_email
+                        if email != "vihan220@gmail.com"
+                    ]
+                    try:
+                        for test_email in test_emails:
+                            supabase_client.table("users").delete().eq(
+                                "email", test_email
+                            ).execute()
+                        st.success("Test accounts were reset. Your administrator account was kept.")
+                        st.rerun()
+                    except Exception:
+                        st.error("The test accounts could not be reset right now.")
 
                 overview_rows = []
                 today = date.today()
