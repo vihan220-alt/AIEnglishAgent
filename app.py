@@ -1421,26 +1421,28 @@ else:
                     for row in user_rows
                     if row.get("email")
                 }
-                st.metric("Registered people", len(people_by_email))
-                st.caption("This removes test accounts only. Your administrator account is kept.")
-                if st.button("Reset test accounts", type="secondary", key="reset_test_accounts"):
-                    test_emails = [
-                        email for email in people_by_email
-                        if email != "vihan220@gmail.com"
-                    ]
+                learner_accounts = {
+                    email: row
+                    for email, row in people_by_email.items()
+                    if email != "vihan220@gmail.com"
+                }
+                st.metric("Registered people", len(learner_accounts))
+                st.caption("Your administrator account is not included in this count.")
+                if st.button("Reset registered people", type="secondary", key="reset_test_accounts"):
+                    test_emails = list(learner_accounts)
                     try:
                         for test_email in test_emails:
                             supabase_client.table("users").delete().eq(
                                 "email", test_email
                             ).execute()
-                        st.success("Test accounts were reset. Your administrator account was kept.")
+                        st.success("Registered people were reset. Your administrator account is not counted.")
                         st.rerun()
                     except Exception:
                         st.error("The test accounts could not be reset right now.")
 
                 overview_rows = []
                 today = date.today()
-                for email, row in sorted(people_by_email.items()):
+                for email, row in sorted(learner_accounts.items()):
                     plan = normalize_plan_name(row.get("user_plan", "Trial")) or "Trial"
                     expiry = row.get("plan_expiry_date", "")
                     status = "Paid pass"
