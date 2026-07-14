@@ -1149,9 +1149,18 @@ else:
         if "active_nav_mode" not in st.session_state:
             st.session_state.active_nav_mode = "🗣️ Skill Assessment Portal"
 
+        workspace_options = [
+            "🗣️ Skill Assessment Portal",
+            "📊 Analytics Dashboard",
+            "🌐 Explore Video Learning Engine",
+            "📬 Submit Custom Prompts",
+        ]
+        if st.session_state.user_email.strip().lower() == "vihan220@gmail.com":
+            workspace_options.append("🛡️ Admin Dashboard")
+
         app_mode = st.radio(
             "Select Portal Workspace:",
-            ["🗣️ Skill Assessment Portal", "📊 Analytics Dashboard", "🌐 Explore Video Learning Engine", "📬 Submit Custom Prompts"],
+            workspace_options,
             key="app_navigation_rail_index"
         )
         
@@ -1396,26 +1405,58 @@ else:
         with m_col2:
             st.metric(label="Grammar Slips Logged", value=int(metrics.get('grammar_errors_logged', 0)))
 
-        # This count is visible only to the administrator.
-        if st.session_state.user_email.strip().lower() == "vihan220@gmail.com":
-            st.markdown("---")
-            st.subheader("Admin Overview")
+    elif app_mode == "🛡️ Admin Dashboard":
+        st.title("Admin Dashboard")
+        st.caption("Private account overview. Only the administrator can see this page.")
+
+        if st.session_state.user_email.strip().lower() != "vihan220@gmail.com":
+            st.error("This dashboard is available only to the administrator.")
+        elif supabase_client is None:
+            st.error("The registered-user information is not available right now.")
+        else:
             try:
-                user_count_response = (
-                    supabase_client.table("users")
-                    .select("email")
-                    .execute()
-                )
-                registered_people = len(
-                    {
-                        row.get("email", "").strip().lower()
-                        for row in (user_count_response.data or [])
-                        if row.get("email")
-                    }
-                )
-                st.metric("Registered people", registered_people)
+                user_rows = supabase_client.table("users").select("*").execute().data or []
+                people_by_email = {
+                    row.get("email", "").strip().lower(): row
+                    for row in user_rows
+                    if row.get("email")
+                }
+                st.metric("Registered people", len(people_by_email))
+
+                overview_rows = []
+                today = date.today()
+                for email, row in sorted(people_by_email.items()):
+                    plan = normalize_plan_name(row.get("user_plan", "Trial")) or "Trial"
+                    expiry = row.get("plan_expiry_date", "")
+                    status = "Paid pass"
+                    if plan == "Trial":
+                        status = "Free trial"
+                    elif plan == "Expired":
+                        status = "Expired"
+                    elif expiry:
+                        try:
+                            expiry_date = datetime.strptime(expiry, "%Y-%m-%d").date()
+                            if expiry_date < today:
+                                status = "Expired"
+                        except (TypeError, ValueError):
+                            pass
+
+                    overview_rows.append(
+                        {
+                            "Email": email,
+                            "Access": status,
+                            "Pass": plan,
+                            "Pass / trial ends": expiry or "Not set",
+                        }
+                    )
+
+                st.subheader("Registered accounts")
+                if overview_rows:
+                    st.dataframe(overview_rows, use_container_width=True, hide_index=True)
+                else:
+                    st.info("No registered accounts yet.")
             except Exception:
-                st.warning("The registered-people count is not available right now.")
+                st.error("The registered-user information is not available right now.")
 
     elif app_mode == "🌐 Explore Video Learning Engine":
         st.title("English Video Learning Library")
