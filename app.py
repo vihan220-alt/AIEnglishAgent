@@ -238,8 +238,6 @@ receiver_js = """
 """
 components.html(receiver_js, height=0, width=0)
 
-# Hidden bridge inputs removed from UI (kept JS handlers intact).
-# We keep placeholder variables so downstream logic stays stable.
 recovery_data = ""
 video_bridge_data = ""
 
@@ -250,7 +248,6 @@ localstorage_bridge_html = """
     <input type="hidden" id="skillverify_logged_in_restore" value="">
 </div>
 <script>
-    // Directly read from localStorage and populate hidden inputs immediately
     const savedEmail = localStorage.getItem("skillverify_user_email");
     const savedLoggedIn = localStorage.getItem("skillverify_is_logged_in");
     
@@ -286,8 +283,6 @@ def get_supabase_client():
 
 supabase_client = get_supabase_client()
 
-# Check URL params as an alternative recovery method
-# Only restore if session is NOT already restored (idempotent)
 if "login_recovery_email" in st.query_params and not st.session_state.is_logged_in:
     recovered_email = st.query_params.get("login_recovery_email", "").strip().lower()
     if recovered_email and "@" in recovered_email:
@@ -393,18 +388,13 @@ def normalize_plan_name(plan_name):
         return "Expired"
     return plan_name
 
-
 def init_user_and_get_plan(email_str):
     clean_email = email_str.strip().lower()
-
-    # The owner account has free, unlimited access and never needs a paid plan.
     if clean_email == "vihan220@gmail.com":
         return "Exclusive", 999999
 
-    # Allow a temporary per-user expire override for the current session.
     if st.session_state.get("force_expire_for_me", False) and clean_email and clean_email == st.session_state.get("user_email", "").strip().lower():
         return "Expired", 0
-    # Default: new users get a 15-day free trial
     TRIAL_DAYS = 15
     if not clean_email or supabase_client is None:
         return "Trial", TRIAL_DAYS
@@ -412,7 +402,6 @@ def init_user_and_get_plan(email_str):
         response = supabase_client.table("users").select("*").eq("email", clean_email).execute()
         user_records = response.data
         if len(user_records) == 0:
-            # set trial expiry to TRIAL_DAYS from today
             expiry_dt = date.today() + timedelta(days=TRIAL_DAYS)
             new_profile = {
                 "email": clean_email,
@@ -425,12 +414,10 @@ def init_user_and_get_plan(email_str):
             return "Trial", TRIAL_DAYS
         user_data = user_records[0]
         assigned_plan = normalize_plan_name(user_data.get("user_plan", "Trial"))
-        # If there is a plan_expiry_date stored, compute remaining days
         expiry_str = user_data.get("plan_expiry_date")
         if expiry_str:
             try:
                 expiry_date_obj = datetime.strptime(expiry_str, "%Y-%m-%d").date()
-                # ensure trial expiry uses at least the current 15-day policy for older accounts
                 signup_dt_str = user_data.get("signup_date", str(date.today()))
                 signup_date_obj = datetime.strptime(signup_dt_str, "%Y-%m-%d").date()
                 trial_max_expiry = signup_date_obj + timedelta(days=TRIAL_DAYS)
@@ -444,10 +431,8 @@ def init_user_and_get_plan(email_str):
                     return "Expired", 0
                 return assigned_plan, days_remaining
             except Exception:
-                # malformed expiry, fall back to trial calculation
                 pass
 
-        # Fallback: use signup_date for trial calculation
         signup_dt_str = user_data.get("signup_date", str(date.today()))
         signup_date_obj = datetime.strptime(signup_dt_str, "%Y-%m-%d").date()
         days_consumed = (date.today() - signup_date_obj).days
@@ -460,17 +445,12 @@ def init_user_and_get_plan(email_str):
         return "Trial", TRIAL_DAYS
 
 def update_user_plan_db(email_str, target_plan, months_duration=1):
-    """
-    Update the user's plan and set expiry based on months_duration.
-    months_duration can be 1, 3, 6, etc. Use 0 for non-expiring (rare).
-    """
     clean_email = email_str.strip().lower()
     if supabase_client is None:
         return False
     try:
         target_plan = normalize_plan_name(target_plan)
         start_date = date.today()
-        # approximate month as 30 days for expiry calculations
         try:
             from datetime import timedelta
             if months_duration and months_duration > 0:
@@ -490,21 +470,17 @@ def update_user_plan_db(email_str, target_plan, months_duration=1):
     except Exception:
         return False
 
-
 def save_profile_to_db(email_str, profile_dict):
-    """Insert or update the user's profile fields in the users table."""
     clean_email = (email_str or "").strip().lower()
     if not clean_email or supabase_client is None:
         return False
     try:
-        # Check existing
         resp = supabase_client.table("users").select("email").eq("email", clean_email).execute()
         payload = profile_dict.copy()
         payload["email"] = clean_email
         if resp and getattr(resp, 'data', None) and len(resp.data) > 0:
             supabase_client.table("users").update(payload).eq("email", clean_email).execute()
         else:
-            # ensure signup_date and default plan if not provided
             if "signup_date" not in payload:
                 payload["signup_date"] = str(date.today())
             if "user_plan" not in payload:
@@ -760,7 +736,6 @@ def show_subscription_options():
     )
     plan_name, plan_amount = monthly_plans[selected_plan_label]
 
-    # Store the choice without rerunning, so it remains selected on the page.
     st.session_state.payment_plan_selected = (plan_name, plan_amount, "1 Month", 1)
     st.caption("Each paid pass expires 30 days after successful payment.")
 
@@ -799,13 +774,11 @@ def show_subscription_options():
 if not st.session_state.is_logged_in:
     st.title("🔐 Candidate Onboarding & Qualification Portal")
     
-    # Initialize login mode state
     if "login_mode" not in st.session_state:
-        st.session_state.login_mode = "new"  # 'new' or 'existing'
+        st.session_state.login_mode = "new"
     
     is_developer = st.query_params.get("dev") == "true"
     
-    # Get last email from localStorage if user just logged out
     get_last_email_js = """
     <script>
         const lastEmail = localStorage.getItem("skillverify_last_email");
@@ -820,7 +793,6 @@ if not st.session_state.is_logged_in:
     """
     components.html(get_last_email_js, height=0)
     
-    # Mode toggle
     col1, col2 = st.columns(2)
     with col1:
         if st.button("📝 New Account", use_container_width=True, 
@@ -833,7 +805,6 @@ if not st.session_state.is_logged_in:
             st.session_state.login_mode = "existing"
             st.rerun()
 
-    # Ensure login form state keys exist before any form render
     if "login_email_persist" not in st.session_state:
         st.session_state.login_email_persist = ""
     if "login_pass_persist" not in st.session_state:
@@ -847,7 +818,6 @@ if not st.session_state.is_logged_in:
 
     st.markdown("---")
     
-    # ===== NEW ACCOUNT FORM =====
     if st.session_state.login_mode == "new":
         st.markdown("### Create New Account")
         st.markdown("You must complete all onboarding fields to access the main portal dashboard.")
@@ -902,7 +872,6 @@ if not st.session_state.is_logged_in:
                 proceed_to_login = True
                 target_email = email_clean.lower()
 
-        # FIXED: Resolved reference errors where reg_* variables were non-existent
         elif lucky_clicked and is_developer:
             email_clean = st.session_state.login_email_persist.strip()
             password_clean = st.session_state.login_pass_persist.strip()
@@ -927,7 +896,6 @@ if not st.session_state.is_logged_in:
                 "intent": st.session_state.get("login_intent_persist", ""),
                 "gender": st.session_state.get("login_gender_persist", "Male")
             })
-            # Persist profile to DB (insert/update)
             try:
                 profile_payload = {
                     "age": st.session_state.get("login_age_persist", ""),
@@ -936,7 +904,6 @@ if not st.session_state.is_logged_in:
                     "user_plan": "Trial",
                     "plan_start_date": str(date.today())
                 }
-                # set expiry for a 15-day trial
                 from datetime import timedelta
                 profile_payload["plan_expiry_date"] = (date.today() + timedelta(days=15)).strftime("%Y-%m-%d")
                 save_profile_to_db(target_email, profile_payload)
@@ -962,12 +929,10 @@ if not st.session_state.is_logged_in:
             st.success("✓ Identity validated! Redirecting to dashboard...")
             st.rerun()
     
-    # ===== QUICK SIGN-IN FORM (EXISTING ACCOUNT) =====
     else:
         st.markdown("### Sign In to Your Account")
         st.markdown("Welcome back! Sign in with your credentials to access your dashboard.")
         
-        # Show info about last email if available
         last_email_js = """
         <script>
             const lastEmail = localStorage.getItem("skillverify_last_email");
@@ -983,16 +948,13 @@ if not st.session_state.is_logged_in:
         
         st.info("💡 Last used email will be pre-filled below", icon="ℹ️")
         
-        # Disable browser password save dialog
         disable_autosave_js = """
         <script>
-            // Disable browser password save dialog
             document.addEventListener('DOMContentLoaded', function() {
                 const forms = document.querySelectorAll('form');
                 forms.forEach(form => {
                     form.setAttribute('autocomplete', 'off');
                     form.addEventListener('submit', function(e) {
-                        // Prevent browser from offering to save password
                         const inputs = form.querySelectorAll('input');
                         inputs.forEach(input => {
                             input.setAttribute('autocomplete', 'off');
@@ -1002,8 +964,6 @@ if not st.session_state.is_logged_in:
                     });
                 });
             });
-            
-            // Also run on page load
             window.addEventListener('load', function() {
                 const forms = document.querySelectorAll('form');
                 forms.forEach(form => {
@@ -1036,7 +996,6 @@ if not st.session_state.is_logged_in:
             elif len(password_clean) < 4:
                 st.error("❌ Invalid Password: Password must contain at least 4 characters.")
             else:
-                # Check if account exists in database
                 account_exists = False
                 if supabase_client is None:
                     st.error("❌ Account verification is unavailable because the database client is not configured.")
@@ -1058,7 +1017,6 @@ if not st.session_state.is_logged_in:
                     st.session_state.signin_missing_email = email_clean
                 else:
                     st.session_state.signin_missing_email = ""
-                    # load saved profile values from database before login
                     try:
                         profile_row = response.data[0] if isinstance(response.data, list) and len(response.data) > 0 else None
                         if profile_row:
@@ -1105,7 +1063,6 @@ else:
         
         if st.button("🚪 Log Out / Switch Account", use_container_width=True):
             current_email = st.session_state.user_email
-            # Persist profile to DB before logout
             try:
                 profile_payload = {
                     "age": st.session_state.get("login_age_persist", ""),
@@ -1267,16 +1224,49 @@ else:
             except Exception as e:
                 st.error(f"Error compiling video payload: {str(e)}")
 
-        # FIXED: Relocated voice control panel block out from structural exception scopes so it renders independently
+        st.markdown("---")
+
+        # RENDER CONVERSATION HISTORY
+        for message in current_chat["history"]:
+            avatar_img = USER_AVATAR if message["role"] == "user" else ROBOT_AVATAR
+            with st.chat_message(message["role"], avatar=avatar_img):
+                st.markdown(message["content"])
+
+        if len(current_chat["history"]) == 1 and "Welcome" in current_chat["history"][0]["content"]:
+            st.markdown("---")
+            with st.expander("🛠️ Initialize Video Assessment Focus Track", expanded=True):
+                with st.form("assessment_setup_form"):
+                    target_skill = st.selectbox("Primary Video Assessment Track:", ["Spoken English & Fluency", "Corporate/Business Communication"], key="setup_target_skill")
+                    experience_tier = st.selectbox("Target Competency Level:", ["Beginner / Elementary", "Advanced / Native Proficiency"], key="setup_experience_tier")
+                    if st.form_submit_button("🔥 Launch Language Assessment Matrix", type="primary"):
+                        current_chat["history"].append({"role": "user", "content": f"🎯 Profile setup for {target_skill} targeting {experience_tier} benchmarks."})
+                        allowed, _ = consume_ai_question(
+                            user_package_tier, st.session_state.user_email
+                        )
+                        if allowed:
+                            eval_reply = get_evaluator_response(user_package_tier)
+                            current_chat["history"].append({"role": "assistant", "content": eval_reply})
+                            st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
+                            st.rerun()
+                        else:
+                            render_trial_ai_limit_notice()
+
+        # Show last captured transcript visibly if it exists
+        if st.session_state.get('last_speech_transcript'):
+            st.markdown(f"**Last captured transcript:** {st.session_state.last_speech_transcript}")
+
+        # =========================================================
+        # ATTACHED INPUT SECTION (VOICE CONTROLS TIED TO CHAT INPUT)
+        # =========================================================
         voice_control_html = """
-        <div style='background: linear-gradient(135deg,#0f172a 0%,#111827 100%); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.04); margin-top: 15px;'>
+        <div style='background: linear-gradient(135deg,#0f172a 0%,#111827 100%); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.04); margin-bottom: 5px;'>
             <div style='display:flex; gap:10px; align-items:center;'>
                 <button id='btnSpeak' style='background:#10b981;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;'>🎤 Speak</button>
                 <button id='btnStopSpeaking' style='background:#ef4444;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;' disabled>⏹️ Stop Speaking</button>
                 <button id='btnStopVoice' style='background:#4b5563;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;'>🔇 Stop Voice</button>
                 <div id='voiceStatus' style='margin-left:12px;color:#94a3b8;'>Ready to capture speech.</div>
             </div>
-            <div id='liveTranscript' style='margin-top:10px;padding:10px;background:rgba(255,255,255,0.02);border-radius:8px;color:#e6eef8;min-height:36px;'> </div>
+            <div id='liveTranscript' style='margin-top:10px;padding:10px;background:rgba(255,255,255,0.02);border-radius:8px;color:#e6eef8;min-height:36px;display:none;'></div>
         </div>
 
         <script>
@@ -1349,42 +1339,11 @@ else:
             })();
         </script>
         """
-        components.html(voice_control_html, height=140)
-
-        # Show last captured transcript visibly
-        if st.session_state.get('last_speech_transcript'):
-            st.markdown(f"**Last captured transcript:** {st.session_state.last_speech_transcript}")
-
-        st.markdown("---")
-
-        # RENDER CONVERSATION HISTORY
-        for message in current_chat["history"]:
-            avatar_img = USER_AVATAR if message["role"] == "user" else ROBOT_AVATAR
-            with st.chat_message(message["role"], avatar=avatar_img):
-                st.markdown(message["content"])
-
-        if len(current_chat["history"]) == 1 and "Welcome" in current_chat["history"][0]["content"]:
-            st.markdown("---")
-            with st.expander("🛠️ Initialize Video Assessment Focus Track", expanded=True):
-                with st.form("assessment_setup_form"):
-                    target_skill = st.selectbox("Primary Video Assessment Track:", ["Spoken English & Fluency", "Corporate/Business Communication"], key="setup_target_skill")
-                    experience_tier = st.selectbox("Target Competency Level:", ["Beginner / Elementary", "Advanced / Native Proficiency"], key="setup_experience_tier")
-                    if st.form_submit_button("🔥 Launch Language Assessment Matrix", type="primary"):
-                        current_chat["history"].append({"role": "user", "content": f"🎯 Profile setup for {target_skill} targeting {experience_tier} benchmarks."})
-                        allowed, _ = consume_ai_question(
-                            user_package_tier, st.session_state.user_email
-                        )
-                        if allowed:
-                            eval_reply = get_evaluator_response(user_package_tier)
-                            current_chat["history"].append({"role": "assistant", "content": eval_reply})
-                            st.session_state.autoplay_audio_data = text_to_speech_bytes(eval_reply)
-                            st.rerun()
-                        else:
-                            render_trial_ai_limit_notice()
+        # Render the voice panel iframe right above the chat input box
+        components.html(voice_control_html, height=65)
 
         text_input = st.chat_input("Type your translation, essay answer, or session text here...", key="chat_input_terminal_field")
         if text_input:
-            # Explicitly reset the transcript here so the boxed layout UI clears on manually typed entries
             st.session_state.last_speech_transcript = "" 
             allowed, _ = consume_ai_question(
                 user_package_tier, st.session_state.user_email
@@ -1481,10 +1440,6 @@ else:
         st.title("English Video Learning Library")
         st.caption("Only approved English lessons for the selected topic are available in this agent.")
 
-        # Every playable video must be deliberately listed here. Do not accept URLs or
-        # IDs from the browser, a query string, or an arbitrary user input.
-        # Each topic uses an approved BBC Learning English lesson. Sessions open
-        # different lesson segments, so learners do not receive the same session.
         def build_approved_sessions(start_number, topic_name, lesson):
             return {
                 f"Session {number}: {topic_name} - Part {part}": {
@@ -1550,8 +1505,6 @@ else:
         )
         lesson = approved_english_library[selected_module][selected_session]
 
-        # A changed query parameter is an attempt to select a video outside this
-        # English-only library. It is rejected before any player is rendered.
         requested_video_id = st.query_params.get("video", lesson["video_id"])
         if requested_video_id != lesson["video_id"]:
             st.error(
