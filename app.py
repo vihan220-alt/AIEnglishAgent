@@ -269,6 +269,23 @@ localstorage_bridge_html = """
 """
 components.html(localstorage_bridge_html, height=0, width=0)
 
+# =========================================================
+# SUPABASE DATABASE STORAGE ENGINE
+# =========================================================
+SUPABASE_URL = st.secrets.get("SUPABASE_URL", "https://xudmbkuruxfdpprwplee.supabase.co")
+SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
+
+@st.cache_resource
+def get_supabase_client():
+    if not SUPABASE_KEY or SUPABASE_KEY.strip() == "":
+        return None
+    try:
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception:
+        return None
+
+supabase_client = get_supabase_client()
+
 # Check URL params as an alternative recovery method
 # Only restore if session is NOT already restored (idempotent)
 if "login_recovery_email" in st.query_params and not st.session_state.is_logged_in:
@@ -293,7 +310,7 @@ if "login_recovery_email" in st.query_params and not st.session_state.is_logged_
                 st.session_state.login_gender_persist = profile_row.get("gender", st.session_state.get("login_gender_persist", "Male"))
             except Exception:
                 pass
-            st.experimental_set_query_params()
+            st.query_params.clear()
             st.rerun()
         else:
             cleanup_js = """
@@ -304,7 +321,7 @@ if "login_recovery_email" in st.query_params and not st.session_state.is_logged_
             """
             components.html(cleanup_js, height=0)
             st.warning("⚠️ Stored login credentials were not valid. Please sign in again or create a new account.")
-            st.experimental_set_query_params()
+            st.query_params.clear()
             st.rerun()
 
 # =========================================================
@@ -359,23 +376,6 @@ if st.session_state.active_chat_id not in st.session_state.all_chats:
         st.session_state.active_chat_id = "Chat_1"
 
 current_chat = st.session_state.all_chats[st.session_state.active_chat_id]
-
-# =========================================================
-# SUPABASE DATABASE STORAGE ENGINE
-# =========================================================
-SUPABASE_URL = st.secrets.get("SUPABASE_URL", "https://xudmbkuruxfdpprwplee.supabase.co")
-SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
-
-@st.cache_resource
-def get_supabase_client():
-    if not SUPABASE_KEY or SUPABASE_KEY.strip() == "":
-        return None
-    try:
-        return create_client(SUPABASE_URL, SUPABASE_KEY)
-    except Exception:
-        return None
-
-supabase_client = get_supabase_client()
 
 def normalize_plan_name(plan_name):
     if not plan_name:
@@ -902,10 +902,11 @@ if not st.session_state.is_logged_in:
                 proceed_to_login = True
                 target_email = email_clean.lower()
 
+        # FIXED: Resolved reference errors where reg_* variables were non-existent
         elif lucky_clicked and is_developer:
-            email_clean = reg_email.strip()
-            password_clean = reg_password.strip()
-            intent_clean = reg_intent.strip()
+            email_clean = st.session_state.login_email_persist.strip()
+            password_clean = st.session_state.login_pass_persist.strip()
+            intent_clean = st.session_state.login_intent_persist.strip()
             intent_pattern = r"[a-zA-Z]{2,}\s+[a-zA-Z]{2,}\s+[a-zA-Z]{2,}"
 
             if not email_clean or not password_clean or not intent_clean:
@@ -1265,93 +1266,94 @@ else:
                 st.rerun()
             except Exception as e:
                 st.error(f"Error compiling video payload: {str(e)}")
-                # === Visible Voice Controls + Live Transcript ===
-                voice_control_html = """
-                <div style='background: linear-gradient(135deg,#0f172a 0%,#111827 100%); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.04);'>
-                    <div style='display:flex; gap:10px; align-items:center;'>
-                        <button id='btnSpeak' style='background:#10b981;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;'>🎤 Speak</button>
-                        <button id='btnStopSpeaking' style='background:#ef4444;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;' disabled>⏹️ Stop Speaking</button>
-                        <button id='btnStopVoice' style='background:#4b5563;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;'>🔇 Stop Voice</button>
-                        <div id='voiceStatus' style='margin-left:12px;color:#94a3b8;'>Ready to capture speech.</div>
-                    </div>
-                    <div id='liveTranscript' style='margin-top:10px;padding:10px;background:rgba(255,255,255,0.02);border-radius:8px;color:#e6eef8;min-height:36px;'> </div>
-                </div>
 
-                <script>
-                    (function(){
-                        const speakBtn = document.getElementById('btnSpeak');
-                        const stopSpeakBtn = document.getElementById('btnStopSpeaking');
-                        const stopVoiceBtn = document.getElementById('btnStopVoice');
-                        const status = document.getElementById('voiceStatus');
-                        const live = document.getElementById('liveTranscript');
+        # FIXED: Relocated voice control panel block out from structural exception scopes so it renders independently
+        voice_control_html = """
+        <div style='background: linear-gradient(135deg,#0f172a 0%,#111827 100%); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.04); margin-top: 15px;'>
+            <div style='display:flex; gap:10px; align-items:center;'>
+                <button id='btnSpeak' style='background:#10b981;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;'>🎤 Speak</button>
+                <button id='btnStopSpeaking' style='background:#ef4444;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;' disabled>⏹️ Stop Speaking</button>
+                <button id='btnStopVoice' style='background:#4b5563;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;'>🔇 Stop Voice</button>
+                <div id='voiceStatus' style='margin-left:12px;color:#94a3b8;'>Ready to capture speech.</div>
+            </div>
+            <div id='liveTranscript' style='margin-top:10px;padding:10px;background:rgba(255,255,255,0.02);border-radius:8px;color:#e6eef8;min-height:36px;'> </div>
+        </div>
 
-                        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                            status.innerText = 'Speech API not supported in this browser.';
-                            speakBtn.disabled = true;
-                        } else {
-                            const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-                            const recog = new Speech();
-                            recog.continuous = true;
-                            recog.interimResults = true;
-                            recog.lang = 'en-US';
-                            let finalText = '';
+        <script>
+            (function(){
+                const speakBtn = document.getElementById('btnSpeak');
+                const stopSpeakBtn = document.getElementById('btnStopSpeaking');
+                const stopVoiceBtn = document.getElementById('btnStopVoice');
+                const status = document.getElementById('voiceStatus');
+                const live = document.getElementById('liveTranscript');
 
-                            speakBtn.addEventListener('click', ()=>{
-                                finalText = '';
-                                live.innerText = '';
-                                recog.start();
-                                speakBtn.disabled = true;
-                                stopSpeakBtn.disabled = false;
-                                status.innerText = '🎙️ Listening...';
-                            });
+                if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                    status.innerText = 'Speech API not supported in this browser.';
+                    speakBtn.disabled = true;
+                } else {
+                    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    const recog = new Speech();
+                    recog.continuous = true;
+                    recog.interimResults = true;
+                    recog.lang = 'en-US';
+                    let finalText = '';
 
-                            stopSpeakBtn.addEventListener('click', ()=>{ if(recog) recog.stop(); });
+                    speakBtn.addEventListener('click', ()=>{
+                        finalText = '';
+                        live.innerText = '';
+                        recog.start();
+                        speakBtn.disabled = true;
+                        stopSpeakBtn.disabled = false;
+                        status.innerText = '🎙️ Listening...';
+                    });
 
-                            recog.onresult = (ev)=>{
-                                let interim = '';
-                                for (let i = ev.resultIndex; i < ev.results.length; ++i) {
-                                    const part = ev.results[i][0].transcript;
-                                    if (ev.results[i].isFinal) finalText += part + ' ';
-                                    else interim += part;
-                                }
-                                live.innerText = finalText + interim;
-                                status.innerText = '✍ Capturing...';
-                            };
+                    stopSpeakBtn.addEventListener('click', ()=>{ if(recog) recog.stop(); });
 
-                            recog.onend = ()=>{
-                                speakBtn.disabled = false;
-                                stopSpeakBtn.disabled = true;
-                                if (finalText.trim() !== '') {
-                                    status.innerText = '🚀 Sending transcript...';
-                                    const topLoc = window.top.location;
-                                    const u = new URL(topLoc.href);
-                                    u.searchParams.set('speech_transit_param', finalText.trim());
-                                    window.top.location.href = u.toString();
-                                } else {
-                                    status.innerText = 'No speech captured.';
-                                }
-                            };
-
-                            recog.onerror = (e)=>{
-                                speakBtn.disabled = false;
-                                stopSpeakBtn.disabled = true;
-                                status.innerText = '⚠️ Speech capture error.';
-                            };
+                    recog.onresult = (ev)=>{
+                        let interim = '';
+                        for (let i = ev.resultIndex; i < ev.results.length; ++i) {
+                            const part = ev.results[i][0].transcript;
+                            if (ev.results[i].isFinal) finalText += part + ' ';
+                            else interim += part;
                         }
+                        live.innerText = finalText + interim;
+                        status.innerText = '✍ Capturing...';
+                    };
 
-                        stopVoiceBtn.addEventListener('click', ()=>{
-                            const audios = document.querySelectorAll('audio');
-                            audios.forEach(a=>{ try{ a.pause(); a.currentTime = 0; }catch(e){} });
-                            status.innerText = '🔇 AI voice muted.';
-                        });
-                    })();
-                </script>
-                """
-                components.html(voice_control_html, height=140)
+                    recog.onend = ()=>{
+                        speakBtn.disabled = false;
+                        stopSpeakBtn.disabled = true;
+                        if (finalText.trim() !== '') {
+                            status.innerText = '🚀 Sending transcript...';
+                            const topLoc = window.top.location;
+                            const u = new URL(topLoc.href);
+                            u.searchParams.set('speech_transit_param', finalText.trim());
+                            window.top.location.href = u.toString();
+                        } else {
+                            status.innerText = 'No speech captured.';
+                        }
+                    };
 
-                # show last captured transcript visibly
-                if st.session_state.get('last_speech_transcript'):
-                        st.markdown(f"**Last captured transcript:** {st.session_state.last_speech_transcript}")
+                    recog.onerror = (e)=>{
+                        speakBtn.disabled = false;
+                        stopSpeakBtn.disabled = true;
+                        status.innerText = '⚠️ Speech capture error.';
+                    };
+                }
+
+                stopVoiceBtn.addEventListener('click', ()=>{
+                    const audios = document.querySelectorAll('audio');
+                    audios.forEach(a=>{ try{ a.pause(); a.currentTime = 0; }catch(e){} });
+                    status.innerText = '🔇 AI voice muted.';
+                });
+            })();
+        </script>
+        """
+        components.html(voice_control_html, height=140)
+
+        # Show last captured transcript visibly
+        if st.session_state.get('last_speech_transcript'):
+            st.markdown(f"**Last captured transcript:** {st.session_state.last_speech_transcript}")
 
         st.markdown("---")
 
